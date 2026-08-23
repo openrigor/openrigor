@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+.git
+.turbo
+**/.turbo
+apps/desktop/out
+apps/desktop/release
+apps/web/.next
+apps/web/out
+apps/web/.vercel
+**/dist
+coverage
+test-results
+playwright-report
+codedb.snapshot
+.langgraph_api

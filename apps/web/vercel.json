@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd ../.. && npx turbo build --filter=@opencanvas/web",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && yarn install --frozen-lockfile",
+  "framework": "nextjs",
+  "regions": ["fra1"]
+}

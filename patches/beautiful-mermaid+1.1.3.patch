@@ -1,0 +1,56 @@
+diff --git a/node_modules/beautiful-mermaid/dist/index.js b/node_modules/beautiful-mermaid/dist/index.js
+index e7e087b..1bde7ac 100644
+--- a/node_modules/beautiful-mermaid/dist/index.js
++++ b/node_modules/beautiful-mermaid/dist/index.js
+@@ -556,10 +556,7 @@ function parseStateDiagram(lines) {
+   return graph;
+ }
+ function registerStateNode(graph, compositeStack, node) {
+-  const isNew = !graph.nodes.has(node.id);
+-  if (isNew) {
+-    graph.nodes.set(node.id, node);
+-  }
++  graph.nodes.set(node.id, node);
+   if (compositeStack.length > 0) {
+     const current = compositeStack[compositeStack.length - 1];
+     if (!current.nodeIds.includes(node.id)) {
+@@ -726,10 +723,7 @@ function consumeNode(text, graph, subgraphStack) {
+   return { id, remaining };
+ }
+ function registerNode(graph, subgraphStack, node) {
+-  const isNew = !graph.nodes.has(node.id);
+-  if (isNew) {
+-    graph.nodes.set(node.id, node);
+-  }
++  graph.nodes.set(node.id, node);
+   trackInSubgraph(subgraphStack, node.id);
+ }
+ function trackInSubgraph(subgraphStack, nodeId) {
+diff --git a/node_modules/beautiful-mermaid/src/parser.ts b/node_modules/beautiful-mermaid/src/parser.ts
+index 685835e..7a31dce 100644
+--- a/node_modules/beautiful-mermaid/src/parser.ts
++++ b/node_modules/beautiful-mermaid/src/parser.ts
+@@ -325,10 +325,7 @@ function registerStateNode(
+   compositeStack: MermaidSubgraph[],
+   node: MermaidNode
+ ): void {
+-  const isNew = !graph.nodes.has(node.id)
+-  if (isNew) {
+-    graph.nodes.set(node.id, node)
+-  }
++  graph.nodes.set(node.id, node)
+   if (compositeStack.length > 0) {
+     const current = compositeStack[compositeStack.length - 1]!
+     if (!current.nodeIds.includes(node.id)) {
+@@ -610,10 +607,7 @@ function registerNode(
+   subgraphStack: MermaidSubgraph[],
+   node: MermaidNode
+ ): void {
+-  const isNew = !graph.nodes.has(node.id)
+-  if (isNew) {
+-    graph.nodes.set(node.id, node)
+-  }
++  graph.nodes.set(node.id, node)
+   trackInSubgraph(subgraphStack, node.id)
+ }
+ 

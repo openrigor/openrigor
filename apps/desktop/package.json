@@ -1,0 +1,53 @@
+{
+  "name": "@opencanvas/desktop",
+  "version": "0.1.0",
+  "description": "Evaluchat desktop Workspace (AI-off MVP)",
+  "author": "Evaluchat <noreply@users.noreply.github.com>",
+  "homepage": "https://github.com/evaluchat/evaluchat",
+  "repository": "https://github.com/evaluchat/evaluchat",
+  "private": true,
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "smoke": "xvfb-run -a electron out/main/index.js --smoke-test",
+    "package:linux": "electron-builder --linux",
+    "package:win": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64",
+    "format": "prettier --config .prettierrc --write \"src\" \"*.ts\" \"*.yml\" \"scripts/**/*.mjs\"",
+    "format:check": "prettier --config .prettierrc --check \"src\" \"*.ts\" \"*.yml\" \"scripts/**/*.mjs\""
+  },
+  "dependencies": {
+    "@blocknote/core": "^0.18.0",
+    "@blocknote/react": "^0.18.0",
+    "@blocknote/shadcn": "^0.18.0",
+    "beautiful-mermaid": "^1.1.3",
+    "clsx": "^2.1.1",
+    "katex": "^0.16.0",
+    "lucide-react": "^0.474.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "tailwind-merge": "^2.5.2"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.8",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
+  }
+}

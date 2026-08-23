@@ -1,0 +1,72 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+**/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+.yarn/cache
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+/dist
+**/dist
+.turbo/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+credentials.json
+
+# LangGraph API
+.langgraph_api
+
+# Electron desktop
+apps/desktop/out/
+apps/desktop/release/
+
+# Internal tooling / dev artifacts (must never reach the public repo)
+codedb.snapshot
+.agents/
+.hermes/
+.superpowers/
+.code-review-graph/
+.demo-record/
+.kilo/
+.cursor/
+.cursorrules
+kilo.jsonc
+data/
+!apps/web/data/
+apps/web/data/*
+!apps/web/data/apparatuses.generated.json
+!apps/web/data/template-catalog.json
+!apps/web/data/platform-template-catalog.json
+test-results/
+playwright-report/
+.env.drill

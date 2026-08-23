@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 0 0% 96.1%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 89.8%;
+  --ring: 0 0% 3.9%;
+  --radius: 0.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.shell h1 {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.shell .subtitle {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 1.05rem;
+}
+
+.shell .meta {
+  margin: 1rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.custom-blocknote-theme {
+  --bn-colors-editor-text: #3f3f3f;
+}
+
+.custom-blocknote-theme a {
+  color: #2563eb !important;
+  text-decoration: none;
+}
+
+.custom-blocknote-theme a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.document-editor .bn-editor {
+  min-height: 100%;
+  padding-inline: 1.5rem;
+}
+
+/* PrintView stays in the DOM for window.print(); hide on screen. */
+@media screen {
+  .print-only-host {
+    display: none;
+  }
+}

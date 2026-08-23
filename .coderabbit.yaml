@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Triage policy: authentication, authorization, and attacker-controlled input
+# hold the merge. Everything else is tracked as board debt, not fixed inline.
+language: en-US
+early_access: false
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    # Free-tier CodeRabbit has limited reviews/hour. Skip automatic review on
+    # dev->main RELEASE PRs (titled with a release marker); we trigger those
+    # manually with @coderabbitai review on demand. Other direct-to-main PRs
+    # (feature/fix) keep automatic review.
+    ignore_title_keywords:
+      - "release:"
+  pre_merge_checks:
+    docstrings:
+      mode: off
+    issue_assessment:
+      mode: off

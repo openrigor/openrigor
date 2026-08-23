@@ -1,0 +1,605 @@
+{
+  "version": 2,
+  "canvas_version": "0.5.9",
+  "apparatuses": [
+    {
+      "id": "ai-assisted-essay",
+      "status": "draft",
+      "version": "0.1.0",
+      "min_canvas_version": "0.5.9",
+      "description": "Method: a constrained dialogic drafting assignment where drafting support is gated behind dialogic contribution. Investigates threshold-calibration and the evidential value of the AI chat transcript for student engagement.",
+      "tags": [
+        "method",
+        "camdle",
+        "essays",
+        "threshold",
+        "engagement-evidence"
+      ],
+      "research_questions": [
+        "threshold-calibration"
+      ],
+      "roles": [
+        "student",
+        "teacher",
+        "org-admin"
+      ],
+      "required_capabilities": [
+        "assignment-context",
+        "student-authoring",
+        "submission",
+        "ai-dialogue",
+        "ai-canvas-actions",
+        "drafting-gate",
+        "process-tracking"
+      ],
+      "telemetry": [
+        "process_signals",
+        "transcript",
+        "output"
+      ],
+      "provenance": {
+        "sources": [
+          {
+            "id": "essays-workflow",
+            "resource": "https://github.com/evaluchat/knowledge/blob/main/concepts/essays-workflow.en.md",
+            "title": "Essays workflow — proportional drafting unlock"
+          }
+        ]
+      },
+      "profiles": [
+        {
+          "id": "canonical-constrained-dialogue",
+          "version": "1.0.0",
+          "label": "Canonical constrained dialogue",
+          "description": "Production-parity Essays workflow with a four-message escape hatch.",
+          "author": "evaluchat",
+          "immutable": true,
+          "configuration": {
+            "ai_assistance": true,
+            "ai_canvas_actions": true,
+            "drafting_gate": "discussion-first",
+            "threshold": 4,
+            "tracking": true
+          }
+        },
+        {
+          "id": "gate-off",
+          "version": "1.0.0",
+          "label": "Drafting gate off",
+          "description": "AI assistance without a thesis gate.",
+          "author": "evaluchat",
+          "immutable": true,
+          "configuration": {
+            "ai_assistance": true,
+            "ai_canvas_actions": true,
+            "drafting_gate": "none",
+            "threshold": 0,
+            "tracking": true
+          }
+        },
+        {
+          "id": "ai-off",
+          "version": "1.0.0",
+          "label": "Authoring without AI",
+          "description": "Assignment context, local authoring, and submission without agent calls.",
+          "author": "evaluchat",
+          "immutable": true,
+          "configuration": {
+            "ai_assistance": false,
+            "ai_canvas_actions": false,
+            "drafting_gate": "none",
+            "threshold": 0,
+            "tracking": true
+          }
+        },
+        {
+          "id": "canvas-actions-off",
+          "version": "1.0.0",
+          "label": "Dialogue without canvas actions",
+          "description": "AI dialogue remains available while AI generation and edits are disabled.",
+          "author": "evaluchat",
+          "immutable": true,
+          "configuration": {
+            "ai_assistance": true,
+            "ai_canvas_actions": false,
+            "drafting_gate": "discussion-first",
+            "threshold": 4,
+            "tracking": true
+          }
+        },
+        {
+          "id": "tracking-off",
+          "version": "1.0.0",
+          "label": "No process tracking",
+          "description": "Canonical workflow without process telemetry capture or display.",
+          "author": "evaluchat",
+          "immutable": true,
+          "configuration": {
+            "ai_assistance": true,
+            "ai_canvas_actions": true,
+            "drafting_gate": "discussion-first",
+            "threshold": 4,
+            "tracking": false
+          }
+        }
+      ],
+      "run_brief_template": "evaluchat-assignment-brief@1.0.0",
+      "evidence_template": {
+        "id": "evidence-template",
+        "version": "1.0.0",
+        "defaultStage": "documented-experience",
+        "fields": {
+          "method_id": {
+            "label": "Method ID",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.method.id"
+          },
+          "method_version": {
+            "label": "Method version",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.method.version"
+          },
+          "run_reference": {
+            "label": "Run reference",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.workspace_item_guid"
+          },
+          "profile_id": {
+            "label": "Resolved profile",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.profile.id"
+          },
+          "resolved_levers": {
+            "label": "Resolved levers",
+            "type": "textarea",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.levers",
+            "max_length": 4000,
+            "display_lines": 8
+          },
+          "canvas_version": {
+            "label": "Canvas version",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.canvas.version"
+          },
+          "run_started_at": {
+            "label": "Run started",
+            "type": "date",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.started_at"
+          },
+          "run_concluded_at": {
+            "label": "Run concluded",
+            "type": "date",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.concluded_at"
+          },
+          "participant_count": {
+            "label": "Participant count",
+            "type": "number",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.participant_count",
+            "min": 0,
+            "max": 100000
+          },
+          "eligible_owner_count": {
+            "label": "Eligible evidence contributors",
+            "type": "number",
+            "required": true,
+            "read_only": true,
+            "source": "collection.eligible_owner_count",
+            "min": 0,
+            "max": 100000
+          },
+          "invited_owner_count": {
+            "label": "Invited evidence contributors",
+            "type": "number",
+            "required": true,
+            "read_only": true,
+            "source": "collection.invited_owner_count",
+            "min": 0,
+            "max": 100000
+          },
+          "responded_owner_count": {
+            "label": "Submitted evidence contributors",
+            "type": "number",
+            "required": true,
+            "read_only": true,
+            "source": "collection.responded_owner_count",
+            "min": 0,
+            "max": 100000
+          },
+          "collection_opened_at": {
+            "label": "Evidence invitation opened",
+            "type": "date",
+            "required": true,
+            "read_only": true,
+            "source": "collection.opened_at"
+          },
+          "collection_closed_at": {
+            "label": "Evidence submitted",
+            "type": "date",
+            "required": true,
+            "read_only": true,
+            "source": "collection.submitted_at"
+          },
+          "dialogic_contribution_summary": {
+            "label": "Dialogic contribution summary",
+            "type": "textarea",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.analytics.dialogic_contribution_summary",
+            "max_length": 4000,
+            "display_lines": 6
+          },
+          "drafting_gate_outcome": {
+            "label": "Drafting-gate outcome",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.analytics.drafting_gate_outcome"
+          },
+          "process_signal_summary": {
+            "label": "Process-signal summary",
+            "type": "textarea",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.analytics.process_signal_summary",
+            "max_length": 4000,
+            "display_lines": 6
+          },
+          "transcript_retention": {
+            "label": "Transcript retention record",
+            "type": "text",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.provenance.transcript_retention"
+          },
+          "assignment_outcome_summary": {
+            "label": "Assignment outcome summary",
+            "type": "textarea",
+            "required": true,
+            "read_only": true,
+            "source": "frozen_run.analytics.assignment_outcome_summary",
+            "max_length": 4000,
+            "display_lines": 6
+          },
+          "institution_type": {
+            "label": "Institution type",
+            "type": "select",
+            "required": true,
+            "options": [
+              "school",
+              "college-or-university",
+              "adult-education",
+              "tutoring-or-small-group",
+              "other",
+              "prefer-not-to-say"
+            ]
+          },
+          "assignment_genre": {
+            "label": "Assignment genre",
+            "type": "select",
+            "required": true,
+            "options": [
+              "argumentative-essay",
+              "analytical-essay",
+              "literature-essay",
+              "reflective-essay",
+              "other-written-assignment",
+              "mixed-or-other"
+            ]
+          },
+          "learner_proficiency_context": {
+            "label": "Learner proficiency context",
+            "type": "select",
+            "required": true,
+            "options": [
+              "primarily-beginner",
+              "primarily-developing",
+              "primarily-proficient",
+              "mixed",
+              "not-assessed-or-not-known"
+            ]
+          },
+          "learner_age_band": {
+            "label": "Learner age band",
+            "type": "select",
+            "required": true,
+            "options": [
+              "under-13",
+              "13-to-15",
+              "16-to-18",
+              "19-to-24",
+              "25-or-over",
+              "mixed",
+              "prefer-not-to-say"
+            ]
+          },
+          "instruction_language": {
+            "label": "Primary language of instruction",
+            "type": "text",
+            "required": true,
+            "max_length": 120,
+            "display_chars": 32
+          },
+          "writing_language": {
+            "label": "Primary language of writing",
+            "type": "text",
+            "required": true,
+            "max_length": 120,
+            "display_chars": 32
+          },
+          "implementation_duration": {
+            "label": "Implementation duration",
+            "type": "text",
+            "required": true,
+            "max_length": 160,
+            "display_chars": 48
+          },
+          "class_and_task_context": {
+            "label": "Class and task context",
+            "type": "textarea",
+            "required": true,
+            "max_length": 2000,
+            "display_lines": 6
+          },
+          "assignment_public_summary": {
+            "label": "Public summary of the assignment",
+            "type": "textarea",
+            "required": true,
+            "max_length": 1200,
+            "display_lines": 4
+          },
+          "implementation_deviation": {
+            "label": "Deviation from the frozen method run",
+            "type": "textarea",
+            "required": true,
+            "max_length": 1600,
+            "display_lines": 5
+          },
+          "threshold_fit": {
+            "label": "Fit of the configured contribution threshold",
+            "type": "select",
+            "required": true,
+            "options": [
+              "much-too-low",
+              "somewhat-too-low",
+              "about-right",
+              "somewhat-too-high",
+              "much-too-high",
+              "insufficient-information",
+              "not-applicable-gate-disabled"
+            ]
+          },
+          "threshold_fit_explanation": {
+            "label": "Threshold-fit explanation",
+            "type": "textarea",
+            "required": true,
+            "max_length": 2000,
+            "display_lines": 6
+          },
+          "process_evidence_usefulness": {
+            "label": "Usefulness of the process evidence for this assignment",
+            "type": "select",
+            "required": true,
+            "options": [
+              "not-at-all-useful",
+              "slightly-useful",
+              "moderately-useful",
+              "very-useful",
+              "extremely-useful",
+              "insufficient-information",
+              "not-applicable"
+            ]
+          },
+          "process_evidence_explanation": {
+            "label": "Process-evidence explanation",
+            "type": "textarea",
+            "required": true,
+            "max_length": 2000,
+            "display_lines": 6
+          },
+          "review_burden": {
+            "label": "Perceived review burden",
+            "type": "select",
+            "required": true,
+            "options": [
+              "none",
+              "low",
+              "moderate",
+              "high",
+              "unacceptable",
+              "insufficient-information"
+            ]
+          },
+          "learner_response_to_gate": {
+            "label": "Observed class response to the contribution-before-drafting constraint",
+            "type": "select",
+            "required": true,
+            "options": [
+              "strongly-negative",
+              "somewhat-negative",
+              "mixed-or-no-consistent-pattern",
+              "somewhat-positive",
+              "strongly-positive",
+              "insufficient-information",
+              "not-applicable-gate-disabled"
+            ]
+          },
+          "future_use_intention": {
+            "label": "Intention to use this configuration again in a comparable assignment",
+            "type": "select",
+            "required": true,
+            "options": [
+              "definitely-would-not",
+              "probably-would-not",
+              "unsure",
+              "probably-would",
+              "definitely-would",
+              "not-applicable"
+            ]
+          },
+          "narrative_observations": {
+            "label": "Observations from the concluded run",
+            "type": "textarea",
+            "required": true,
+            "max_length": 4000,
+            "display_lines": 10
+          },
+          "missing_data": {
+            "label": "Missing or unavailable data",
+            "type": "textarea",
+            "required": true,
+            "max_length": 1600,
+            "display_lines": 5
+          },
+          "reflection": {
+            "label": "Reflection and next-step interpretation",
+            "type": "textarea",
+            "required": true,
+            "max_length": 3000,
+            "display_lines": 8
+          },
+          "limitations": {
+            "label": "Limitations and competing explanations",
+            "type": "textarea",
+            "required": true,
+            "max_length": 3000,
+            "display_lines": 8
+          },
+          "contribution_stage": {
+            "label": "Declared contribution stage",
+            "type": "select",
+            "required": true,
+            "options": [
+              "documented-experience",
+              "structured-experiment",
+              "replication",
+              "challenge"
+            ]
+          },
+          "publication_authorisation": {
+            "label": "Public contribution authorisation",
+            "type": "select",
+            "required": true,
+            "options": [
+              "confirmed-authorised-to-publish",
+              "not-confirmed-do-not-submit"
+            ]
+          },
+          "anonymisation_status": {
+            "label": "Anonymisation status",
+            "type": "select",
+            "required": true,
+            "options": [
+              "confirmed-no-student-identifiers-or-raw-student-material",
+              "needs-human-privacy-review",
+              "not-ready-for-publication"
+            ]
+          },
+          "data_sharing_limits": {
+            "label": "Public data-sharing limits",
+            "type": "textarea",
+            "required": true,
+            "max_length": 1600,
+            "display_lines": 5
+          }
+        },
+        "layoutMarkdown": "# AI-assisted essay — concluded-run evidence\n\n> This packet documents one concluded run and one owner response. It is not a\n> finding, a learning-effect claim, an integrity score, or a statement about all\n> teachers or learners. Public submission is allowed only when the authorisation\n> and anonymisation fields are confirmed.\n\n## Question\n\nThis evidence serves [Threshold calibration — what counts as sufficient dialogic\ncontribution?](../../theory/threshold-calibration.en.md):\n\n> What counts as sufficient dialogic contribution to unlock drafting support,\n> and how does that threshold vary by task type, proficiency level, language\n> background, and learner strategy?\n\n## Measurement contract\n\n- **Decision this collection can inform:** whether to refine the threshold,\n  process-evidence review surface, or a future study in comparable settings.\n- **Unit of analysis:** one method-run owner response, with one frozen run\n  snapshot; this is not a learner-level measure.\n- **Observable:** the owner’s response to the versioned, context-specific\n  usefulness, threshold-fit, burden, learner-response, and reuse-intention\n  items below.\n- **Aggregation rule:** later synthesis must retain the full response\n  distribution, instrument version, denominators, context, and missing or\n  not-applicable responses. It may pool only comparable method versions,\n  resolved levers, and contexts; narrative text requires an explicit coding\n  method.\n\n## Question and provenance — system-authored\n\n| Field | Frozen value |\n| --- | --- |\n| Method | {{method_id}}@{{method_version}} |\n| Run reference | {{run_reference}} |\n| Profile | {{profile_id}} |\n| Resolved levers | {{resolved_levers}} |\n| Canvas version | {{canvas_version}} |\n| Run window | {{run_started_at}} to {{run_concluded_at}} |\n\nThe platform, not the owner, writes these values from the concluded-run\nsnapshot. The public packet must never contain raw student work or raw\ntranscripts.\n\n## Collection metadata — system-authored\n\n| Field | Value |\n| --- | --- |\n| Participants in the run | {{participant_count}} |\n| Eligible evidence contributors | {{eligible_owner_count}} |\n| Invited evidence contributors | {{invited_owner_count}} |\n| Submitted evidence contributors | {{responded_owner_count}} |\n| Invitation opened | {{collection_opened_at}} |\n| Evidence submitted | {{collection_closed_at}} |\n\nThe denominator is published so a later reader can distinguish a completed\nowner response from a representative survey.\n\n## Context — owner-authored\n\n| Field | Response |\n| --- | --- |\n| Institution type | {{institution_type}} |\n| Assignment genre | {{assignment_genre}} |\n| Learner proficiency context | {{learner_proficiency_context}} |\n| Learner age band | {{learner_age_band}} |\n| Primary language of instruction | {{instruction_language}} |\n| Primary language of writing | {{writing_language}} |\n| Implementation duration | {{implementation_duration}} |\n\n### Class and task context\n\n{{class_and_task_context}}\n\nDescribe the subject or course and other transfer-relevant constraints. Do not\ninclude student, school, or other direct identifiers.\n\n## Intervention — frozen run plus owner-recorded deviation\n\n### Platform record\n\n| Measure | Value |\n| --- | --- |\n| Dialogic contribution summary | {{dialogic_contribution_summary}} |\n| Drafting-gate outcome | {{drafting_gate_outcome}} |\n| Process-signal summary | {{process_signal_summary}} |\n| Transcript retention record | {{transcript_retention}} |\n| Assignment outcome summary | {{assignment_outcome_summary}} |\n\nThese are measurements and retention records, not authorship detection,\nintegrity scores, or interpretations.\n\n### Deviation from the frozen run\n\n{{implementation_deviation}}\n\nState what differed from the planned or resolved intervention and why. Write\n“None” if there was no deviation.\n\n### Public summary of the assignment\n\n{{assignment_public_summary}}\n\nDescribe the task sufficiently for another reader to understand the intervention.\nDo not include raw student work, the unredacted assignment brief, school\nidentifiers, or any material that cannot be published.\n\n## Structured owner judgements\n\nEach response is a report of this owner’s experience of this assignment. The\nfull ordinal value — including `insufficient-information` and\n`not-applicable` — is retained for later tabulation; it must not be silently\nconverted into a claim about pedagogical effect.\n\n| Versioned item | Response |\n| --- | --- |\n| How well did the configured contribution threshold fit this class and assignment? | {{threshold_fit}} |\n| For this assignment, how useful was the process evidence for helping you inspect students’ reasoning process? | {{process_evidence_usefulness}} |\n| How burdensome was it to review the process evidence for this assignment? | {{review_burden}} |\n| At the time of this assignment, how would you characterise the class’s response to the contribution-before-drafting constraint? | {{learner_response_to_gate}} |\n| Would you use this configuration again for a comparable assignment? | {{future_use_intention}} |\n\n### Threshold-fit explanation\n\n{{threshold_fit_explanation}}\n\nName the task, class, time, or implementation constraint that most affected the\nthreshold judgement. Do not state that the threshold caused a learning outcome.\n\n### Process-evidence explanation\n\n{{process_evidence_explanation}}\n\nExplain what made the process evidence more or less useful for this review.\n\n## Observations — owner-authored narrative\n\n{{narrative_observations}}\n\nRecord what happened, what was seen, and any surprising or disconfirming case.\nDo not interpret the observations here or identify a learner.\n\n## Results — missing or unavailable data\n\n{{missing_data}}\n\nRecord measures that were not captured, withheld, lost, unavailable, or not\napplicable. Write “None” only when nothing is missing.\n\n## Reflection — owner-authored interpretation\n\n{{reflection}}\n\nThis is interpretation, not a result or finding. State what remains uncertain\nand what you would change or investigate next.\n\n## Limitations\n\n{{limitations}}\n\nState the scope, likely confounders, selection or non-response limitations,\nrecall limits, and competing explanations. A single response cannot establish a\nlearning effect, represent all teachers, or validate the method.\n\n## Publication provenance and stage\n\n| Field | Declaration |\n| --- | --- |\n| Contribution stage | {{contribution_stage}} |\n| Public contribution authorisation | {{publication_authorisation}} |\n| Anonymisation status | {{anonymisation_status}} |\n\n### Public data-sharing limits\n\n{{data_sharing_limits}}\n\nState what cannot be shared or independently reproduced, the reason, and the\nstrongest lawful substitute (for example, aggregate counts, a data dictionary,\nor a redacted summary). A non-confirmed authorisation or anonymisation status\nblocks submission.\n",
+        "guidance": "Help the owner describe only their concluded run. Never infer, invent, or expose student information, raw student work, raw transcripts, or consent. Render the frozen system-authored fields exactly as provided; never alter, duplicate, or add system measurements. Keep observations factual and separate from reflection; describe perceptions as perceptions, not proof of learning, engagement, effectiveness, or the views of teachers beyond this response. A response that is not authorised or not anonymised must not be submitted for public publication.",
+        "sourcePath": "methods/ai-assisted-essay/evidence-template.en.md"
+      },
+      "platform": {
+        "participant_invitations": "required",
+        "review_surface": "essay-process-review"
+      },
+      "catalog_urls": {
+        "spec": "https://github.com/evaluchat/research/blob/main/methods/ai-assisted-essay/ai-assisted-essay.en.md",
+        "evidence": "https://github.com/evaluchat/research/tree/main/methods/ai-assisted-essay/evidence",
+        "questions": [
+          "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md"
+        ]
+      },
+      "generated": {
+        "by": "cursor-grok/4.6",
+        "at": "2026-08-13T14:48:00.000Z"
+      },
+      "sources": [
+        {
+          "id": "essays-workflow",
+          "resource": "https://github.com/evaluchat/knowledge/blob/main/concepts/essays-workflow.en.md",
+          "title": "Essays workflow — proportional drafting unlock (knowledge catalog)"
+        },
+        {
+          "id": "research-method",
+          "resource": "https://github.com/evaluchat/knowledge/blob/main/concepts/research-method.en.md",
+          "title": "Research methods — how Methods use platform capabilities and levers (knowledge catalog)"
+        },
+        {
+          "id": "evidence-roles",
+          "resource": "https://github.com/evaluchat/research/blob/main/governance/evidence-roles.en.md",
+          "title": "Shared evidence roles — how evidence cites a method (research catalog)"
+        }
+      ],
+      "knobs": [
+        {
+          "id": "ai_assistance",
+          "type": "boolean",
+          "default": true,
+          "effect": "Whether the assignment may call an AI agent."
+        },
+        {
+          "id": "ai_canvas_actions",
+          "type": "boolean",
+          "default": true,
+          "requires": {
+            "ai_assistance": true
+          },
+          "effect": "Whether AI generation and edit actions are available on the canvas."
+        },
+        {
+          "id": "drafting_gate",
+          "type": "enum",
+          "values": [
+            "none",
+            "discussion-first",
+            "thesis-approved"
+          ],
+          "default": "discussion-first",
+          "effect": "The policy controlling when drafting assistance becomes available."
+        },
+        {
+          "id": "threshold",
+          "type": "integer",
+          "min": 0,
+          "max": 100,
+          "default": 4,
+          "effect": "Visible student contributions before the escape hatch."
+        },
+        {
+          "id": "tracking",
+          "type": "boolean",
+          "default": true,
+          "effect": "Whether process telemetry is captured and displayed."
+        }
+      ],
+      "name": "AI-assisted essay — constrained dialogic drafting (CAMDLE)",
+      "min_platform": "0.5.9"
+    }
+  ]
+}

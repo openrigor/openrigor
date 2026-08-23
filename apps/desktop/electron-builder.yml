@@ -1,0 +1,28 @@
+appId: com.evaluchat.canvas
+productName: Evaluchat
+electronVersion: 33.4.11
+directories:
+  output: release
+files:
+  - out/**
+asar: true
+win:
+  # Cross-builds from Linux/WSL cannot sign/rcedit without Wine.
+  signAndEditExecutable: false
+  target:
+    - dir
+    - portable
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  maintainer: Evaluchat <noreply@users.noreply.github.com>
+  executableName: evaluchat-canvas
+deb:
+  packageName: evaluchat-canvas
+artifactName: ${productName}-${version}-${arch}.${ext}
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity

@@ -1,0 +1,177 @@
+# Run formatting on all PRs
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch: # Allows triggering the workflow manually in GitHub UI
+
+# If another push to the same PR or branch happens while this workflow is still running,
+# cancel the earlier run in favor of the next run.
+#
+# There's no point in testing an outdated version of the code. GitHub only allows
+# a limited number of job runners to be active at the same time, so it's better to cancel
+# pointless jobs early so that more useful jobs can run sooner.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: "yarn"
+      - name: Install dependencies
+        run: yarn install --immutable --mode=skip-build
+      - name: Check formatting
+        run: yarn format:check
+
+  lint:
+    name: Check linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: "yarn"
+      - name: Install dependencies
+        run: yarn install --immutable --mode=skip-build
+      - name: Check linting
+        run: yarn run lint
+
+  readme-spelling:
+    name: Check README spelling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: codespell-project/actions-codespell@v2
+        with:
+          ignore_words_file: .codespellignore
+          path: README.md
+
+  check-spelling:
+    name: Check code spelling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: codespell-project/actions-codespell@v2
+        with:
+          ignore_words_file: .codespellignore
+          path: src
+
+  dev-server-check:
+    name: Check dev server startup
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/agents
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enable Corepack
+        run: corepack enable
+        working-directory: .
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: "yarn"
+      - name: Install dependencies
+        run: yarn install --immutable
+        working-directory: .
+      - name: Build all packages
+        run: yarn build
+        working-directory: .
+      - name: Build dev server check script
+        run: yarn tsc --module commonjs --outDir ./dist/scripts --target es2022 --skipLibCheck ./scripts/check-dev-server.ts
+      - name: Rename compiled script to .cjs
+        run: mv ./dist/scripts/check-dev-server.js ./dist/scripts/check-dev-server.cjs
+      - name: Create .env file for dev server check
+        # .env needs to be in the root of the project
+        run: touch ../../.env
+      - name: Run dev server check
+        run: node ./dist/scripts/check-dev-server.cjs
+        env:
+          NODE_ENV: development
+        timeout-minutes: 2
+
+  build-check:
+    name: Check project build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: "yarn"
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Build all packages
+        run: yarn build
+
+  docs-allowlist:
+    name: Check docs/ allowlist
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Verify docs/ contains only allowed paths
+        run: bash scripts/check-docs-allowlist.sh
+
+  template-catalog:
+    name: Verify public template catalog snapshot
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check out public Knowledge templates
+        uses: actions/checkout@v6
+        with:
+          repository: evaluchat/knowledge
+          ref: main
+          path: knowledge-source
+          persist-credentials: false
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: "yarn"
+      - name: Install dependencies
+        run: yarn install --immutable --mode=skip-build
+      - name: Generate catalog from evaluchat/knowledge@main
+        run: yarn generate:templates
+        env:
+          EVALUCHAT_TEMPLATE_SOURCE_ROOT: ${{ github.workspace }}/knowledge-source/templates
+          EVALUCHAT_TEMPLATE_CATALOG_OUTPUT: ${{ runner.temp }}/template-catalog.json
+      - name: Verify committed snapshot
+        run: diff -u apps/web/data/template-catalog.json "${{ runner.temp }}/template-catalog.json"
+      - name: Generate platform template snapshot
+        run: yarn generate:platform-templates
+        env:
+          EVALUCHAT_PLATFORM_TEMPLATE_CATALOG_OUTPUT: ${{ runner.temp }}/platform-template-catalog.json
+      - name: Verify committed platform snapshot
+        run: diff -u apps/web/data/platform-template-catalog.json "${{ runner.temp }}/platform-template-catalog.json"
