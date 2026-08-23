@@ -1,18 +1,18 @@
-# Evaluchat
+# OpenRigor
 
-[![CI](https://github.com/evaluchat/evaluchat/actions/workflows/ci.yml/badge.svg)](https://github.com/evaluchat/evaluchat/actions/workflows/ci.yml)
+[![CI](https://github.com/openrigor/openrigor/actions/workflows/ci.yml/badge.svg)](https://github.com/openrigor/openrigor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Open-source AI writing and education research workspace.** Evaluchat combines
+**Open-source AI writing and education research workspace.** OpenRigor combines
 an authoring workspace with reviewed, reproducible research apparatuses so
 educators, administrators, and researchers can run classroom writing workflows
 and inspect the evidence they produce.
 
-Evaluchat is an independent, open-source continuation of
+OpenRigor is an independent, open-source continuation of
 [LangChain Open Canvas](https://github.com/langchain-ai/open-canvas) (MIT). We're
 grateful for the original project — see [Acknowledgments](#acknowledgments).
 
-Try the public beta at [evaluchat.org](https://evaluchat.org), or run it yourself
+Try the public beta at [openrigor.org](https://openrigor.org), or run it yourself
 (local or self-hosted — see [Setup locally](#setup-locally)).
 
 ## Features
@@ -47,8 +47,8 @@ Try the public beta at [evaluchat.org](https://evaluchat.org), or run it yoursel
 Prerequisites: **Node 22** and **Yarn 1.22** (corepack: `corepack enable`).
 
 ```bash
-git clone https://github.com/evaluchat/evaluchat.git
-cd evaluchat
+git clone https://github.com/openrigor/openrigor.git
+cd openrigor
 yarn install
 ```
 
@@ -103,11 +103,11 @@ before large changes. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Related surfaces
 
-Evaluchat is one of Evaluchat's open surfaces. The same document workspace
+OpenRigor is one of OpenRigor's open surfaces. The same document workspace
 also powers:
 
-- **Evaluchat Essays** — the built-in education apparatus and assignment workflow
-- **Evaluchat Research** — public GitHub-first research on AI in education and assessment
+- **OpenRigor Essays** — the built-in education apparatus and assignment workflow
+- **OpenRigor Research** — public GitHub-first research on AI in education and assessment
 
 ## Beta scope
 
@@ -126,7 +126,7 @@ turnkey self-host install and database migration are not launch deliverables.
 
 ## Acknowledgments
 
-Evaluchat is derived from and inspired by
+OpenRigor is derived from and inspired by
 [LangChain Open Canvas](https://github.com/langchain-ai/open-canvas), licensed under
 the MIT License. The original copyright notice and license text are preserved in
 [LICENSE-LANGCHAIN](LICENSE-LANGCHAIN). We extend our appreciation to the LangChain

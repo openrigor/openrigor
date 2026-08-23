@@ -3,8 +3,8 @@
 Prerequisites: **Node 22** and **Yarn 1.22** (`corepack enable`).
 
 ```bash
-git clone https://github.com/evaluchat/evaluchat.git
-cd evaluchat
+git clone https://github.com/openrigor/openrigor.git
+cd openrigor
 yarn install
 ```
 

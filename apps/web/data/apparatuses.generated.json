@@ -41,7 +41,7 @@
         "sources": [
           {
             "id": "essays-workflow",
-            "resource": "https://github.com/evaluchat/knowledge/blob/main/concepts/essays-workflow.en.md",
+            "resource": "https://github.com/openrigor/knowledge/blob/main/concepts/essays-workflow.en.md",
             "title": "Essays workflow — proportional drafting unlock"
           }
         ]
@@ -52,7 +52,7 @@
           "version": "1.0.0",
           "label": "Canonical constrained dialogue",
           "description": "Production-parity Essays workflow with a four-message escape hatch.",
-          "author": "evaluchat",
+          "author": "openrigor",
           "immutable": true,
           "configuration": {
             "ai_assistance": true,
@@ -67,7 +67,7 @@
           "version": "1.0.0",
           "label": "Drafting gate off",
           "description": "AI assistance without a thesis gate.",
-          "author": "evaluchat",
+          "author": "openrigor",
           "immutable": true,
           "configuration": {
             "ai_assistance": true,
@@ -82,7 +82,7 @@
           "version": "1.0.0",
           "label": "Authoring without AI",
           "description": "Assignment context, local authoring, and submission without agent calls.",
-          "author": "evaluchat",
+          "author": "openrigor",
           "immutable": true,
           "configuration": {
             "ai_assistance": false,
@@ -97,7 +97,7 @@
           "version": "1.0.0",
           "label": "Dialogue without canvas actions",
           "description": "AI dialogue remains available while AI generation and edits are disabled.",
-          "author": "evaluchat",
+          "author": "openrigor",
           "immutable": true,
           "configuration": {
             "ai_assistance": true,
@@ -112,7 +112,7 @@
           "version": "1.0.0",
           "label": "No process tracking",
           "description": "Canonical workflow without process telemetry capture or display.",
-          "author": "evaluchat",
+          "author": "openrigor",
           "immutable": true,
           "configuration": {
             "ai_assistance": true,
@@ -529,10 +529,10 @@
         "review_surface": "essay-process-review"
       },
       "catalog_urls": {
-        "spec": "https://github.com/evaluchat/research/blob/main/methods/ai-assisted-essay/ai-assisted-essay.en.md",
-        "evidence": "https://github.com/evaluchat/research/tree/main/methods/ai-assisted-essay/evidence",
+        "spec": "https://github.com/openrigor/research/blob/main/methods/ai-assisted-essay/ai-assisted-essay.en.md",
+        "evidence": "https://github.com/openrigor/research/tree/main/methods/ai-assisted-essay/evidence",
         "questions": [
-          "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md"
+          "https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md"
         ]
       },
       "generated": {
@@ -542,17 +542,17 @@
       "sources": [
         {
           "id": "essays-workflow",
-          "resource": "https://github.com/evaluchat/knowledge/blob/main/concepts/essays-workflow.en.md",
+          "resource": "https://github.com/openrigor/knowledge/blob/main/concepts/essays-workflow.en.md",
           "title": "Essays workflow — proportional drafting unlock (knowledge catalog)"
         },
         {
           "id": "research-method",
-          "resource": "https://github.com/evaluchat/knowledge/blob/main/concepts/research-method.en.md",
+          "resource": "https://github.com/openrigor/knowledge/blob/main/concepts/research-method.en.md",
           "title": "Research methods — how Methods use platform capabilities and levers (knowledge catalog)"
         },
         {
           "id": "evidence-roles",
-          "resource": "https://github.com/evaluchat/research/blob/main/governance/evidence-roles.en.md",
+          "resource": "https://github.com/openrigor/research/blob/main/governance/evidence-roles.en.md",
           "title": "Shared evidence roles — how evidence cites a method (research catalog)"
         }
       ],

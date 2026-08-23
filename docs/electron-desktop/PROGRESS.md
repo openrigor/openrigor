@@ -1,4 +1,4 @@
-# Evaluchat Desktop — Progress Log
+# OpenRigor Desktop — Progress Log
 
 Branch `feat/electron-desktop` · Plan: `PLAN.md` · Runbook: `RUNBOOK.md`
 
@@ -18,7 +18,7 @@ Branch `feat/electron-desktop` · Plan: `PLAN.md` · Runbook: `RUNBOOK.md`
 | 1     | T1.5 AI-gating architecture          | pending (after T3.1a)     |               | Gate for Phase 2 — keep AI absent until then                                |
 | 1     | T1.6 Playwright E2E suite            | pending (after T3.1a)     |               | MVP used FS unit round-trip; GUI E2E next after Win packaging               |
 | 2     | T2.1–T2.5 BYOK AI                    | pending                   |               | Starts after T1.5                                                           |
-| 3     | T3.1a Win host packaging path        | done (2026-08-10, iter 3) | c732e54       | `win dir` from WSL; host run at `C:\Users\Public\Evaluchat`; see log  |
+| 3     | T3.1a Win host packaging path        | done (2026-08-10, iter 3) | c732e54       | `win dir` from WSL; host run at `C:\Users\Public\OpenRigor`; see log  |
 | 3     | T3.1b Icons + CI win/linux artifacts | done (2026-08-10, iter 3) | fc8d723       | icon.png 1024×1024; package:linux + package:win exit 0; smoke SMOKE_OK    |
 | 3     | T3.2 Auto-update                     | pending                   |               |                                                                             |
 | 3     | T3.3 Tagged v0.1.0 release           | pending                   |               | After T3.1b                                                                 |
@@ -70,7 +70,7 @@ Branch `feat/electron-desktop` · Plan: `PLAN.md` · Runbook: `RUNBOOK.md`
   - `yarn workspace @opencanvas/desktop build` → exit 0 (`out/main` + preload + renderer)
   - `yarn workspace @opencanvas/desktop smoke` → `SMOKE_OK`, exit 0
   - `yarn workspace @opencanvas/desktop package:linux` → exit 0
-- Package artifacts: `apps/desktop/release/linux-unpacked/`, `apps/desktop/release/Evaluchat-0.1.0-x86_64.AppImage`, `apps/desktop/release/Evaluchat-0.1.0-amd64.deb`
+- Package artifacts: `apps/desktop/release/linux-unpacked/`, `apps/desktop/release/OpenRigor-0.1.0-x86_64.AppImage`, `apps/desktop/release/OpenRigor-0.1.0-amd64.deb`
 - Functional: FS write/read round-trip preserves Mermaid fence + `$`/`$$` LaTeX sample; App code has Raw toggle + PrintView (GUI automation under xvfb deferred with T1.6).
 - Shipped docs gate: `68a885d`.
 - Next (at time): T1.5 / Phase 2+ — **superseded** by Windows-host packaging priority below.
@@ -87,8 +87,8 @@ Branch `feat/electron-desktop` · Plan: `PLAN.md` · Runbook: `RUNBOOK.md`
   - `.github/workflows/ci.yml` — desktop job: `package:linux` (AppImage+deb) + `package:win` (portable exe) + `upload-artifact@v4` from `apps/desktop/release/**` (excludes `builder-debug.yml`).
 - Verified (real output):
   - `typecheck` exit 0 · `test` 35 passed (35) · `build` exit 0 · `format:check` "All matched files use Prettier code style!" · `file build/icon.png` → "PNG image data, 1024 x 1024, 8-bit/color RGBA, non-interlaced"
-  - `package:linux` exit 0 → `Evaluchat-0.1.0-x86_64.AppImage` (162 MB) + `Evaluchat-0.1.0-amd64.deb` (97 MB); deb embeds `usr/share/icons/hicolor/1024x1024/apps/evaluchat-canvas.png`
-  - `package:win` exit 0 → `win-unpacked/` + `Evaluchat-0.1.0-x64.exe` (96 MB portable; signing skipped as configured)
+  - `package:linux` exit 0 → `OpenRigor-0.1.0-x86_64.AppImage` (162 MB) + `OpenRigor-0.1.0-amd64.deb` (97 MB); deb embeds `usr/share/icons/hicolor/1024x1024/apps/openrigor-canvas.png`
+  - `package:win` exit 0 → `win-unpacked/` + `OpenRigor-0.1.0-x64.exe` (96 MB portable; signing skipped as configured)
   - `smoke` → `SMOKE_OK`, exit 0
 - Shipped: fc8d723 (pushed). No sidecar files touched.
 - Next: T1.6 Playwright Electron E2E (new → edit Mermaid/LaTeX → save → reopen identity; Raw + Print smoke).
@@ -98,9 +98,9 @@ Branch `feat/electron-desktop` · Plan: `PLAN.md` · Runbook: `RUNBOOK.md`
 - Problem: Linux AppImage/deb do not run on the Windows host; WSL `package:win` without Wine failed on code-sign/rcedit; launching from IDE/agent shells exited immediately with `bad option: --…`.
 - Root causes + fixes:
   - Cross-build: `CSC_IDENTITY_AUTO_DISCOVERY=false` + `win.signAndEditExecutable: false` → `electron-builder --win dir --x64` produces `release/win-unpacked/`.
-  - Host path: copy unpacked tree to a **native** Windows directory (e.g. `C:\Users\Public\Evaluchat`) — do not launch from `\\wsl$\…`.
-  - Env trap: unset `ELECTRON_RUN_AS_NODE` (set by some IDE/agent terminals) or use `apps/desktop/scripts/Launch Evaluchat.cmd`.
-- Verified: Windows process stays up with main window title `Untitled — Evaluchat`.
-- Working tree (not yet committed): `electron-builder.yml` (win `dir`/`portable` + `signAndEditExecutable: false`), `package.json` `package:win` env, `RUNBOOK.md` §0b, `scripts/Launch Evaluchat.cmd`.
+  - Host path: copy unpacked tree to a **native** Windows directory (e.g. `C:\Users\Public\OpenRigor`) — do not launch from `\\wsl$\…`.
+  - Env trap: unset `ELECTRON_RUN_AS_NODE` (set by some IDE/agent terminals) or use `apps/desktop/scripts/Launch OpenRigor.cmd`.
+- Verified: Windows process stays up with main window title `Untitled — OpenRigor`.
+- Working tree (not yet committed): `electron-builder.yml` (win `dir`/`portable` + `signAndEditExecutable: false`), `package.json` `package:win` env, `RUNBOOK.md` §0b, `scripts/Launch OpenRigor.cmd`.
 - **Caveat:** electron-builder can strip `scripts`/`devDependencies` from `apps/desktop/package.json` during pack — restore from git if that happens before committing.
 - Next: commit T3.1a → T3.1b icons + CI win/linux artifacts → T1.6 Playwright E2E → T1.5 / Phase 2 BYOK.
