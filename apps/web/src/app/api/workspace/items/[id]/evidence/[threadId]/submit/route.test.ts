@@ -106,7 +106,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     harness.openEvidencePullRequest.mockResolvedValue({
       status: "filed",
       number: 12,
-      url: "https://github.com/evaluchat/research/pull/12",
+      url: "https://github.com/openrigor/research/pull/12",
     });
 
     const response = await POST(

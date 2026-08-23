@@ -59,7 +59,7 @@ function finding(overrides: Record<string, unknown> = {}): string {
     research_questions: [
       {
         resource:
-          "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md",
+          "https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md",
       },
     ],
     evidence_ledgers: [
@@ -217,7 +217,7 @@ describe("validateFindingSubmission", () => {
         research_questions: [
           {
             resource:
-              "https://github.com/evaluchat/research/blob/main/theory/missing-question.en.md",
+              "https://github.com/openrigor/research/blob/main/theory/missing-question.en.md",
           },
         ],
       }),
@@ -232,7 +232,7 @@ describe("validateFindingSubmission", () => {
         research_questions: [
           {
             resource:
-              "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md",
+              "https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md",
           },
         ],
         evidence_ledgers: [

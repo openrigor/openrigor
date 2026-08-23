@@ -279,7 +279,7 @@ describe("LedgerSnapshotCanvas", () => {
 
     harness.publishSuccess!({
       status: "draft",
-      pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+      pullRequestUrl: "https://github.com/openrigor/research/pull/85",
       pullRequestNumber: 85,
     });
     expect(harness.refresh).toHaveBeenCalledOnce();
@@ -289,7 +289,7 @@ describe("LedgerSnapshotCanvas", () => {
     );
     expect(markup).toContain("Draft PR — pending human merge");
     expect(markup).toContain(
-      'href="https://github.com/evaluchat/research/pull/85"'
+      'href="https://github.com/openrigor/research/pull/85"'
     );
 
     manualState.enabled = false;
@@ -321,7 +321,7 @@ describe("LedgerSnapshotCanvas", () => {
     renderToStaticMarkup(React.createElement(LedgerSnapshotCanvas, { item }));
     harness.publishSuccess!({
       status: "draft",
-      pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+      pullRequestUrl: "https://github.com/openrigor/research/pull/85",
       pullRequestNumber: 85,
     });
 
@@ -338,7 +338,7 @@ describe("LedgerSnapshotCanvas", () => {
       ).ledgerSnapshotContext.publication
     ).toEqual({
       status: "draft",
-      prUrl: "https://github.com/evaluchat/research/pull/85",
+      prUrl: "https://github.com/openrigor/research/pull/85",
     });
 
     manualState.enabled = false;
@@ -355,7 +355,7 @@ describe("LedgerSnapshotCanvas", () => {
           ...item,
           publication: {
             status: "draft",
-            pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+            pullRequestUrl: "https://github.com/openrigor/research/pull/85",
           },
         },
       })
@@ -363,7 +363,7 @@ describe("LedgerSnapshotCanvas", () => {
 
     expect(markup).toContain("Draft PR — pending human merge");
     expect(markup).toContain(
-      'href="https://github.com/evaluchat/research/pull/85"'
+      'href="https://github.com/openrigor/research/pull/85"'
     );
     expect(markup).not.toContain('data-testid="ledger-publish"');
   });

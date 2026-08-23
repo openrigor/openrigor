@@ -35,10 +35,10 @@ export function LegalDocumentLayout({
               src="/evaluchat.png"
               width={40}
               height={40}
-              alt="evaluchat"
+              alt="OpenRigor"
             />
             <span className="text-xl font-semibold tracking-tight">
-              evaluchat
+              OpenRigor
             </span>
           </Link>
           <nav

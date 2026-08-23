@@ -15,7 +15,7 @@ const temporaryDirectories: string[] = [];
 
 function researchRoot(): string {
   const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "evaluchat-evidence-ledger-")
+    path.join(os.tmpdir(), "openrigor-evidence-ledger-")
   );
   temporaryDirectories.push(directory);
   return directory;

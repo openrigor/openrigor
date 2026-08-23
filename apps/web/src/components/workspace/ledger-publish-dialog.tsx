@@ -148,7 +148,7 @@ export function LedgerPublishDialog({
               onChange={(event) => setPublicData(event.target.checked)}
               data-testid="ledger-public-data-declaration"
             />
-            I confirm the rendered file is public data for evaluchat/research.
+            I confirm the rendered file is public data for openrigor/research.
           </label>
         </fieldset>
         {error && (

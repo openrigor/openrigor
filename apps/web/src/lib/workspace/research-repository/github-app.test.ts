@@ -63,7 +63,7 @@ beforeEach(() => {
   vi.stubEnv("GITHUB_RESEARCH_APP_CLIENT_SECRET", "client-secret");
   vi.stubEnv(
     "GITHUB_RESEARCH_OAUTH_REDIRECT_URL",
-    "https://evaluchat.test/api/workspace/github/callback"
+    "https://openrigor.test/api/workspace/github/callback"
   );
   vi.stubEnv("GITHUB_RESEARCH_APP_ID", "1234");
   vi.stubEnv("GITHUB_RESEARCH_APP_PRIVATE_KEY", "private\\nkey");
@@ -279,7 +279,7 @@ describe("GitHub App OAuth helpers", () => {
       getGithubRepositoryBranchHead(
         99,
         { owner: "octocat", name: "private" },
-        "evaluchat/workspace"
+        "openrigor/workspace"
       )
     ).resolves.toBe(sha);
     expect(harness.request).toHaveBeenCalledWith(
@@ -287,7 +287,7 @@ describe("GitHub App OAuth helpers", () => {
       expect.objectContaining({
         owner: "octocat",
         repo: "private",
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
       })
     );
   });
@@ -329,7 +329,7 @@ describe("GitHub App OAuth helpers", () => {
     await createGithubRepositoryBranch(
       99,
       { owner: "octocat", name: "private" },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       sha
     );
 
@@ -338,7 +338,7 @@ describe("GitHub App OAuth helpers", () => {
       expect.objectContaining({
         owner: "octocat",
         repo: "private",
-        ref: "refs/heads/evaluchat/workspace",
+        ref: "refs/heads/openrigor/workspace",
         sha,
       })
     );

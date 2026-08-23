@@ -108,7 +108,7 @@ authors:
 claim: A falsifiable claim
 confidence: low
 research_questions:
-  - resource: https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md
+  - resource: https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md
 evidence_ledgers: []
 ---
 
@@ -205,7 +205,7 @@ describe("insertLedgerReference", () => {
     expect(frontmatter.research_questions).toEqual([
       {
         resource:
-          "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md",
+          "https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md",
       },
     ]);
     expect(frontmatter.evidence_ledgers).toEqual([
@@ -220,7 +220,7 @@ describe("insertLedgerReference", () => {
     ]);
     expect(next).toContain("ledger-k12-us");
     expect(next).toContain(
-      "https://github.com/evaluchat/research/blob/main/methods/demo-method/evidence/ledgers/ledger-k12-us.en.md"
+      "https://github.com/openrigor/research/blob/main/methods/demo-method/evidence/ledgers/ledger-k12-us.en.md"
     );
     expect(next).toContain("sha256:ledgerhash");
     expect(next).toContain("abcdef0123456789");
@@ -247,7 +247,7 @@ describe("insertLedgerReference", () => {
     expect(frontmatter.research_questions).toEqual([
       {
         resource:
-          "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md",
+          "https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md",
       },
     ]);
     expect(twice).toBe(once);

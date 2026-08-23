@@ -73,10 +73,10 @@ export function Signup() {
             src="/evaluchat.png"
             width={64}
             height={64}
-            alt="evaluchat Logo"
+            alt="OpenRigor Logo"
             className=""
           />
-          evaluchat
+          OpenRigor
         </div>
       </div>
       <div className="lg:p-8">

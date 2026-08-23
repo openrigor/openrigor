@@ -329,7 +329,7 @@ export function CreateWorkspaceItemDialog({
                         {repository.nameWithOwner}
                       </span>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Bind to evaluchat/workspace
+                        Bind to openrigor/workspace
                       </p>
                     </button>
                   ))

@@ -57,7 +57,7 @@ export function WorkspaceSiteHeader({
               className="h-8 w-8 rounded-[7px] shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
             />
             <span className="text-[1.35rem] font-semibold tracking-tight">
-              evaluchat
+              OpenRigor
             </span>
           </div>
           <span className="truncate text-sm font-medium text-white/78">

@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 
-const RESEARCH_BLOB = "https://github.com/evaluchat/research/blob/main";
+const RESEARCH_BLOB = "https://github.com/openrigor/research/blob/main";
 
 type Frontmatter = Record<string, unknown>;
 

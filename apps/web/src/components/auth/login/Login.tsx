@@ -89,10 +89,10 @@ export function Login() {
             src="/evaluchat.png"
             width={64}
             height={64}
-            alt="evaluchat Logo"
+            alt="OpenRigor Logo"
           />
           <span className="text-5xl font-semibold tracking-tight">
-            evaluchat
+            OpenRigor
           </span>
         </div>
         {/* Brand copy + workspace demo (desktop left panel) */}

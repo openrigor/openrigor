@@ -59,19 +59,19 @@ export function deniedTeachingRoleRedirect(opts: {
 export const SESSION_MARKER_COOKIE = "ec_authed";
 
 /**
- * Parent-domain cookie scope for evaluchat hosts so docs.* can read the
- * session marker. Undefined on localhost / non-evaluchat hosts.
+ * Parent-domain cookie scope for OpenRigor hosts so docs.* can read the
+ * session marker. Undefined on localhost / non-OpenRigor hosts.
  */
 export function sharedAuthCookieDomain(hostname: string): string | undefined {
   if (hostname === "openrigor.org" || hostname.endsWith(".openrigor.org")) {
     return ".openrigor.org";
   }
-  // Legacy host scope retained during the cutover from evaluchat.org.
-  if (hostname === "evaluchat.org" || hostname.endsWith(".evaluchat.org")) {
+  // Legacy host scope retained during the cutover from OpenRigor.org.
+  if (hostname === "OpenRigor.org" || hostname.endsWith(".evaluchat.org")) {
     return ".evaluchat.org";
   }
   // Older .com host scope retained to avoid stranding sessions.
-  if (hostname === "evaluchat.com" || hostname.endsWith(".evaluchat.com")) {
+  if (hostname === "OpenRigor.com" || hostname.endsWith(".evaluchat.com")) {
     return ".evaluchat.com";
   }
   return undefined;

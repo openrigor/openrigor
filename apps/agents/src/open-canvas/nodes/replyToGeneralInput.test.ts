@@ -488,7 +488,7 @@ describe("replyToGeneralInput", () => {
         },
         publication: {
           status: "draft",
-          prUrl: "https://github.com/evaluchat/research/pull/42",
+          prUrl: "https://github.com/openrigor/research/pull/42",
         },
       },
     });
@@ -572,7 +572,7 @@ describe("replyToGeneralInput", () => {
         },
         publication: {
           status: "draft",
-          prUrl: "https://github.com/evaluchat/research/pull/42",
+          prUrl: "https://github.com/openrigor/research/pull/42",
         },
       },
     });

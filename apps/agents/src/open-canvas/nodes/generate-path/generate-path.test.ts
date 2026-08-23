@@ -149,7 +149,7 @@ describe("generatePath", () => {
       apparatusConfiguration: undefined,
       _messages: [
         new HumanMessage({
-          content: "write some tips about evaluchat in the canvas",
+          content: "write some tips about OpenRigor in the canvas",
           id: "test-msg-1",
         }),
       ],

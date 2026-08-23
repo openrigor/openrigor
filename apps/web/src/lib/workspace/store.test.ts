@@ -389,7 +389,7 @@ function repositoryWorkspaceItem(layoutVersion = "1.0") {
       provider: "github" as const,
       repositoryId: 101,
       installationId: 99,
-      branch: "evaluchat/workspace" as const,
+      branch: "openrigor/workspace" as const,
       layoutVersion,
       headCommitSha: repositorySha,
       boundAt: now,
@@ -436,7 +436,7 @@ describe("research repository workspace items", () => {
         provider: "github",
         repositoryId: 101,
         installationId: 99,
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
         layoutVersion: "1.0",
         headCommitSha: workspaceBranchSha,
       },
@@ -445,7 +445,7 @@ describe("research repository workspace items", () => {
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledWith(
       99,
       expect.objectContaining({ defaultBranch: "main" }),
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
     expect(harness.state.manifest.items[item.id]).toEqual(item);
@@ -468,7 +468,7 @@ describe("research repository workspace items", () => {
       1,
       99,
       expect.objectContaining({ defaultBranch: "main" }),
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
       2,
@@ -479,14 +479,14 @@ describe("research repository workspace items", () => {
     expect(harness.createGithubRepositoryBranch).toHaveBeenCalledWith(
       99,
       expect.objectContaining({ owner: "octocat", name: "private" }),
-      "evaluchat/workspace",
+      "openrigor/workspace",
       repositorySha
     );
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
       3,
       99,
       expect.objectContaining({ defaultBranch: "main" }),
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     expect(item.binding.headCommitSha).toBe(workspaceBranchSha);
     expect(harness.state.manifest.items[item.id]).toEqual(item);
@@ -807,7 +807,7 @@ describe("research repository workspace items", () => {
       binding: {
         repositoryId: 101,
         installationId: 99,
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
         headCommitSha: stored.binding.headCommitSha,
         futureBindingField: "keep-me",
       },

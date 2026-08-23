@@ -89,7 +89,7 @@ const MANIFEST_KEY = "manifest";
 const LOCK_KEY = "lock";
 /** Store SDK TTL is in minutes (see @langchain/langgraph-sdk StoreClient.putItem). */
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
-export const RESEARCH_REPOSITORY_BRANCH = "evaluchat/workspace" as const;
+export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
 export const RESEARCH_REPOSITORY_LAYOUT_VERSION = "1.0" as const;
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */

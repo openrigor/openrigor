@@ -68,7 +68,7 @@ export function HeroSection() {
               loop
               playsInline
               preload="metadata"
-              aria-label="Short demo of evaluchat coaching a writing assignment"
+              aria-label="Short demo of OpenRigor coaching a writing assignment"
             />
           </div>
         </div>
@@ -377,7 +377,7 @@ export function OssSection() {
         <div className="dark-ctas">
           <a
             className="btn btn-primary"
-            href="https://github.com/evaluchat/evaluchat"
+            href="https://github.com/openrigor/openrigor"
             target="_blank"
             rel="noopener noreferrer"
           >

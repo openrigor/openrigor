@@ -43,14 +43,14 @@ export function AssignmentWorkspaceBanner({
         }}
       />
       <div className="relative flex items-center gap-4 max-w-[1600px] mx-auto px-4 py-2">
-        {/* Left: evaluchat logo + name + phase badge */}
+        {/* Left: OpenRigor logo + name + phase badge */}
         <div className="flex shrink-0 items-center gap-2">
           <img
             src="/evaluchat.png"
-            alt="evaluchat"
+            alt="OpenRigor"
             className="w-7 h-7 object-contain"
           />
-          <TighterText className="text-xl">evaluchat</TighterText>
+          <TighterText className="text-xl">OpenRigor</TighterText>
           {phaseState && (
             <Badge
               variant={phaseState === "drafting" ? "outline" : "secondary"}

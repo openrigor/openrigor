@@ -69,7 +69,7 @@ const item = {
   binding: {
     installationId: 99,
     repositoryId: 101,
-    branch: "evaluchat/workspace",
+    branch: "openrigor/workspace",
     layoutVersion: "1.0",
     headCommitSha: baseCommitSha,
   },
@@ -205,7 +205,7 @@ describe("POST repository artifact commit", () => {
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
       { owner: "octocat", name: "private", private: true },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       expect.objectContaining({
         files: [
           {
@@ -280,7 +280,7 @@ describe("POST repository artifact commit", () => {
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
       { owner: "octocat", name: "private", private: true },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       expect.objectContaining({
         authorUser: {
           name: "researcher",

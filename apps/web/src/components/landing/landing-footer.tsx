@@ -13,11 +13,11 @@ export function LandingFooter() {
               <Image
                 className="brand-mark"
                 src="/evaluchat.png"
-                alt="evaluchat"
+                alt="OpenRigor"
                 width={32}
                 height={32}
               />
-              <span>evaluchat</span>
+              <span>OpenRigor</span>
             </Link>
             <p>
               Open-source infrastructure for experimenting with AI in education.
@@ -40,7 +40,7 @@ export function LandingFooter() {
             <h4>About</h4>
             <a href="#about">About</a>
             <a
-              href="https://github.com/evaluchat/evaluchat"
+              href="https://github.com/openrigor/openrigor"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -55,7 +55,7 @@ export function LandingFooter() {
           </div>
         </div>
         <div className="foot-bottom">
-          <span>© 2026 evaluchat</span>
+          <span>© 2026 OpenRigor</span>
         </div>
       </div>
     </footer>

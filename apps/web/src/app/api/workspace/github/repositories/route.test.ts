@@ -30,7 +30,7 @@ describe("GET /api/workspace/github/repositories", () => {
       user: { id: "user-1" },
     });
     harness.buildGithubResearchTemplateUrl.mockReturnValue(
-      "https://github.com/new?template_owner=evaluchat"
+      "https://github.com/new?template_owner=OpenRigor"
     );
   });
 
@@ -68,7 +68,7 @@ describe("GET /api/workspace/github/repositories", () => {
       installationId: 99,
       login: "octocat",
       repositories: [{ id: 101, nameWithOwner: "octocat/private" }],
-      createFromTemplateUrl: "https://github.com/new?template_owner=evaluchat",
+      createFromTemplateUrl: "https://github.com/new?template_owner=OpenRigor",
     });
     expect(harness.buildGithubResearchTemplateUrl).toHaveBeenCalledWith(
       "octocat"

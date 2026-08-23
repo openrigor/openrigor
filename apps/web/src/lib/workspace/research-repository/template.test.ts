@@ -11,7 +11,7 @@ afterEach(() => {
 describe("GitHub research starter template", () => {
   it("builds the exact private repository handoff URL", () => {
     expect(buildGithubResearchTemplateUrl("octocat")).toBe(
-      "https://github.com/new?template_owner=evaluchat&template_name=private-research-starter&owner=octocat&visibility=private"
+      "https://github.com/new?template_owner=openrigor&template_name=private-research-starter&owner=octocat&visibility=private"
     );
   });
 

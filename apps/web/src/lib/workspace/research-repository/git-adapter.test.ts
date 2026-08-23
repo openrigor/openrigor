@@ -55,7 +55,7 @@ describe("GitHub repository Git Data adapter", () => {
     });
 
     await expect(
-      commitArtifactBlobs(99, repository, "evaluchat/workspace", {
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
         authorUser: { name: "Researcher", email: "r@example.test" },
         message: "Update index",
         baseSha,
@@ -88,7 +88,7 @@ describe("GitHub repository Git Data adapter", () => {
     expect(harness.request).toHaveBeenCalledWith(
       "PATCH /repos/{owner}/{repo}/git/refs/{ref}",
       expect.objectContaining({
-        ref: "heads/evaluchat/workspace",
+        ref: "heads/openrigor/workspace",
         sha: commitSha,
         force: false,
       })
@@ -115,7 +115,7 @@ describe("GitHub repository Git Data adapter", () => {
       throw new Error(`Unexpected route ${route}`);
     });
 
-    await commitArtifactBlobs(99, repository, "evaluchat/workspace", {
+    await commitArtifactBlobs(99, repository, "openrigor/workspace", {
       message: "Update index",
       baseSha,
       files: [{ path: "index.md", content: "# Updated\n" }],
@@ -139,7 +139,7 @@ describe("GitHub repository Git Data adapter", () => {
     harness.getHead.mockResolvedValue(currentHead);
 
     await expect(
-      commitArtifactBlobs(99, repository, "evaluchat/workspace", {
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
         message: "Update index",
         baseSha,
         files: [{ path: "index.md", content: "# Updated\n" }],
@@ -174,7 +174,7 @@ describe("GitHub repository Git Data adapter", () => {
     });
 
     await expect(
-      commitArtifactBlobs(99, repository, "evaluchat/workspace", {
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
         message: "Update index",
         baseSha,
         files: [{ path: "index.md", content: "# Updated\n" }],
@@ -220,7 +220,7 @@ describe("GitHub repository Git Data adapter", () => {
     });
 
     await expect(
-      listRepositoryArtifactRefs(99, repository, "evaluchat/workspace")
+      listRepositoryArtifactRefs(99, repository, "openrigor/workspace")
     ).resolves.toMatchObject({
       commitSha: baseSha,
       artifacts: [
@@ -280,12 +280,12 @@ describe("GitHub repository Git Data adapter", () => {
     const first = await listRepositoryArtifactRefs(
       99,
       repository,
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     const second = await listRepositoryArtifactRefs(
       99,
       repository,
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
 
     expect(first.artifacts).toEqual([
@@ -304,7 +304,7 @@ describe("GitHub repository Git Data adapter", () => {
 
   it("rejects an unsafe sibling in a managed commit", async () => {
     await expect(
-      commitArtifactBlobs(99, repository, "evaluchat/workspace", {
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
         message: "Update index",
         baseSha,
         files: [
@@ -321,7 +321,7 @@ describe("GitHub repository Git Data adapter", () => {
     const duplicatePath = "index.md";
 
     await expect(
-      commitArtifactBlobs(99, repository, "evaluchat/workspace", {
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
         message: "Update notes",
         baseSha,
         files: [

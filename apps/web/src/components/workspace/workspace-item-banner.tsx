@@ -61,13 +61,13 @@ export function WorkspaceItemBanner({
         <div className="flex shrink-0 items-center gap-2">
           <Image
             src="/evaluchat.png"
-            alt="evaluchat"
+            alt="OpenRigor"
             width={28}
             height={28}
             className="h-7 w-7 object-contain"
           />
           <span className="text-xl font-semibold tracking-tight">
-            evaluchat
+            OpenRigor
           </span>
         </div>
         <div className="flex min-w-0 flex-1 justify-center">

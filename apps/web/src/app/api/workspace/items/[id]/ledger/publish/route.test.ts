@@ -27,7 +27,7 @@ vi.mock("@/lib/workspace/store", () => ({
   WorkspaceItemNotFoundError: harness.WorkspaceItemNotFoundError,
 }));
 vi.mock("@/lib/workspace/evidence-github", () => ({
-  RESEARCH_REPOSITORY: "evaluchat/research",
+  RESEARCH_REPOSITORY: "openrigor/research",
   getGithubResearchWriteAccess: harness.getGithubResearchWriteAccess,
   getLedgerPullRequestStatus: harness.getLedgerPullRequestStatus,
   openLedgerPullRequest: harness.openLedgerPullRequest,
@@ -93,7 +93,7 @@ describe("ledger publish route", () => {
     );
     harness.openLedgerPullRequest.mockResolvedValue({
       number: 85,
-      url: "https://github.com/evaluchat/research/pull/85",
+      url: "https://github.com/openrigor/research/pull/85",
       branch: "ledger/ledger_demo-abcdef012345",
       status: "draft",
       lintConclusion: "success",
@@ -162,7 +162,7 @@ describe("ledger publish route", () => {
       {
         publication: {
           status: "draft",
-          pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+          pullRequestUrl: "https://github.com/openrigor/research/pull/85",
           pullRequestNumber: 85,
         },
       }
@@ -206,7 +206,7 @@ describe("ledger publish route", () => {
       {
         publication: {
           status: "draft",
-          pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+          pullRequestUrl: "https://github.com/openrigor/research/pull/85",
           pullRequestNumber: 85,
         },
       }
@@ -331,7 +331,7 @@ describe("ledger publish route", () => {
       publication: {
         status: "draft",
         pullRequestNumber: 85,
-        pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+        pullRequestUrl: "https://github.com/openrigor/research/pull/85",
       },
     });
     harness.getLedgerPullRequestStatus.mockResolvedValue({

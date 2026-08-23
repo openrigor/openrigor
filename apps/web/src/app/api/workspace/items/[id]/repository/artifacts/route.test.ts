@@ -40,7 +40,7 @@ const item = {
   binding: {
     installationId: 99,
     repositoryId: 101,
-    branch: "evaluchat/workspace",
+    branch: "openrigor/workspace",
     layoutVersion: "1.0",
   },
 };
@@ -103,7 +103,7 @@ describe("GET repository artifacts", () => {
     expect(harness.listArtifacts).toHaveBeenCalledWith(
       99,
       { owner: "octocat", name: "private" },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       "1.0"
     );
   });
@@ -132,7 +132,7 @@ describe("GET repository artifacts", () => {
     expect(harness.readArtifact).toHaveBeenCalledWith(
       99,
       { owner: "octocat", name: "private" },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       "index.md"
     );
     expect(harness.listArtifacts).not.toHaveBeenCalled();
@@ -157,7 +157,7 @@ describe("GET repository artifacts", () => {
     expect(harness.readArtifact).toHaveBeenCalledWith(
       99,
       { owner: "octocat", name: "private" },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       "index.md"
     );
   });

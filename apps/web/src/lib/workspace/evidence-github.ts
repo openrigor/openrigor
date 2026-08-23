@@ -1,7 +1,7 @@
 import { isAutoMergeEligibleStage, shouldAutoMergeEvidence } from "./evidence";
 
 const GITHUB_API = "https://api.github.com";
-export const RESEARCH_REPOSITORY = "evaluchat/research";
+export const RESEARCH_REPOSITORY = "openrigor/research";
 
 type GithubJson = Record<string, any>;
 
@@ -350,7 +350,7 @@ export async function findExistingEvidencePullRequest(
     throw new Error("Existing evidence branch did not return a commit SHA");
   }
   const pulls = await githubRequest(
-    `/repos/${RESEARCH_REPOSITORY}/pulls?head=evaluchat:${encodeURIComponent(branch)}&state=open`,
+    `/repos/${RESEARCH_REPOSITORY}/pulls?head=OpenRigor:${encodeURIComponent(branch)}&state=open`,
     { method: "GET" }
   );
   const matches = Array.isArray(pulls)

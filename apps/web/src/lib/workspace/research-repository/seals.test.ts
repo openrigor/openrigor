@@ -110,7 +110,7 @@ const access = {
     provider: "github" as const,
     repositoryId: 101,
     installationId: 99,
-    branch: "evaluchat/workspace" as const,
+    branch: "openrigor/workspace" as const,
     layoutVersion: "1.0",
     headCommitSha,
     boundAt: "2026-08-23T00:00:00.000Z",
@@ -222,7 +222,7 @@ describe("repository ledger seals", () => {
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
       access.repository,
-      "evaluchat/workspace",
+      "openrigor/workspace",
       expect.objectContaining({
         baseSha: headCommitSha,
         files: [

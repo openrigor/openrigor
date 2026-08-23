@@ -101,7 +101,7 @@ export const ResearchRepositoryBindingSchema = z
     provider: z.literal("github"),
     repositoryId: GithubNumericIdSchema,
     installationId: GithubNumericIdSchema,
-    branch: z.literal("evaluchat/workspace"),
+    branch: z.literal("openrigor/workspace"),
     layoutVersion: LayoutVersionSchema,
     headCommitSha: CommitShaSchema,
     boundAt: TimestampSchema,

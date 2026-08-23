@@ -103,7 +103,7 @@ const item = {
     provider: "github",
     installationId: 99,
     repositoryId: 101,
-    branch: "evaluchat/workspace",
+    branch: "openrigor/workspace",
     layoutVersion: "1.0",
     headCommitSha: baseCommitSha,
     boundAt: "2026-08-23T00:00:00.000Z",

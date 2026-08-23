@@ -30,7 +30,7 @@ const binding = {
   provider: "github",
   repositoryId: 101,
   installationId: 99,
-  branch: "evaluchat/workspace",
+  branch: "openrigor/workspace",
   layoutVersion: "1.0",
   headCommitSha: "a".repeat(40),
   boundAt: "2026-08-23T00:00:00.000Z",

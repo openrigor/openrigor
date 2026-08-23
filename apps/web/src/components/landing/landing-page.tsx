@@ -37,11 +37,11 @@ function LandingHeader() {
           <Image
             className="brand-mark"
             src="/evaluchat.png"
-            alt="evaluchat"
+            alt="OpenRigor"
             width={32}
             height={32}
           />
-          <span>evaluchat</span>
+          <span>OpenRigor</span>
         </Link>
 
         <nav className="main" aria-label="Primary">

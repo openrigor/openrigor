@@ -96,7 +96,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         {
           error:
-            "Your connected GitHub account needs collaborator write access to evaluchat/research before a ledger can be published.",
+            "Your connected GitHub account needs collaborator write access to openrigor/research before a ledger can be published.",
           reason: access.reason,
         },
         { status: 403 }
