@@ -9,7 +9,7 @@ vi.mock("./admin-client", () => ({
   createAdminClient: () => ({
     auth: { admin: { inviteUserByEmail, generateLink } },
   }),
-  getSiteUrl: () => "https://dev.evaluchat.org",
+  getSiteUrl: () => "https://dev.openrigor.org",
 }));
 
 import { inviteWorkspaceParticipant } from "./invitation-helpers";
@@ -42,7 +42,7 @@ describe("inviteWorkspaceParticipant", () => {
       type: "magiclink",
       email: "cronjev@outlook.com",
       options: {
-        redirectTo: "https://dev.evaluchat.org/auth/confirm?next=/workspace",
+        redirectTo: "https://dev.openrigor.org/auth/confirm?next=/workspace",
       },
     });
   });

@@ -268,7 +268,7 @@ function response(body: unknown): Response {
 }
 
 beforeEach(() => {
-  process.env.VALERY_GITHUB_TOKEN = "test-token";
+  process.env.RIGEL_GITHUB_TOKEN = "test-token";
   resetLedgerSourceMemo();
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
@@ -293,7 +293,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.VALERY_GITHUB_TOKEN;
+  delete process.env.RIGEL_GITHUB_TOKEN;
 });
 
 describe("loadLedgerSource", () => {

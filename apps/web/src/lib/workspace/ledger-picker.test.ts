@@ -121,7 +121,7 @@ evidence_ledgers: []
 
 describe("listMergedLedgers", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     vi.resetModules();
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
@@ -138,7 +138,7 @@ describe("listMergedLedgers", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
   });
 
   it("lists only merged Evidence Ledger artifacts on research main", async () => {

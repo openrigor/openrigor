@@ -22,14 +22,14 @@ function response(body: unknown, status = 200): Response {
 
 describe("openEvidencePullRequest", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS = "1";
     process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS = "0";
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
     delete process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS;
     delete process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS;
   });
@@ -203,14 +203,14 @@ describe("openEvidencePullRequest", () => {
 
 describe("openLedgerPullRequest", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS = "1";
     process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS = "0";
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
     delete process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS;
     delete process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS;
   });

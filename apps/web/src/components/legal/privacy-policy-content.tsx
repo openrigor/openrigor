@@ -10,9 +10,9 @@ export function PrivacyPolicyContent() {
     <>
       <section className="space-y-3">
         <p>
-          This Privacy Policy explains how evaluchat (“we”, “us”) collects,
+          This Privacy Policy explains how OpenRigor (“we”, “us”) collects,
           uses, and shares personal data when you visit our websites, create an
-          account, or use the evaluchat teaching Service (chat coaching, writing
+          account, or use the OpenRigor teaching Service (chat coaching, writing
           canvas, and related teacher tools).
         </p>
         <p>
@@ -24,7 +24,7 @@ export function PrivacyPolicyContent() {
       <section className="space-y-3">
         <h2>Who we are</h2>
         <p>
-          Evaluchat is the trading name of{" "}
+          OpenRigor is the trading name of{" "}
           <strong>{LEGAL_OPERATOR_NAME}</strong>. For privacy requests, email{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
@@ -39,7 +39,7 @@ export function PrivacyPolicyContent() {
         <h2>Roles</h2>
         <ul>
           <li>
-            <strong>Evaluchat</strong> is the controller for account data,
+            <strong>OpenRigor</strong> is the controller for account data,
             Service usage data, assignment chat and canvas content we store to
             operate the product, and aggregated process-evidence metrics shown
             to teachers.
@@ -48,7 +48,7 @@ export function PrivacyPolicyContent() {
             When a teacher invites students into a class or assignment, that
             teacher (or their institution) may also be a controller for
             classroom personal data they choose to put into the Service. We
-            process that data to provide evaluchat under their instructions and
+            process that data to provide OpenRigor under their instructions and
             our <Link href={TERMS_PATH}>Terms of Service</Link>.
           </li>
         </ul>
@@ -103,7 +103,7 @@ export function PrivacyPolicyContent() {
           no-train path.
         </p>
         <p>
-          Evaluchat does <strong>not</strong> use your content to train our own
+          OpenRigor does <strong>not</strong> use your content to train our own
           proprietary models. A higher-privacy (no-train / private) model tier
           is planned and is not available yet.
         </p>
@@ -212,7 +212,7 @@ export function PrivacyPolicyContent() {
       <section className="space-y-3">
         <h2>Children</h2>
         <p>
-          Evaluchat is aimed at higher-education and adult language teaching
+          OpenRigor is aimed at higher-education and adult language teaching
           contexts (for example EAP / ESL). It is not directed at children under
           13, and we do not knowingly collect personal data from children under
           13.

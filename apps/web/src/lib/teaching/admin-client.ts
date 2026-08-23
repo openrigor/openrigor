@@ -9,14 +9,14 @@ export function getSiteUrl(): string {
     const prod =
       process.env.SITE_URL ||
       process.env.DEV_PUBLIC_URL ||
-      "https://evaluchat.org";
+      "https://openrigor.org";
     return prod.replace(/\/$/, "");
   }
 
   const raw =
     process.env.SITE_URL ||
     process.env.DEV_PUBLIC_URL ||
-    "https://dev.evaluchat.org";
+    "https://dev.openrigor.org";
   return raw.replace(/\/$/, "");
 }
 

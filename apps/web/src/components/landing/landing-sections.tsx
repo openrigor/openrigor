@@ -35,7 +35,7 @@ export function HeroSection() {
             <em>What should we measure?</em>
           </h1>
           <p className="hero-sub">
-            Evaluchat is an open-source, Markdown-native workspace for defining,
+            OpenRigor is an open-source, Markdown-native workspace for defining,
             running, and inspecting research methods on AI in education.
           </p>
           <p className="hero-sub">
@@ -104,7 +104,7 @@ export function HypothesisSection() {
             AI is available?
           </p>
           <p className="g-sub">
-            Evaluchat does not prescribe the answer. It makes competing methods
+            OpenRigor does not prescribe the answer. It makes competing methods
             visible, testable, and easier to improve.
           </p>
         </div>
@@ -247,7 +247,7 @@ export function BuildingSection() {
           </OpenCanvasButton>
           <a
             className="btn btn-outline"
-            href="https://knowledge.evaluchat.org/concepts/overview.html"
+            href="https://knowledge.openrigor.org/concepts/overview.html"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -328,7 +328,7 @@ export function ResearchSection() {
         <div className="dark-ctas">
           <a
             className="btn btn-outline"
-            href="https://research.evaluchat.org/methods/index.html"
+            href="https://research.openrigor.org/methods/index.html"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -410,7 +410,7 @@ export function FinalCtaSection() {
           </OpenCanvasButton>
           <a
             className="btn btn-outline"
-            href="https://research.evaluchat.org/methods/index.html"
+            href="https://research.openrigor.org/methods/index.html"
             target="_blank"
             rel="noopener noreferrer"
           >

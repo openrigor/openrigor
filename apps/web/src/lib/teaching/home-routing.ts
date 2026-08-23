@@ -55,7 +55,7 @@ export function deniedTeachingRoleRedirect(opts: {
   return null;
 }
 
-/** Shared cookie so knowledge.evaluchat.org can detect an app session. */
+/** Shared cookie so knowledge.openrigor.org can detect an app session. */
 export const SESSION_MARKER_COOKIE = "ec_authed";
 
 /**
@@ -63,11 +63,14 @@ export const SESSION_MARKER_COOKIE = "ec_authed";
  * session marker. Undefined on localhost / non-evaluchat hosts.
  */
 export function sharedAuthCookieDomain(hostname: string): string | undefined {
+  if (hostname === "openrigor.org" || hostname.endsWith(".openrigor.org")) {
+    return ".openrigor.org";
+  }
+  // Legacy host scope retained during the cutover from evaluchat.org.
   if (hostname === "evaluchat.org" || hostname.endsWith(".evaluchat.org")) {
     return ".evaluchat.org";
   }
-  // Legacy host support during the domain cutover. New links and cookies use
-  // .org; retaining this read scope avoids stranding existing sessions.
+  // Older .com host scope retained to avoid stranding sessions.
   if (hostname === "evaluchat.com" || hostname.endsWith(".evaluchat.com")) {
     return ".evaluchat.com";
   }

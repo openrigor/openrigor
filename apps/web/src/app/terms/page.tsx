@@ -4,9 +4,9 @@ import { LegalDocumentLayout } from "@/components/legal/legal-document-layout";
 import { TermsOfServiceContent } from "@/components/legal/terms-of-service-content";
 
 export const metadata: Metadata = {
-  title: "Terms of Service · evaluchat",
+  title: "Terms of Service · OpenRigor",
   description:
-    "Terms for using the Evaluchat public education and research beta.",
+    "Terms for using the OpenRigor public education and research beta.",
 };
 
 export default function TermsPage() {

@@ -313,7 +313,7 @@ describe("workspace item lifecycle", () => {
       version: expect.any(String),
       title: expect.stringMatching(/AI-assisted essay/i),
       description: expect.any(String),
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     });
     expect(item.profileId).toBe("canonical-constrained-dialogue");
     expect(item.run).toBeUndefined();
@@ -326,7 +326,7 @@ describe("workspace item lifecycle", () => {
     stored.items[item.id].methodSource = {
       id: "ai-assisted-essay",
       version: item.methodSource.version,
-      url: "https://research.evaluchat.org/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/ai-assisted-essay.html",
     };
     harness.state.manifest = stored;
 
@@ -336,7 +336,7 @@ describe("workspace item lifecycle", () => {
     if (draft?.kind !== "method") return;
     expect(draft.methodSource.title).toMatch(/AI-assisted essay/i);
     expect(draft.methodSource.url).toBe(
-      "https://research.evaluchat.org/methods/ai-assisted-essay.html"
+      "https://research.openrigor.org/methods/ai-assisted-essay.html"
     );
   });
 
@@ -1072,7 +1072,7 @@ describe("method run launch", () => {
     ) as any;
     expect(participantItem.assignment.title).toBe("Great Expectations");
     expect(participantItem.methodSource.url).toBe(
-      "https://research.evaluchat.org/methods/ai-assisted-essay.html"
+      "https://research.openrigor.org/methods/ai-assisted-essay.html"
     );
     expect(participantItem.runId).toBe(result.item.run.id);
     expect(participantItem.operatorItemId).toBe(item.id);
@@ -1218,7 +1218,7 @@ describe("method run launch", () => {
     expect(claimed[0].methodSource).toMatchObject({
       id: "ai-assisted-essay",
       title: expect.stringMatching(/AI-assisted essay/i),
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     });
 
     const operator = await getWorkspaceItem("user-1", item.id);

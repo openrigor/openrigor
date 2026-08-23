@@ -28,7 +28,7 @@ export function LandingFooter() {
             <a href="#canvas">Workspace</a>
             <a href="#research">Research</a>
             <a
-              href="https://knowledge.evaluchat.org/concepts/overview.html"
+              href="https://knowledge.openrigor.org/concepts/overview.html"
               target="_blank"
               rel="noopener noreferrer"
             >

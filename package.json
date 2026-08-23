@@ -1,7 +1,7 @@
 {
   "name": "open_canvas",
   "author": "Evaluchat",
-  "homepage": "https://evaluchat.org",
+  "homepage": "https://openrigor.org",
   "repository": "https://github.com/evaluchat/evaluchat",
   "private": true,
   "workspaces": [

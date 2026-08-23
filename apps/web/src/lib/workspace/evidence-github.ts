@@ -8,9 +8,9 @@ type GithubJson = Record<string, any>;
 export function githubHeaders(): HeadersInit {
   // Catalogue publisher app (GITHUB_CATALOGUE_APP_ID / GITHUB_CATALOGUE_PRIVATE_KEY)
   // is a maintainer step: createGithubInstallationOctokit needs an installation
-  // id we do not resolve here. Runtime credential remains VALERY_GITHUB_TOKEN.
-  const token = process.env.VALERY_GITHUB_TOKEN;
-  if (!token) throw new Error("VALERY_GITHUB_TOKEN is not configured");
+  // id we do not resolve here. Runtime credential remains RIGEL_GITHUB_TOKEN.
+  const token = process.env.RIGEL_GITHUB_TOKEN;
+  if (!token) throw new Error("RIGEL_GITHUB_TOKEN is not configured");
   return {
     Accept: "application/vnd.github+json",
     Authorization: `Bearer ${token}`,

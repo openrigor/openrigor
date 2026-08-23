@@ -15,7 +15,7 @@ export const workspaceNavOutlineClass =
   "border-white/35 bg-transparent text-white hover:bg-white/12 hover:text-white";
 
 /**
- * Top chrome matching knowledge.evaluchat.org `.site-header`: brand panel blue,
+ * Top chrome matching knowledge.openrigor.org `.site-header`: brand panel blue,
  * logo mark + wordmark, light border, subtle atmosphere wash.
  */
 export function WorkspaceSiteHeader({

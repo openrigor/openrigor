@@ -82,8 +82,8 @@ describe("GitHub repository Git Data adapter", () => {
       })
     );
     expect(GITHUB_RESEARCH_APP_COMMITTER).toEqual({
-      name: "Evaluchat GitHub App",
-      email: "github-app@evaluchat.org",
+      name: "OpenRigor GitHub App",
+      email: "github-app@openrigor.org",
     });
     expect(harness.request).toHaveBeenCalledWith(
       "PATCH /repos/{owner}/{repo}/git/refs/{ref}",
@@ -130,7 +130,7 @@ describe("GitHub repository Git Data adapter", () => {
     );
     expect(JSON.stringify(harness.request.mock.calls)).not.toContain("Valery");
     expect(JSON.stringify(harness.request.mock.calls)).not.toContain(
-      "VALERY_GITHUB_TOKEN"
+      "RIGEL_GITHUB_TOKEN"
     );
   });
 

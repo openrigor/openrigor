@@ -125,12 +125,12 @@ describe("deniedTeachingRoleRedirect", () => {
 });
 
 describe("sharedAuthCookieDomain", () => {
-  it("scopes evaluchat hosts to .evaluchat.org", () => {
-    expect(sharedAuthCookieDomain("evaluchat.org")).toBe(".evaluchat.org");
-    expect(sharedAuthCookieDomain("knowledge.evaluchat.org")).toBe(
-      ".evaluchat.org"
+  it("scopes openrigor hosts to .openrigor.org", () => {
+    expect(sharedAuthCookieDomain("openrigor.org")).toBe(".openrigor.org");
+    expect(sharedAuthCookieDomain("docs.openrigor.org")).toBe(
+      ".openrigor.org"
     );
-    expect(sharedAuthCookieDomain("dev.evaluchat.org")).toBe(".evaluchat.org");
+    expect(sharedAuthCookieDomain("dev.openrigor.org")).toBe(".openrigor.org");
   });
 
   it("returns undefined for localhost", () => {

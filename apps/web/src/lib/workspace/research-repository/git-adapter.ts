@@ -25,8 +25,8 @@ export type GithubCommitAuthor = {
 };
 
 export const GITHUB_RESEARCH_APP_COMMITTER = {
-  name: "Evaluchat GitHub App",
-  email: "github-app@evaluchat.org",
+  name: "OpenRigor GitHub App",
+  email: "github-app@openrigor.org",
 } as const;
 
 export class StaleRepositoryError extends Error {
@@ -331,7 +331,7 @@ export async function commitArtifactBlobs(
       tree: treeSha,
       parents: [input.baseSha],
       // V08-10: keep author+committer on the configured app identity when the
-      // researcher identity is absent. Never attribute to VALERY_GITHUB_TOKEN.
+      // researcher identity is absent. Never attribute to RIGEL_GITHUB_TOKEN.
       author: input.authorUser ?? GITHUB_RESEARCH_APP_COMMITTER,
       committer: GITHUB_RESEARCH_APP_COMMITTER,
       headers: headers(),
