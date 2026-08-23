@@ -32,7 +32,7 @@ export function LegalDocumentLayout({
             className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
           >
             <NextImage
-              src="/evaluchat.png"
+              src="/openrigor.png"
               width={40}
               height={40}
               alt="OpenRigor"

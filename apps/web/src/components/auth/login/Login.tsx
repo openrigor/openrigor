@@ -86,7 +86,7 @@ export function Login() {
         />
         <div className="relative z-20 flex gap-3 items-center shrink-0">
           <NextImage
-            src="/evaluchat.png"
+            src="/openrigor.png"
             width={64}
             height={64}
             alt="OpenRigor Logo"

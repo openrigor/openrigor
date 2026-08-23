@@ -12,7 +12,7 @@ export function LandingFooter() {
             <Link className="brand" href="/">
               <Image
                 className="brand-mark"
-                src="/evaluchat.png"
+                src="/openrigor.png"
                 alt="OpenRigor"
                 width={32}
                 height={32}

@@ -50,7 +50,7 @@ export function WorkspaceSiteHeader({
         <div className="flex min-w-0 items-center gap-3">
           <div className="inline-flex shrink-0 items-center gap-[0.55rem]">
             <Image
-              src="/evaluchat.png"
+              src="/openrigor.png"
               alt=""
               width={32}
               height={32}

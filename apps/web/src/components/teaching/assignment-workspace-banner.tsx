@@ -46,7 +46,7 @@ export function AssignmentWorkspaceBanner({
         {/* Left: OpenRigor logo + name + phase badge */}
         <div className="flex shrink-0 items-center gap-2">
           <img
-            src="/evaluchat.png"
+            src="/openrigor.png"
             alt="OpenRigor"
             className="w-7 h-7 object-contain"
           />

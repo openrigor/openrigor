@@ -60,7 +60,7 @@ export function WorkspaceItemBanner({
       <div className="relative mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-2">
         <div className="flex shrink-0 items-center gap-2">
           <Image
-            src="/evaluchat.png"
+            src="/openrigor.png"
             alt="OpenRigor"
             width={28}
             height={28}
