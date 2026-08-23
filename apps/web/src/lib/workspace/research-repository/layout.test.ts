@@ -38,6 +38,16 @@ describe("research repository layout 1.0", () => {
       "methods/synthetic-method/evidence/ledgers/snapshot-one.seal.yml",
       "ledger_seal",
     ],
+    [
+      "ledger.11111111-1111-4111-8111-111111111111",
+      "ledger/seals/11111111-1111-4111-8111-111111111111.en.md",
+      "ledger",
+    ],
+    [
+      "ledger-seal.11111111-1111-4111-8111-111111111111",
+      "ledger/seals/11111111-1111-4111-8111-111111111111.seal.yml",
+      "ledger_seal",
+    ],
     ["finding.result-one", "findings/result-one.en.md", "finding"],
     ["workspace-manifest", ".evaluchat/workspace.yml", "workspace_manifest"],
     ["readme", "README.md", "readme"],
@@ -74,6 +84,24 @@ describe("research repository layout 1.0", () => {
       expect(identifyRepositoryArtifactPath(path)).toBeUndefined();
     }
   );
+
+  it("recognises repository seal output paths as managed artifacts", () => {
+    const snapshotId = "11111111-1111-4111-8111-111111111111";
+    expect(
+      identifyRepositoryArtifactPath(`ledger/seals/${snapshotId}.en.md`)
+    ).toEqual({
+      artifactId: `ledger.${snapshotId}`,
+      kind: "ledger",
+      path: `ledger/seals/${snapshotId}.en.md`,
+    });
+    expect(
+      identifyRepositoryArtifactPath(`ledger/seals/${snapshotId}.seal.yml`)
+    ).toEqual({
+      artifactId: `ledger-seal.${snapshotId}`,
+      kind: "ledger_seal",
+      path: `ledger/seals/${snapshotId}.seal.yml`,
+    });
+  });
 
   it("rejects executable names, executable modes, and symlink modes", () => {
     expect(() => resolveRepositoryArtifactPath("payload.exe")).toThrow(

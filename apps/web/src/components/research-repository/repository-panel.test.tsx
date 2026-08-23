@@ -301,4 +301,196 @@ describe("RepositoryPanel", () => {
     expect(await screen.findByText("Select an artifact to edit.")).toBeTruthy();
     expect(screen.queryByDisplayValue("# Research index")).toBeNull();
   });
+
+  it("previews and seals a repository snapshot", async () => {
+    const snapshotId = "11111111-1111-4111-8111-111111111111";
+    const previousSnapshotId = "22222222-2222-4222-8222-222222222222";
+    const commitSha = "f".repeat(40);
+    const sealPreview = {
+      snapshotId,
+      sealedFromCommit: binding.headCommitSha,
+      reviewedAt: "2026-08-23T10:00:00.000Z",
+      configurationHash: "c".repeat(64),
+      renderHash: "d".repeat(64),
+      inputs: [
+        {
+          path: "methods/synthetic/synthetic.en.md",
+          blobSha: "b".repeat(40),
+          sha256: "e".repeat(64),
+        },
+      ],
+      ledgerPath: `ledger/seals/${snapshotId}.en.md`,
+      sealPath: `ledger/seals/${snapshotId}.seal.yml`,
+      latestSnapshotId: previousSnapshotId,
+    };
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/repository/seal")) {
+          const body = JSON.parse(String(init?.body)) as { action: string };
+          if (body.action === "preview") {
+            return jsonResponse({ preview: sealPreview });
+          }
+          if (body.action === "seal") {
+            return jsonResponse({
+              operationId: "operation-one",
+              commitSha,
+              snapshotId,
+            });
+          }
+        }
+        if (url.endsWith("/repository/artifacts")) {
+          return jsonResponse({
+            artifacts: [],
+            headCommitSha: binding.headCommitSha,
+          });
+        }
+        if (url.endsWith("/repository") && !init?.method) {
+          return jsonResponse({ status: readyStatus() });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      createElement(RepositoryPanel, {
+        item: { id: "workspace-one", binding },
+      })
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+    expect(await screen.findByText(snapshotId)).toBeTruthy();
+    expect(screen.getByText("1")).toBeTruthy();
+    expect(screen.getByText(/config c{12} · render d{12}/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Supersede" })).toBeTruthy();
+
+    // Seal stays disabled until all three declarations are confirmed.
+    const sealButton = () =>
+      screen.getByRole("button", { name: "Seal" }) as HTMLButtonElement;
+    expect(sealButton().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(/Publication Authorisation/), {
+      target: { value: "confirmed-authorised-to-publish" },
+    });
+    fireEvent.change(screen.getByLabelText(/Anonymisation Status/), {
+      target: {
+        value: "confirmed-no-student-identifiers-or-raw-student-material",
+      },
+    });
+    fireEvent.change(screen.getByLabelText(/Public Data Declaration/), {
+      target: { value: "confirmed-public-data" },
+    });
+    expect(sealButton().disabled).toBe(false);
+
+    fireEvent.click(sealButton());
+    expect((await screen.findByRole("status")).textContent).toContain(
+      snapshotId
+    );
+    expect(screen.getByRole("status").textContent).toContain(commitSha);
+
+    const sealRequests = fetchMock.mock.calls
+      .filter(([url]) => String(url).endsWith("/repository/seal"))
+      .map(
+        ([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>
+      );
+    const confirmedDeclarations = {
+      publicationAuthorisation: "confirmed-authorised-to-publish",
+      anonymisationStatus:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+      publicDataDeclaration: "confirmed-public-data",
+    };
+    expect(sealRequests).toEqual([
+      { action: "preview" },
+      {
+        action: "seal",
+        preview: sealPreview,
+        declarations: confirmedDeclarations,
+      },
+    ]);
+  });
+
+  it("supersedes the latest repository snapshot", async () => {
+    const latestSnapshotId = "11111111-1111-4111-8111-111111111111";
+    const replacementId = "22222222-2222-4222-8222-222222222222";
+    const commitSha = "f".repeat(40);
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/repository/seal")) {
+          const body = JSON.parse(String(init?.body)) as { action: string };
+          if (body.action === "preview") {
+            return jsonResponse({
+              preview: {
+                snapshotId: "33333333-3333-4333-8333-333333333333",
+                sealedFromCommit: binding.headCommitSha,
+                reviewedAt: "2026-08-23T10:00:00.000Z",
+                configurationHash: "c".repeat(64),
+                renderHash: "d".repeat(64),
+                inputs: [],
+                ledgerPath: "ledger/seals/preview.en.md",
+                sealPath: "ledger/seals/preview.seal.yml",
+                latestSnapshotId,
+              },
+            });
+          }
+          return jsonResponse({
+            operationId: "operation-two",
+            commitSha,
+            snapshotId: replacementId,
+          });
+        }
+        if (url.endsWith("/repository/artifacts")) {
+          return jsonResponse({
+            artifacts: [],
+            headCommitSha: binding.headCommitSha,
+          });
+        }
+        if (url.endsWith("/repository") && !init?.method) {
+          return jsonResponse({ status: readyStatus() });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      createElement(RepositoryPanel, {
+        item: { id: "workspace-one", binding },
+      })
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Preview" }));
+    const confirm = async () => {
+      fireEvent.change(screen.getByLabelText(/Publication Authorisation/), {
+        target: { value: "confirmed-authorised-to-publish" },
+      });
+      fireEvent.change(screen.getByLabelText(/Anonymisation Status/), {
+        target: {
+          value: "confirmed-no-student-identifiers-or-raw-student-material",
+        },
+      });
+      fireEvent.change(screen.getByLabelText(/Public Data Declaration/), {
+        target: { value: "confirmed-public-data" },
+      });
+    };
+    await confirm();
+    fireEvent.click(await screen.findByRole("button", { name: "Supersede" }));
+
+    expect((await screen.findByRole("status")).textContent).toContain(
+      replacementId
+    );
+    const call = fetchMock.mock.calls.find(([, init]) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      return body?.action === "supersede";
+    });
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+      action: "supersede",
+      supersedes: latestSnapshotId,
+      declarations: {
+        publicationAuthorisation: "confirmed-authorised-to-publish",
+        anonymisationStatus:
+          "confirmed-no-student-identifiers-or-raw-student-material",
+        publicDataDeclaration: "confirmed-public-data",
+      },
+    });
+  });
 });
