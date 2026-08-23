@@ -33,27 +33,27 @@
     "lint:fix": "eslint src --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.12.0",
+    "@eslint/js": "^10.0.1",
     "@tsconfig/recommended": "^1.0.8",
-    "@types/eslint__js": "^8.42.3",
+    "@types/eslint__js": "^9.14.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20",
-    "@typescript-eslint/eslint-plugin": "^8.12.2",
-    "@typescript-eslint/parser": "^8.8.1",
-    "eslint": "^8",
+    "@types/node": "^26",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
+    "eslint": "^10",
     "eslint-plugin-unused-imports": "^4.1.4",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^5.3.0",
     "prettier": "^3.3.3",
     "prosemirror-model": "^1.0.0",
-    "react": "^19.0.0",
+    "react": "^19.2.8",
     "tsx": "^4.19.1",
     "turbo": "latest",
-    "typescript": "^5",
+    "typescript": "^7",
     "typescript-eslint": "^8.8.1",
-    "vitest": "^3.0.4"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@langchain/core": "^1.2.5",
-    "zod": "^3.23.8"
+    "zod": "^4.4.3"
   }
 }
