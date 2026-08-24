@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "sha256:a9dd2c91858f09e05fabb17d2408e104e6862dbbf9f9f5c2300b7b863796f753",
+  "catalogRevision": "sha256:09012267b8a4379fa7f39cd5c9d73efcaa1c822cf8189af36c77c4c5ecd829c5",
   "templates": [
     {
       "id": "evaluchat-getting-started",
       "version": "1.0.0",
       "locale": "en",
       "title": "Getting Started",
-      "description": "Learn how to use the Evaluchat workspace and ask for help.",
+      "description": "Learn how to use the OpenRigor workspace and ask for help.",
       "templateKind": "markdown",
       "sourcePath": "templates/evaluchat-getting-started.en.md",
-      "initialMarkdown": "# Welcome to Evaluchat\n\nThis is your private workspace for thinking, writing, and working with AI.\nThe Markdown document is yours: edit it freely, keep the parts that help, and\nreplace the rest with your own work.\n\n## Try asking\n\n- What can I do in this workspace?\n- Help me turn an idea into an outline.\n- Explain something I am working on.\n- Review this draft and suggest a next step.\n\nYou can also start writing directly in the document. Ask the assistant for\nhelp whenever you want it.\n",
-      "assistantGuidance": "You are Evaluchat’s Getting Started assistant. Begin with: “Welcome to Evaluchat. I’m here to answer questions and help you get started.” Give concise, practical help about using this workspace.",
-      "contentHash": "sha256:5b0958c5c45ae296e1743638df16471d5a0a3da317c87df0570a3a6429845ac2"
+      "initialMarkdown": "# Welcome to OpenRigor\n\nThis is your private workspace for thinking, writing, and working with AI.\nThe Markdown document is yours: edit it freely, keep the parts that help, and\nreplace the rest with your own work.\n\n## Try asking\n\n- What can I do in this workspace?\n- Help me turn an idea into an outline.\n- Explain something I am working on.\n- Review this draft and suggest a next step.\n\nYou can also start writing directly in the document. Ask the assistant for\nhelp whenever you want it.\n",
+      "assistantGuidance": "You are OpenRigor’s Getting Started assistant. Begin with: “Welcome to OpenRigor. I’m here to answer questions and help you get started.” Give concise, practical help about using this workspace.",
+      "contentHash": "sha256:80a6daaad9746d3cb54059383d0c7257b116b471816271a58ecf127e5eb74ba5"
     },
     {
       "id": "finding-starter",
@@ -23,8 +23,8 @@
       "templateKind": "markdown",
       "sourcePath": "templates/workspace/finding-starter.en.md",
       "initialMarkdown": "---\ntype: Finding\nid: <finding-slug>\nlang: en\norigin: native\nstatus: provisional\ntitle: \"<human-written English title>\"\ndescription: \"<human-written English summary>\"\nauthors:\n  - name: \"<human author>\"\nclaim: \"<human-written falsifiable claim>\"\nconfidence: low\nresearch_questions: []\nevidence_ledgers: []\n---\n\n<!--\nFrontmatter guidance for the human:\n- type: Finding\n- id: <finding-slug>\n- lang: en\n- origin: native\n- status: provisional\n- title / description / authors / claim: write these in English\n- confidence: low\n- The published-ledger picker fills `evidence_ledgers`.\n- The human fills `research_questions` independently (each entry: `{resource: <canonical Research-question URL and version>}`).\nThe picker never adds or derives research questions from a ledger.\n-->\n\n# <human-written title>\n\n## Claim\n\n## Research questions\n\n## Evidence ledgers\n\n## Declared scope\n\n## Interpretation\n\n## Counterevidence and alternative explanations\n\n## Limitations\n",
-      "assistantGuidance": "You are Evaluchat’s Finding starter assistant. Help the researcher fill the recommended sections in their own words. Do not suggest a claim, recommend a confidence tier, edit the document, or derive research questions from a cited ledger. Research questions are chosen independently; the ledger picker only inserts published ledger references.",
-      "contentHash": "sha256:09accc49658d4493ba58f908c636d7f48fd1b6d11a3fee13aa50a7daf426ca48"
+      "assistantGuidance": "You are OpenRigor’s Finding starter assistant. Help the researcher fill the recommended sections in their own words. Do not suggest a claim, recommend a confidence tier, edit the document, or derive research questions from a cited ledger. Research questions are chosen independently; the ledger picker only inserts published ledger references.",
+      "contentHash": "sha256:2b0b5bc3165ef038232871acb9b625765d3957fb2dddbd961cd41a5652661708"
     }
   ]
 }

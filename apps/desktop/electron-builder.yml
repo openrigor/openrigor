@@ -1,5 +1,5 @@
-appId: com.evaluchat.canvas
-productName: Evaluchat
+appId: com.openrigor.canvas
+productName: OpenRigor
 electronVersion: 33.4.11
 directories:
   output: release
@@ -17,10 +17,10 @@ linux:
     - AppImage
     - deb
   category: Office
-  maintainer: Evaluchat <noreply@users.noreply.github.com>
-  executableName: evaluchat-canvas
+  maintainer: OpenRigor <noreply@users.noreply.github.com>
+  executableName: openrigor-canvas
 deb:
-  packageName: evaluchat-canvas
+  packageName: openrigor-canvas
 artifactName: ${productName}-${version}-${arch}.${ext}
 mac:
   target:

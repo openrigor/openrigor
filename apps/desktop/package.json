@@ -4,7 +4,7 @@
   "description": "OpenRigor desktop Workspace (AI-off MVP)",
   "author": "OpenRigor <noreply@users.noreply.github.com>",
   "homepage": "https://github.com/openrigor/openrigor",
-  "repository": "https://github.com/openrigor/evaluchat",
+  "repository": "https://github.com/openrigor/openrigor",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {

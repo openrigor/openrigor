@@ -12,7 +12,7 @@ const temporaryDirectories: string[] = [];
 
 function templateDirectory(): string {
   const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "evaluchat-templates-"),
+    path.join(os.tmpdir(), "openrigor-templates-"),
   );
   temporaryDirectories.push(directory);
   return directory;

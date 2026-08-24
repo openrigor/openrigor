@@ -31,7 +31,7 @@ test.describe("@regression evidence-ledger", () => {
   const METHOD_ID = "ledger-demo-method";
   // Buckets for education_level ∈ [k12] + collection_date 2024-01-01..2024-12-31.
   //
-  //   NOTE: live-verified against dev.evaluchat.org (2026-08-19). The original
+  //   NOTE: live-verified against dev.openrigor.org (2026-08-19). The original
   //   handoff expected 6/2/2/2/2, but the current fixtures resolve p08 (k12,
   //   country=other), p10 (k12, country omitted) as INCLUDED — the filter only
   //   constrains education_level + collection_date, not country_code. Correct
@@ -283,7 +283,7 @@ test.describe("@regression evidence-ledger", () => {
     // what a sealed snapshot links to (Wave A review fix).
     await summaries.getByText("Evidence", { exact: true }).click();
     const evidenceAnchors = page.locator(
-      "[data-testid='ledger-snapshot-canvas'] a[href*='github.com/evaluchat/research/blob/']"
+      "[data-testid='ledger-snapshot-canvas'] a[href*='github.com/openrigor/research/blob/']"
     );
     await expect(evidenceAnchors.first()).toBeVisible({ timeout: 15_000 });
     const hrefs = await evidenceAnchors.evaluateAll((anchors) =>
@@ -317,7 +317,7 @@ test.describe("@regression evidence-ledger", () => {
             publication: {
               status: "draft",
               pullRequestNumber: 85,
-              pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+              pullRequestUrl: "https://github.com/openrigor/research/pull/85",
             },
           }),
         });
@@ -332,7 +332,7 @@ test.describe("@regression evidence-ledger", () => {
     await publishDialog.getByTestId("ledger-confirm-publish").click();
     await expect(
       banner.getByRole("link", { name: "Draft PR" })
-    ).toHaveAttribute("href", "https://github.com/evaluchat/research/pull/85");
+    ).toHaveAttribute("href", "https://github.com/openrigor/research/pull/85");
 
     // Snapshot chat can discuss the sealed record without generating a canvas
     // artifact. Wait for its hidden kickoff before checking the next assistant
