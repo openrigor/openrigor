@@ -49,7 +49,15 @@ describe("inviteWorkspaceParticipant", () => {
 
   it("notifies an existing user via AgentMail instead of faking emailed", async () => {
     inviteUserByEmail.mockResolvedValue({ error: EMAIL_EXISTS_ERROR });
-    generateLink.mockResolvedValue({ error: null });
+    generateLink.mockResolvedValue({
+      error: null,
+      data: {
+        properties: {
+          action_link:
+            "https://supabase.openrigor.org/auth/v1/verify?token=tok&type=magiclink",
+        },
+      },
+    });
     notifyWorkspaceParticipant.mockResolvedValue({
       ok: true,
       messageId: "m1",
@@ -64,6 +72,8 @@ describe("inviteWorkspaceParticipant", () => {
     });
     expect(notifyWorkspaceParticipant).toHaveBeenCalledWith({
       email: "cronjev@outlook.com",
+      actionLink:
+        "https://supabase.openrigor.org/auth/v1/verify?token=tok&type=magiclink",
     });
   });
 

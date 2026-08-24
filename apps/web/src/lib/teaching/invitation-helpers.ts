@@ -128,11 +128,12 @@ export async function inviteWorkspaceParticipant(
   // Generate the magic link (keeps acceptance working), then notify via
   // AgentMail instead of pretending an email went out.
   if (EMAIL_EXISTS_PATTERN.test(inviteError.message || "")) {
-    const { error: linkError } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-      options: { redirectTo },
-    });
+    const { data: linkData, error: linkError } =
+      await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: { redirectTo },
+      });
     if (linkError) {
       console.error(
         `[workspace] could not generate access link (${options?.correlationId ?? "unknown"}):`,
@@ -141,7 +142,10 @@ export async function inviteWorkspaceParticipant(
       return { emailed: false, notified: false, outcome: "failed" };
     }
 
-    const notify = await notifyWorkspaceParticipant({ email });
+    const notify = await notifyWorkspaceParticipant({
+      email,
+      actionLink: linkData?.properties?.action_link,
+    });
     if ("ok" in notify && notify.ok) {
       return { emailed: false, notified: true, outcome: "notified" };
     }
@@ -162,7 +166,7 @@ export async function inviteWorkspaceParticipant(
   if (!linkError) {
     // Legacy behaviour treated this as emailed; that was a silent lie.
     console.warn(
-      `[workspace] invite email not sent for ${email} — magic link generated without notification (${options?.correlationId ?? "unknown"})`
+      `[workspace] invite email not sent — magic link generated without notification (${options?.correlationId ?? "unknown"})`
     );
     return { emailed: false, notified: false, outcome: "added_no_email" };
   }

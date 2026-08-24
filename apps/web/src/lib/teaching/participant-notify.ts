@@ -1,8 +1,7 @@
 export type ParticipantNotifyPayload = {
   email: string;
-  methodTitle?: string;
-  course?: string;
-  dueDate?: string;
+  /** Supabase-generated sign-in link (magiclink action_link), if available. */
+  actionLink?: string;
 };
 
 export type ParticipantNotifyResult =
@@ -20,36 +19,22 @@ function buildBody(payload: ParticipantNotifyPayload): {
   text: string;
   html: string;
 } {
-  const subject = payload.methodTitle
-    ? `[OpenRigor] You've been added to "${payload.methodTitle}"`
-    : "[OpenRigor] You've been added to a workspace item";
-
-  const detailLines = [
-    payload.methodTitle ? `Assignment: ${payload.methodTitle}` : null,
-    payload.course ? `Course: ${payload.course}` : null,
-    payload.dueDate ? `Due: ${payload.dueDate}` : null,
-  ].filter((line): line is string => Boolean(line));
+  const subject = "[OpenRigor] You've been added to a workspace item";
+  const ctaUrl = payload.actionLink || "https://openrigor.org/workspace";
 
   const text = [
     "You've been added as a participant on OpenRigor.",
     "",
-    ...detailLines,
-    "",
-    "Sign in to view your assignment:",
-    "https://openrigor.org/workspace",
+    payload.actionLink
+      ? "Open your assignment (sign-in link):"
+      : "Sign in to view your assignment:",
+    ctaUrl,
     "",
     "If you were not expecting this, you can ignore this email.",
   ].join("\n");
 
-  const listItems = detailLines.length
-    ? `<ul>${detailLines
-        .map((line) => `<li>${escapeHtml(line)}</li>`)
-        .join("")}</ul>`
-    : "";
-
   const html = `<p>You've been added as a participant on OpenRigor.</p>
-${listItems}
-<p><a href="https://openrigor.org/workspace">Sign in</a> to view your assignment.</p>
+<p><a href="${escapeHtml(ctaUrl)}">Open your assignment</a></p>
 <p>If you were not expecting this, you can ignore this email.</p>`;
 
   return { subject, text, html };
