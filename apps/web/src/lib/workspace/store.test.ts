@@ -122,10 +122,15 @@ vi.mock("./research-repository/github-app", () => ({
   getGithubInstallationRepository: harness.getGithubInstallationRepository,
   getGithubRepositoryBranchHead: harness.getGithubRepositoryBranchHead,
 }));
-vi.mock("./research-repository/git-adapter", () => ({
-  probeMethodHostInitialization: harness.probeMethodHostInitialization,
-  discoverPrivateMethods: harness.discoverPrivateMethods,
-}));
+vi.mock("./research-repository/git-adapter", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./research-repository/git-adapter")>();
+  return {
+    ...actual,
+    probeMethodHostInitialization: harness.probeMethodHostInitialization,
+    discoverPrivateMethods: harness.discoverPrivateMethods,
+  };
+});
 vi.mock("./research-repository/seals", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("./research-repository/seals")>();
@@ -529,6 +534,33 @@ describe("research repository workspace items", () => {
       initialized: false,
       initializationFailureReason: "methods_directory_missing",
     });
+  });
+
+  it("clears a stored initialization failure reason after a successful re-probe", async () => {
+    const item = repositoryWorkspaceItem();
+    item.binding.initialized = false;
+    Object.assign(item.binding, {
+      initializationFailureReason: "methods_index_missing",
+    });
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: true,
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      headCommitSha: refreshedHead,
+      initialized: true,
+    });
+    expect(
+      harness.state.manifest.items[item.id].binding.initializationFailureReason
+    ).toBeUndefined();
   });
 
   it("creates a missing managed branch from the default head before binding", async () => {

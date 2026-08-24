@@ -87,6 +87,50 @@ describe("GET /api/workspace/catalog", () => {
     expect(harness.listSelectedPrivateMethods).toHaveBeenCalledWith("user-1");
   });
 
+  it("omits private Methods while the feature flag is off", async () => {
+    harness.githubResearchEnabled.mockReturnValue(false);
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/workspace/catalog?kind=method")
+    );
+
+    const body = await response.json();
+    expect(
+      body.results.some((result: { private?: boolean }) => result.private)
+    ).toBe(false);
+    expect(harness.listSelectedPrivateMethods).not.toHaveBeenCalled();
+  });
+
+  it("marks private Methods in the ledger catalog", async () => {
+    harness.githubResearchEnabled.mockReturnValue(true);
+    harness.listResearchedMethods.mockResolvedValue([]);
+    harness.listSelectedPrivateMethods.mockResolvedValue([
+      {
+        id: "private-method",
+        title: "Private Method",
+        repositoryItemId: "wi_repository",
+        repositoryId: 101,
+        commitSha: "a".repeat(40),
+      },
+    ]);
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/workspace/catalog?kind=ledger")
+    );
+
+    expect(await response.json()).toMatchObject({
+      kind: "ledger",
+      results: [
+        {
+          id: "private-method",
+          private: true,
+          status: "Private repository",
+          repositoryItemId: "wi_repository",
+        },
+      ],
+    });
+  });
+
   it("returns selectable methods without an under-construction status", async () => {
     const response = await GET(
       new NextRequest("http://localhost/api/workspace/catalog?kind=method")
