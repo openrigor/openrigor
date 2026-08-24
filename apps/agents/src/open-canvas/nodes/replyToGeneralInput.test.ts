@@ -440,7 +440,25 @@ describe("replyToGeneralInput", () => {
 
     expect(mockModel.invoke).toHaveBeenCalledWith([
       expect.objectContaining({
-        content: expect.stringContaining("<ledger-updates>"),
+        content: expect.stringContaining(
+          '<ledger-updates>{"education_level":{"control":"multi-select","values":["k12"]}}</ledger-updates>'
+        ),
+      }),
+      ...state._messages,
+    ]);
+    expect(mockModel.invoke).toHaveBeenCalledWith([
+      expect.objectContaining({
+        content: expect.stringContaining(
+          "NEVER emit the literal strings dimension_id"
+        ),
+      }),
+      ...state._messages,
+    ]);
+    expect(mockModel.invoke).toHaveBeenCalledWith([
+      expect.objectContaining({
+        content: expect.not.stringContaining(
+          '<ledger-updates>{"dimension_id":{"control":"multi-select","values":[...]}}</ledger-updates>'
+        ),
       }),
       ...state._messages,
     ]);
