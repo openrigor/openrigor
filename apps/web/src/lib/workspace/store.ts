@@ -20,6 +20,7 @@ import {
 import type {
   FormValue,
   LedgerSnapshotWorkspaceItem,
+  LedgerSource,
   LedgerWorkspaceItem,
   MethodRunParticipant,
 } from "./types";
@@ -63,6 +64,7 @@ import {
   buildEvidenceSnapshotFromMarker,
   EvidenceRunNotConcludedError,
   type EvidenceSnapshot,
+  privateEvidenceTemplateSnapshot,
 } from "./evidence";
 import {
   BUILTIN_APPARATUS_IDS,
@@ -92,6 +94,11 @@ import {
   type PrivateMethodDefinition,
   type ResearchRepositoryWorkspaceItem,
 } from "./research-repository/method-host-types";
+import {
+  previewSealSnapshot,
+  type RepositorySealAccess,
+  type SealSnapshotPreview,
+} from "./research-repository/seals";
 
 const MANIFEST_KEY = "manifest";
 const LOCK_KEY = "lock";
@@ -1026,7 +1033,7 @@ async function resolvePrivateMethodHost(
     repository,
     commitSha
   );
-  return { commitSha, discovery };
+  return { commitSha, credentials, repository, discovery };
 }
 
 /** Selected, currently conforming private Methods for the Create catalog. */
@@ -1154,6 +1161,11 @@ export async function createPrivateMethodWorkspaceItem(
     },
     profileId: profiles[0]?.id ?? DEFAULT_METHOD_PROFILE_ID,
     profiles,
+    privateEvidenceTemplate: privateEvidenceTemplateSnapshot(
+      definition.evidenceTemplateMarkdown,
+      definition.id,
+      commitSha
+    ),
   };
 
   return withUserLock(userId, async () => {
@@ -1166,6 +1178,194 @@ export async function createPrivateMethodWorkspaceItem(
       !currentRepositoryItem.selectedMethodIds.includes(methodId)
     ) {
       throw new UnsupportedMethodError();
+    }
+    currentManifest.initialized = true;
+    currentManifest.items[item.id] = item;
+    await writeManifest(userId, currentManifest);
+    return item;
+  });
+}
+
+function ledgerConfigFromSeal(preview: SealSnapshotPreview): LedgerConfig {
+  return {
+    methodId: preview.snapshotData.methodId,
+    methodVersion: preview.snapshotData.methodVersion,
+    templateId: preview.snapshotData.templateId,
+    templateVersion: preview.snapshotData.templateVersion,
+    filters: [],
+  };
+}
+
+function ledgerResolutionFromSeal(
+  preview: SealSnapshotPreview
+): EvidenceLedgerResolution {
+  const manifest = preview.snapshotData.manifest as {
+    contributions?: EvidenceLedgerResolution["contributions"];
+  };
+  const contributions = Array.isArray(manifest.contributions)
+    ? manifest.contributions
+    : [];
+  return {
+    methods: [],
+    contributions,
+    acceptedEvidence: contributions,
+    scope: {
+      filters: [],
+      baselineCount: preview.snapshotData.buckets.Included,
+      bucketCounts: preview.snapshotData.buckets,
+    },
+    manifest: {
+      methods: [],
+      filters: [],
+      contributions,
+    },
+    manifestHash: preview.configurationHash,
+  };
+}
+
+async function privateLedgerSealPreview(
+  userId: string,
+  source: LedgerSource,
+  options: {
+    snapshotId?: string;
+    reviewedAt?: string;
+    expectedHeadCommitSha?: string;
+  } = {}
+): Promise<SealSnapshotPreview> {
+  const provenance = source.privateRepository;
+  if (!provenance) {
+    throw new LedgerConfigValidationError(
+      "Private ledger provenance is unavailable"
+    );
+  }
+  const manifest = await readManifest(userId);
+  const repositoryItem = manifest.items[provenance.repositoryItemId];
+  if (
+    !repositoryItem ||
+    !isUsableResearchRepository(repositoryItem) ||
+    repositoryItem.ownerId !== userId ||
+    repositoryItem.binding.repositoryId !== provenance.repositoryId
+  ) {
+    throw new WorkspaceItemNotFoundError();
+  }
+  const credentials = await readGithubResearchCredentials(userId);
+  if (
+    !credentials ||
+    credentials.installationId !== repositoryItem.binding.installationId ||
+    !credentials.repositoryIds.includes(repositoryItem.binding.repositoryId)
+  ) {
+    throw new LedgerConfigValidationError(
+      "Private Method repository is disconnected"
+    );
+  }
+  const repository = await getGithubInstallationRepository(
+    repositoryItem.binding.installationId,
+    repositoryItem.binding.repositoryId
+  );
+  if (!repository.private) {
+    throw new LedgerConfigValidationError(
+      "Private Method repository is no longer private"
+    );
+  }
+  const access: RepositorySealAccess = {
+    binding: repositoryItem.binding,
+    credentials,
+    repository,
+  };
+  return previewSealSnapshot(access, {
+    methodId: source.methodId,
+    ...options,
+  });
+}
+
+function loadedLedgerSourceFromSeal(
+  preview: SealSnapshotPreview
+): LoadedLedgerSource {
+  const config = ledgerConfigFromSeal(preview);
+  const template = {
+    id: "evidence-template" as const,
+    version: config.templateVersion,
+    path: `methods/${config.methodId}/evidence-template.en.md`,
+    dimensions: [],
+  };
+  return {
+    method: {
+      id: config.methodId,
+      version: config.methodVersion,
+      path: `methods/${config.methodId}/${config.methodId}.en.md`,
+      evidenceTemplate: template,
+    },
+    template,
+    contributions: ledgerResolutionFromSeal(preview).contributions,
+    sourceCommit: preview.sealedFromCommit,
+  };
+}
+
+export async function createPrivateLedgerWorkspaceItem(
+  userId: string,
+  repositoryItemId: string,
+  methodId: string
+): Promise<LedgerWorkspaceItem> {
+  const manifest = await readManifest(userId);
+  const repositoryItem = manifest.items[repositoryItemId];
+  if (
+    !repositoryItem ||
+    !isUsableResearchRepository(repositoryItem) ||
+    repositoryItem.ownerId !== userId ||
+    !repositoryItem.selectedMethodIds.includes(methodId)
+  ) {
+    throw new LedgerNotReadyError();
+  }
+  const { commitSha, credentials, repository, discovery } =
+    await resolvePrivateMethodHost(userId, repositoryItem);
+  const method = discovery.methods.find(
+    (candidate) => candidate.id === methodId
+  );
+  if (!method) throw new LedgerNotReadyError();
+  const preview = await previewSealSnapshot(
+    {
+      binding: { ...repositoryItem.binding, headCommitSha: commitSha },
+      credentials,
+      repository,
+    },
+    { methodId }
+  );
+  const ledgerConfig = ledgerConfigFromSeal(preview);
+  const now = new Date().toISOString();
+  const item: LedgerWorkspaceItem = {
+    id: `wi_${randomUUID()}`,
+    ownerId: userId,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    kind: "ledger",
+    ledgerConfig,
+    snapshotIds: [],
+    source: {
+      methodId: ledgerConfig.methodId,
+      methodVersion: ledgerConfig.methodVersion,
+      templateId: ledgerConfig.templateId,
+      templateVersion: ledgerConfig.templateVersion,
+      sourceCommit: preview.sealedFromCommit,
+      methodTitle: method.title,
+      baselineAcceptedEvidenceCount: preview.snapshotData.buckets.Included,
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: repositoryItem.binding.repositoryId,
+        commitSha,
+      },
+    },
+  };
+  return withUserLock(userId, async () => {
+    const currentManifest = await readManifest(userId);
+    const currentRepositoryItem = currentManifest.items[repositoryItemId];
+    if (
+      !currentRepositoryItem ||
+      !isUsableResearchRepository(currentRepositoryItem) ||
+      currentRepositoryItem.ownerId !== userId ||
+      !currentRepositoryItem.selectedMethodIds.includes(methodId)
+    ) {
+      throw new LedgerNotReadyError();
     }
     currentManifest.initialized = true;
     currentManifest.items[item.id] = item;
@@ -1296,7 +1496,30 @@ async function resolveLedgerConfig(
   config: LedgerConfig;
   source: LoadedLedgerSource;
   resolution: EvidenceLedgerResolution;
+  sealPreview?: SealSnapshotPreview;
 }> {
+  if (item.source.privateRepository) {
+    const config =
+      candidate === undefined
+        ? item.ledgerConfig
+        : parseLedgerConfig(candidate, item.ledgerConfig);
+    if (
+      config.methodId !== item.source.methodId ||
+      config.templateId !== item.source.templateId ||
+      config.filters.length > 0
+    ) {
+      throw new LedgerConfigValidationError(
+        "Private repository seals use their scan-derived configuration"
+      );
+    }
+    const preview = await privateLedgerSealPreview(item.ownerId, item.source);
+    return {
+      config: ledgerConfigFromSeal(preview),
+      source: loadedLedgerSourceFromSeal(preview),
+      resolution: ledgerResolutionFromSeal(preview),
+      sealPreview: preview,
+    };
+  }
   const config =
     candidate === undefined
       ? item.ledgerConfig
@@ -1483,7 +1706,7 @@ export async function createLedgerSnapshotItem(
     }
     return ledger;
   });
-  const { config, source, resolution } = await resolveLedgerConfig(
+  const { config, source, resolution, sealPreview } = await resolveLedgerConfig(
     ledger,
     candidate
   );
@@ -1506,22 +1729,24 @@ export async function createLedgerSnapshotItem(
 
     const now = new Date().toISOString();
     const predicate = predicateFor(config, source);
-    const snapshotHeader: LedgerSnapshotData = {
-      ledgerId: `ledger_${randomUUID()}`,
-      methodId: config.methodId,
-      methodVersion: config.methodVersion,
-      templateId: config.templateId,
-      templateVersion: config.templateVersion,
-      filters: config.filters,
-      manifest: resolution.manifest,
-      inputFingerprint: fingerprint,
-      renderHash: "",
-      buckets: resolution.scope.bucketCounts,
-      predicate,
-      generatedAt: now,
-      resolverVersion: "1.0.0",
-      sourceCommit: source.sourceCommit,
-    };
+    const snapshotHeader: LedgerSnapshotData = sealPreview
+      ? { ...sealPreview.snapshotData, renderHash: "" }
+      : {
+          ledgerId: `ledger_${randomUUID()}`,
+          methodId: config.methodId,
+          methodVersion: config.methodVersion,
+          templateId: config.templateId,
+          templateVersion: config.templateVersion,
+          filters: config.filters,
+          manifest: resolution.manifest,
+          inputFingerprint: fingerprint,
+          renderHash: "",
+          buckets: resolution.scope.bucketCounts,
+          predicate,
+          generatedAt: now,
+          resolverVersion: "1.0.0",
+          sourceCommit: source.sourceCommit,
+        };
     snapshotHeader.renderHash = ledgerRenderHash(snapshotHeader, config);
     const snapshot: LedgerSnapshotWorkspaceItem = {
       id: `wi_${randomUUID()}`,
@@ -2348,6 +2573,7 @@ export async function updateLedgerSnapshotPublication(
   update: {
     publication?: LedgerSnapshotWorkspaceItem["publication"];
     renderHash?: string;
+    privatePublication?: LedgerSnapshotWorkspaceItem["privatePublication"];
   }
 ): Promise<LedgerSnapshotWorkspaceItem> {
   return withUserLock(userId, async () => {
@@ -2366,6 +2592,9 @@ export async function updateLedgerSnapshotPublication(
       ...(update.publication === undefined
         ? {}
         : { publication: update.publication }),
+      ...(update.privatePublication === undefined
+        ? {}
+        : { privatePublication: update.privatePublication }),
       snapshot:
         update.renderHash === undefined
           ? item.snapshot

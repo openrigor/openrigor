@@ -51,6 +51,7 @@ export type PrivateMethodDefinition = PrivateMethodSummary & {
   version?: string;
   runBriefTemplate?: string;
   profiles: Array<{ id: string; label: string }>;
+  evidenceTemplateMarkdown: string;
 };
 
 export type PrivateMethodCatalogEntry = PrivateMethodSummary & {

@@ -28,7 +28,31 @@ export async function GET(request: NextRequest) {
       .map((method) =>
         toLedgerCatalogResult(method, method.acceptedEvidenceCount)
       );
-    return NextResponse.json({ kind, results });
+    const privateResults = isGithubResearchWorkspacesEnabled()
+      ? (await listSelectedPrivateMethods(auth.user.id))
+          .filter((method) => {
+            if (!needle) return true;
+            return [
+              method.id,
+              method.title ?? "",
+              method.description ?? "",
+            ].some((value) => value.toLowerCase().includes(needle));
+          })
+          .map((method) => ({
+            id: method.id,
+            title: method.title ?? method.id,
+            description: method.description ?? "Private repository Method",
+            disabled: false,
+            status: "Private repository",
+            private: true,
+            repositoryItemId: method.repositoryItemId,
+            commitSha: method.commitSha,
+          }))
+      : [];
+    return NextResponse.json({
+      kind,
+      results: [...results, ...privateResults],
+    });
   }
 
   if (kind === "method") {

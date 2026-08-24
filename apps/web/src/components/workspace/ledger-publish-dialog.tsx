@@ -10,11 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ledgerPublishRequestBody,
-  publicationAccessError,
-} from "@/lib/workspace/ledger-publication";
+import { publicationAccessError } from "@/lib/workspace/ledger-publication";
 import type { LedgerSnapshotWorkspaceItem } from "@/lib/workspace/types";
+import {
+  LedgerPublicationDeclarations,
+  ledgerDeclarationRequestValues,
+  useLedgerPublicationDeclarations,
+} from "./ledger-publication-declarations";
 
 type Publication = NonNullable<LedgerSnapshotWorkspaceItem["publication"]>;
 
@@ -31,19 +33,20 @@ export function LedgerPublishDialog({
   onPublished: (publication: Publication) => void;
   rePublish?: boolean;
 }) {
-  const [authorised, setAuthorised] = useState(false);
-  const [anonymised, setAnonymised] = useState(false);
-  const [publicData, setPublicData] = useState(false);
+  const {
+    declarations,
+    setDeclarations,
+    declarationsConfirmed,
+    resetDeclarations,
+  } = useLedgerPublicationDeclarations();
   const [error, setError] = useState<string>();
   const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setAuthorised(false);
-    setAnonymised(false);
-    setPublicData(false);
+    resetDeclarations();
     setError(undefined);
-  }, [open, rePublish]);
+  }, [open, rePublish, resetDeclarations]);
 
   async function publish() {
     setIsPublishing(true);
@@ -55,14 +58,10 @@ export function LedgerPublishDialog({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(
-            ledgerPublishRequestBody({
-              authorised,
-              anonymised,
-              publicData,
-              rePublish,
-            })
-          ),
+          body: JSON.stringify({
+            ...(rePublish ? { rePublish: true } : {}),
+            values: ledgerDeclarationRequestValues(declarations),
+          }),
         }
       );
       const body = (await response.json().catch(() => ({}))) as {
@@ -96,8 +95,6 @@ export function LedgerPublishDialog({
     }
   }
 
-  const declarationsComplete = authorised && anonymised && publicData;
-
   return (
     <Dialog
       open={open}
@@ -119,38 +116,12 @@ export function LedgerPublishDialog({
             not merge automatically.
           </DialogDescription>
         </DialogHeader>
-        <fieldset className="min-w-0 space-y-3 rounded-md border p-3">
-          <legend className="px-1 text-sm font-medium">
-            Public-safety declarations
-          </legend>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={authorised}
-              onChange={(event) => setAuthorised(event.target.checked)}
-              data-testid="ledger-publication-authorisation"
-            />
-            I am authorised to publish this evidence ledger.
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={anonymised}
-              onChange={(event) => setAnonymised(event.target.checked)}
-              data-testid="ledger-anonymisation-status"
-            />
-            It contains no student identifiers or raw student material.
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={publicData}
-              onChange={(event) => setPublicData(event.target.checked)}
-              data-testid="ledger-public-data-declaration"
-            />
-            I confirm the rendered file is public data for openrigor/research.
-          </label>
-        </fieldset>
+        <LedgerPublicationDeclarations
+          values={declarations}
+          onChange={setDeclarations}
+          variant="checkbox"
+          legend="Publication-safety declarations"
+        />
         {error && (
           <p className="text-sm text-destructive" role="alert">
             {error}
@@ -166,7 +137,7 @@ export function LedgerPublishDialog({
           </Button>
           <Button
             onClick={() => void publish()}
-            disabled={!declarationsComplete || isPublishing}
+            disabled={!declarationsConfirmed || isPublishing}
             data-testid="ledger-confirm-publish"
           >
             {isPublishing ? "Creating draft PR…" : "Create draft PR"}

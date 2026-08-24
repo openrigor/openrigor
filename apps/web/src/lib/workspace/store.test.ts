@@ -99,6 +99,7 @@ const harness = vi.hoisted(() => {
     getGithubRepositoryBranchHead: vi.fn(),
     probeMethodHostInitialization: vi.fn(),
     discoverPrivateMethods: vi.fn(),
+    previewSealSnapshot: vi.fn(),
   };
 });
 
@@ -125,10 +126,17 @@ vi.mock("./research-repository/git-adapter", () => ({
   probeMethodHostInitialization: harness.probeMethodHostInitialization,
   discoverPrivateMethods: harness.discoverPrivateMethods,
 }));
+vi.mock("./research-repository/seals", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./research-repository/seals")>();
+  return { ...actual, previewSealSnapshot: harness.previewSealSnapshot };
+});
 
 import {
   createResearchRepositoryItem,
   createPrivateMethodWorkspaceItem,
+  createPrivateLedgerWorkspaceItem,
+  createLedgerSnapshotItem,
   createWorkspaceItem,
   createMethodWorkspaceItem,
   deleteWorkspaceItem,
@@ -405,6 +413,7 @@ function repositoryWorkspaceItem(layoutVersion = "1.0") {
       boundAt: now,
       initialized: true,
     },
+    selectedMethodIds: [],
   };
 }
 
@@ -869,6 +878,114 @@ describe("research repository workspace items", () => {
     expect(item.methodSource.version).toBe(workspaceBranchSha);
     expect(item.methodSource.privateRepository?.commitSha).toBe(
       workspaceBranchSha
+    );
+  });
+
+  it("creates private ledger snapshots from the repository scan", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          profiles: [],
+          evidenceTemplateMarkdown: "",
+        },
+      ],
+    });
+    const snapshotData = {
+      ledgerId: "11111111-1111-4111-8111-111111111111",
+      methodId: "private-method",
+      methodVersion: workspaceBranchSha,
+      templateId: "repository-artifacts",
+      templateVersion: "1.0",
+      filters: [],
+      manifest: {
+        methods: [],
+        filters: [],
+        contributions: [
+          {
+            id: "evidence.private-method.one",
+            path: "methods/private-method/evidence/one.en.md",
+            sourceHash: "d".repeat(64),
+            methodId: "private-method",
+            methodVersion: workspaceBranchSha,
+            templateVersion: "1.0",
+            dimensionValues: {},
+            scopeValues: {},
+            bucket: "Included" as const,
+          },
+        ],
+      },
+      inputFingerprint: "e".repeat(64),
+      renderHash: "",
+      buckets: {
+        Included: 1,
+        "Outside declared scope": 0,
+        Unknown: 0,
+        Unavailable: 0,
+        "Resolver exclusion": 0,
+      },
+      predicate: "all private Method inputs",
+      generatedAt: "2026-08-24T12:00:00.000Z",
+      resolverVersion: "repository-seal/1",
+      sourceCommit: workspaceBranchSha,
+    };
+    harness.previewSealSnapshot.mockResolvedValue({
+      ...snapshotData,
+      schemaVersion: "1",
+      snapshotId: snapshotData.ledgerId,
+      sealedFromCommit: workspaceBranchSha,
+      reviewerLogin: "researcher",
+      reviewedAt: snapshotData.generatedAt,
+      method: {
+        id: "private-method",
+        version: workspaceBranchSha,
+      },
+      inputs: [],
+      configurationHash: snapshotData.inputFingerprint,
+      renderHash: "f".repeat(64),
+      ledgerPath: `methods/private-method/evidence/ledgers/${snapshotData.ledgerId}.en.md`,
+      sealPath: `methods/private-method/evidence/ledgers/${snapshotData.ledgerId}.seal.yml`,
+      ledgerMarkdown: "# Evidence Ledger\n",
+      manifestYaml: "schema_version: '1'\n",
+      inputArtifactIds: [],
+      snapshotData,
+    });
+
+    const ledger = await createPrivateLedgerWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+    const result = await createLedgerSnapshotItem("user-1", ledger.id);
+
+    expect(ledger.source.privateRepository).toEqual({
+      repositoryItemId: repositoryItem.id,
+      repositoryId: 101,
+      commitSha: workspaceBranchSha,
+    });
+    expect(result.idempotent).toBe(false);
+    expect(result.item.snapshot).toMatchObject({
+      ledgerId: snapshotData.ledgerId,
+      methodId: "private-method",
+      sourceCommit: workspaceBranchSha,
+      inputFingerprint: snapshotData.inputFingerprint,
+    });
+    expect(result.item.source.privateRepository).toEqual(
+      ledger.source.privateRepository
+    );
+    expect(harness.previewSealSnapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      { methodId: "private-method" }
     );
   });
 

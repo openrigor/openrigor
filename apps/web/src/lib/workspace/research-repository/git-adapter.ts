@@ -270,11 +270,12 @@ export async function commitArtifactBlobs(
   input: {
     authorUser?: GithubCommitAuthor;
     message: string;
-    baseSha: string;
+    /** Null only for a repository with no branch head yet. */
+    baseSha: string | null;
     files: Array<{ path: string; content: string }>;
   }
 ): Promise<string> {
-  if (!/^[0-9a-f]{40}$/.test(input.baseSha)) {
+  if (input.baseSha !== null && !/^[0-9a-f]{40}$/.test(input.baseSha)) {
     throw new Error("Invalid base commit SHA");
   }
   if (!input.message.trim() || input.files.length === 0) {
@@ -292,16 +293,54 @@ export async function commitArtifactBlobs(
     paths.add(file.path);
   }
 
-  const currentHead = await getGithubRepositoryBranchHead(
-    installationId,
-    repository,
-    branch
-  );
+  const octokit = createGithubInstallationOctokit(installationId);
+  let currentHead: string | undefined;
+  try {
+    currentHead = await getGithubRepositoryBranchHead(
+      installationId,
+      repository,
+      branch
+    );
+  } catch (error) {
+    if (input.baseSha !== null || githubErrorStatus(error) !== 404) throw error;
+  }
+  if (input.baseSha === null) {
+    if (currentHead) throw new StaleRepositoryError(currentHead);
+    // GitHub does not allow create-ref in a truly empty repository. The
+    // Contents API is its supported first-commit path; callers must target the
+    // repository's initial/default branch. Later writes use the atomic Git
+    // Data CAS path below.
+    const [first, ...remaining] = input.files;
+    const response = await octokit.request(
+      "PUT /repos/{owner}/{repo}/contents/{path}",
+      {
+        ...repositoryParameters(repository),
+        path: first.path,
+        message: input.message,
+        content: Buffer.from(first.content, "utf8").toString("base64"),
+        branch,
+        author: input.authorUser ?? GITHUB_RESEARCH_APP_COMMITTER,
+        committer: GITHUB_RESEARCH_APP_COMMITTER,
+        headers: headers(),
+      }
+    );
+    const firstCommitSha = (response.data as { commit?: { sha?: unknown } })
+      .commit?.sha;
+    if (typeof firstCommitSha !== "string") {
+      throw new Error("GitHub returned an invalid first commit SHA");
+    }
+    return remaining.length === 0
+      ? firstCommitSha
+      : commitArtifactBlobs(installationId, repository, branch, {
+          ...input,
+          baseSha: firstCommitSha,
+          files: remaining,
+        });
+  }
   if (currentHead !== input.baseSha) {
-    throw new StaleRepositoryError(currentHead);
+    throw new StaleRepositoryError(currentHead ?? input.baseSha);
   }
 
-  const octokit = createGithubInstallationOctokit(installationId);
   const baseCommit = await octokit.request(
     "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
     {

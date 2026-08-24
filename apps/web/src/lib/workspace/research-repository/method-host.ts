@@ -59,21 +59,24 @@ export async function discoverPrivateMethodsFromTree(
   const initialization = inspectMethodHostInitialization(tree);
   if (!initialization.initialized) return { initialization, methods: [] };
 
-  const blobPaths = new Set(
-    tree.filter((entry) => entry.type === "blob").map((entry) => entry.path)
-  );
   const candidates = tree.flatMap((entry) => {
     if (entry.type !== "blob") return [];
     const directory = methodDirectory(entry.path);
     if (!directory) return [];
-    return blobPaths.has(`methods/${directory}/evidence-template.en.md`)
-      ? [{ directory, entry }]
-      : [];
+    const evidenceEntry = tree.find(
+      (candidate) =>
+        candidate.path === `methods/${directory}/evidence-template.en.md` &&
+        candidate.type === "blob"
+    );
+    return evidenceEntry ? [{ directory, entry, evidenceEntry }] : [];
   });
 
   const methods = await Promise.all(
-    candidates.map(async ({ directory, entry }) => {
-      const source = await readBlob(entry.sha);
+    candidates.map(async ({ directory, entry, evidenceEntry }) => {
+      const [source, evidenceTemplateMarkdown] = await Promise.all([
+        readBlob(entry.sha),
+        readBlob(evidenceEntry.sha),
+      ]);
       let frontmatter: Record<string, unknown>;
       try {
         frontmatter = parseMarkdownFrontmatter(source).frontmatter;
@@ -114,6 +117,7 @@ export async function discoverPrivateMethodsFromTree(
           ? { runBriefTemplate: frontmatter.run_brief_template }
           : {}),
         profiles,
+        evidenceTemplateMarkdown,
       } satisfies PrivateMethodDefinition;
     })
   );

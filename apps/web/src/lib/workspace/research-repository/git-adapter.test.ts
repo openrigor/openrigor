@@ -151,6 +151,38 @@ describe("GitHub repository Git Data adapter", () => {
     );
   });
 
+  it("uses the GitHub Contents API for an empty repository first commit", async () => {
+    harness.getHead.mockRejectedValue(
+      Object.assign(new Error("Not found"), { status: 404 })
+    );
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "PUT /repos/{owner}/{repo}/contents/{path}") {
+        return { data: { commit: { sha: commitSha } } };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      commitArtifactBlobs(99, repository, "main", {
+        message: "Initialize Method host",
+        baseSha: null,
+        files: [{ path: "index.md", content: "# Methods\n" }],
+      })
+    ).resolves.toBe(commitSha);
+    expect(harness.request).toHaveBeenCalledWith(
+      "PUT /repos/{owner}/{repo}/contents/{path}",
+      expect.objectContaining({
+        path: "index.md",
+        branch: "main",
+        content: Buffer.from("# Methods\n").toString("base64"),
+      })
+    );
+    expect(harness.request).not.toHaveBeenCalledWith(
+      "POST /repos/{owner}/{repo}/git/refs",
+      expect.anything()
+    );
+  });
+
   it("uses the configured app identity for both author and committer when none is supplied", async () => {
     harness.request.mockImplementation(async (route: string) => {
       if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {

@@ -187,6 +187,7 @@ export type MethodWorkspaceItem = WorkspaceItemBase & {
   methodSource: MethodSource;
   profileId: string;
   profiles: MethodProfileOption[];
+  privateEvidenceTemplate?: Omit<EvidenceTemplateSnapshot, "frozenValues">;
   submission?: SubmittedForm;
   run?: MethodRun;
   evidenceThreads?: EvidenceThreadReference[];
@@ -216,6 +217,11 @@ export type LedgerSource = {
   sourceCommit: string;
   methodTitle?: string;
   baselineAcceptedEvidenceCount?: number;
+  privateRepository?: {
+    repositoryItemId: string;
+    repositoryId: number;
+    commitSha: string;
+  };
 };
 
 export type LedgerWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
@@ -233,6 +239,7 @@ export type LedgerSnapshotWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
   publication?: LedgerPublicationRef;
   config: LedgerConfig;
   source: LedgerSource;
+  privatePublication?: { commitSha: string; snapshotId: string };
 };
 
 export type FormBackedWorkspaceItem = FormWorkspaceItem | MethodWorkspaceItem;

@@ -67,7 +67,13 @@ export function buildWorkspaceItemCreateBody(
     };
   }
   if (result.kind === "ledger") {
-    return { kind: "ledger", methodId: result.id };
+    return {
+      kind: "ledger",
+      methodId: result.id,
+      ...(result.private && result.repositoryItemId
+        ? { repositoryItemId: result.repositoryItemId }
+        : {}),
+    };
   }
   return { kind: "template", templateId: result.id };
 }

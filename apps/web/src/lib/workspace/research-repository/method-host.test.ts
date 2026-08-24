@@ -60,6 +60,7 @@ describe("private Method-host discovery conformance", () => {
           title: "Essay review",
           description: "Review essays",
           profiles: [],
+          evidenceTemplateMarkdown: "",
         },
       ],
     });

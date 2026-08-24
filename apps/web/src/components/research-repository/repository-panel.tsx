@@ -14,6 +14,10 @@ import {
   REPOSITORY_UNAVAILABLE_COPY,
 } from "./copy";
 import { RepositoryBrowser } from "./repository-browser";
+import {
+  LedgerPublicationDeclarations,
+  useLedgerPublicationDeclarations,
+} from "@/components/workspace/ledger-publication-declarations";
 
 type RepositoryPanelItem = {
   id: string;
@@ -50,52 +54,6 @@ type SealResponse = {
   commitSha?: string;
   snapshotId?: string;
   error?: string;
-};
-
-/**
- * Researcher declarations required before a seal commits. Same field contract
- * as the v0.7 publication route; the seal API rejects unconfirmed values.
- */
-const DECLARATION_OPTIONS = {
-  publicationAuthorisation: [
-    { value: "", label: "Select authorisation…" },
-    {
-      value: "confirmed-authorised-to-publish",
-      label: "Confirmed: authorised to publish",
-    },
-    {
-      value: "not-confirmed-do-not-submit",
-      label: "Not confirmed: do not submit",
-    },
-  ],
-  anonymisationStatus: [
-    { value: "", label: "Select anonymisation…" },
-    {
-      value: "confirmed-no-student-identifiers-or-raw-student-material",
-      label: "Confirmed: no student identifiers or raw material",
-    },
-    {
-      value: "needs-human-privacy-review",
-      label: "Needs human privacy review",
-    },
-  ],
-  publicDataDeclaration: [
-    { value: "", label: "Select public data…" },
-    { value: "confirmed-public-data", label: "Confirmed: public data" },
-    {
-      value: "not-confirmed-do-not-submit",
-      label: "Not confirmed: do not submit",
-    },
-  ],
-} as const;
-
-type DeclarationKey = keyof typeof DECLARATION_OPTIONS;
-
-const DECLARATION_CONFIRMED: Record<DeclarationKey, string> = {
-  publicationAuthorisation: "confirmed-authorised-to-publish",
-  anonymisationStatus:
-    "confirmed-no-student-identifiers-or-raw-student-material",
-  publicDataDeclaration: "confirmed-public-data",
 };
 
 function shortCommit(sha: string | undefined): string {
@@ -141,16 +99,8 @@ function BoundRepositoryPanel({
   const [sealAction, setSealAction] = useState<
     "preview" | "seal" | "supersede"
   >();
-  const [declarations, setDeclarations] = useState<
-    Record<DeclarationKey, string>
-  >({
-    publicationAuthorisation: "",
-    anonymisationStatus: "",
-    publicDataDeclaration: "",
-  });
-  const declarationsConfirmed = (
-    Object.keys(DECLARATION_CONFIRMED) as DeclarationKey[]
-  ).every((key) => declarations[key] === DECLARATION_CONFIRMED[key]);
+  const { declarations, setDeclarations, declarationsConfirmed } =
+    useLedgerPublicationDeclarations();
   const previousUrlArtifactId = useRef(urlArtifactId);
 
   useEffect(() => {
@@ -483,41 +433,14 @@ function BoundRepositoryPanel({
             {sealError}
           </p>
         )}
-        <fieldset className="mt-4 grid gap-x-6 gap-y-2 rounded border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-3">
-          <legend className="px-1 text-xs font-medium text-slate-600">
-            Researcher declarations (required before sealing)
-          </legend>
-          {(Object.keys(DECLARATION_OPTIONS) as DeclarationKey[]).map((key) => (
-            <label
-              key={key}
-              className="flex flex-col gap-1 text-xs font-medium text-slate-700"
-            >
-              {key.charAt(0).toUpperCase() +
-                key.replace(/([a-z])([A-Z])/g, "$1 $2").slice(1)}
-              <select
-                value={declarations[key]}
-                onChange={(event) =>
-                  setDeclarations((current) => ({
-                    ...current,
-                    [key]: event.target.value,
-                  }))
-                }
-                className="rounded border border-slate-300 bg-white px-2 py-1 text-sm font-normal text-slate-900"
-              >
-                {DECLARATION_OPTIONS[key].map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-          {!declarationsConfirmed && (
-            <p className="text-xs text-amber-700 sm:col-span-3">
-              Confirm all three declarations to enable Seal and Supersede.
-            </p>
-          )}
-        </fieldset>
+        <div className="mt-4">
+          <LedgerPublicationDeclarations
+            values={declarations}
+            onChange={setDeclarations}
+            variant="select"
+            legend="Researcher declarations (required before sealing)"
+          />
+        </div>
         {sealPreview && (
           <dl className="mt-4 grid gap-x-6 gap-y-2 rounded border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-2">
             <div>

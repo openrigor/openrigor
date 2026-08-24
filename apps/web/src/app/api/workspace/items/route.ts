@@ -4,6 +4,7 @@ import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
 import {
   createResearchRepositoryItem,
   createPrivateMethodWorkspaceItem,
+  createPrivateLedgerWorkspaceItem,
   createMethodWorkspaceItem,
   createLedgerWorkspaceItem,
   createWorkspaceItem,
@@ -137,7 +138,13 @@ export async function POST(request: NextRequest) {
           installationId: installationId as number,
         })
       : isLedger
-        ? await createLedgerWorkspaceItem(user.id, methodId!)
+        ? repositoryItemId
+          ? await createPrivateLedgerWorkspaceItem(
+              user.id,
+              repositoryItemId,
+              methodId!
+            )
+          : await createLedgerWorkspaceItem(user.id, methodId!)
         : hasMethodId && repositoryItemId
           ? await createPrivateMethodWorkspaceItem(
               user.id,
