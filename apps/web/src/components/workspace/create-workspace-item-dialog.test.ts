@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildResearchRepositoryCreateBody,
   buildWorkspaceItemCreateBody,
   catalogResultBadge,
   catalogResultTitle,
@@ -46,18 +45,12 @@ describe("CreateWorkspaceItemDialog request bodies", () => {
     ).toEqual({ kind: "ledger", methodId: "ledger-demo-method" });
   });
 
-  it("creates a research repository request body", () => {
-    expect(buildResearchRepositoryCreateBody({ id: 101 }, 99)).toEqual({
-      kind: "research_repository",
-      installationId: 99,
-      repositoryId: 101,
-    });
-  });
-
-  it("omits the private repository entry while the server flag is off", () => {
-    expect(workspaceItemCreationKinds(false)).not.toContain(
-      "research_repository"
-    );
-    expect(workspaceItemCreationKinds(true)).toContain("research_repository");
+  it("never offers private repository bindings as workspace item kinds", () => {
+    expect(workspaceItemCreationKinds()).toEqual([
+      "template",
+      "ledger",
+      "method",
+    ]);
+    expect(workspaceItemCreationKinds()).not.toContain("research_repository");
   });
 });

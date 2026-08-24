@@ -14,6 +14,7 @@ import {
 import { DOCS_URL } from "@/components/auth/login/login-branding";
 import { SettingsBreadcrumb } from "@/components/workspace/settings-breadcrumb";
 import { ByokSettingsCard } from "@/components/workspace/byok-settings-card";
+import { PrivateResearchRepositoriesCard } from "@/components/settings/private-research-repositories-card";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -132,6 +133,7 @@ function SettingsForm() {
               </form>
             </CardContent>
           </Card>
+          <PrivateResearchRepositoriesCard />
           <ByokSettingsCard />
         </div>
       </section>
