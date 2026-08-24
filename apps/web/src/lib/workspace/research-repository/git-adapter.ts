@@ -6,6 +6,7 @@ import {
   getGithubRepositoryBranchHead,
 } from "./github-app";
 import { githubErrorStatus } from "./github-error-status";
+import type { MethodHostInitialization } from "./method-host-types";
 import {
   identifyRepositoryArtifactPath,
   RepositoryLayoutError,
@@ -137,6 +138,37 @@ async function repositoryTree(
       type: entry.type,
       sha: entry.sha,
     }));
+}
+
+/** Probe only the two repository-root requirements for a private Method host. */
+export async function probeMethodHostInitialization(
+  installationId: number,
+  repository: GithubRepositoryCoordinates,
+  commitSha: string
+): Promise<MethodHostInitialization> {
+  const tree = await repositoryTree(installationId, repository, commitSha);
+  const hasMethodsDirectory = tree.some(
+    (entry) =>
+      (entry.path === "methods" && entry.type === "tree") ||
+      entry.path.startsWith("methods/")
+  );
+  if (!hasMethodsDirectory) {
+    return {
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    };
+  }
+  if (
+    !tree.some(
+      (entry) => entry.path === "methods/index.md" && entry.type === "blob"
+    )
+  ) {
+    return {
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    };
+  }
+  return { initialized: true };
 }
 
 async function readBlobBuffer(

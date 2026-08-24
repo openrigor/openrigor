@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type {
-  RepositoryStatus,
-  ResearchRepositoryWorkspaceItem,
-} from "@opencanvas/shared/research-repository";
+import type { RepositoryStatus } from "@opencanvas/shared/research-repository";
 import { Button } from "@/components/ui/button";
+import type { ResearchRepositoryWorkspaceItem } from "@/lib/workspace/research-repository/method-host-types";
 
 type RepositoryListResponse = {
   connected?: boolean;

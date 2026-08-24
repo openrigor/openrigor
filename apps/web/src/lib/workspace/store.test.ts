@@ -97,6 +97,7 @@ const harness = vi.hoisted(() => {
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
+    probeMethodHostInitialization: vi.fn(),
   };
 });
 
@@ -119,6 +120,9 @@ vi.mock("./research-repository/github-app", () => ({
   getGithubInstallationRepository: harness.getGithubInstallationRepository,
   getGithubRepositoryBranchHead: harness.getGithubRepositoryBranchHead,
 }));
+vi.mock("./research-repository/git-adapter", () => ({
+  probeMethodHostInitialization: harness.probeMethodHostInitialization,
+}));
 
 import {
   createResearchRepositoryItem,
@@ -139,6 +143,7 @@ import {
   WorkspaceLockTimeoutError,
   WorkspaceThreadOwnershipError,
   reconcileWorkspaceItemThread,
+  refreshResearchRepositoryBindings,
   ResearchRepositoryBindingError,
   updateResearchRepositoryBindingHead,
   workspaceLockAcquireTimeoutMs,
@@ -393,6 +398,7 @@ function repositoryWorkspaceItem(layoutVersion = "1.0") {
       layoutVersion,
       headCommitSha: repositorySha,
       boundAt: now,
+      initialized: true,
     },
   };
 }
@@ -405,6 +411,7 @@ describe("research repository workspace items", () => {
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
+    harness.probeMethodHostInitialization.mockReset();
     harness.readGithubResearchCredentials.mockResolvedValue(
       connectedGithubCredentials()
     );
@@ -417,6 +424,9 @@ describe("research repository workspace items", () => {
       defaultBranch: "main",
     });
     harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: true,
+    });
     workspaceLockRetryDelayMs.value = defaultLockRetryDelayMs;
     workspaceLockAcquireTimeoutMs.value = defaultLockAcquireTimeoutMs;
     workspaceLockTtlMs.value = defaultLockTtlMs;
@@ -439,6 +449,7 @@ describe("research repository workspace items", () => {
         branch: "openrigor/workspace",
         layoutVersion: "1.0",
         headCommitSha: workspaceBranchSha,
+        initialized: true,
       },
     });
     expect(item.binding.boundAt).toBe(item.createdAt);
@@ -448,7 +459,57 @@ describe("research repository workspace items", () => {
       "openrigor/workspace"
     );
     expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      workspaceBranchSha
+    );
     expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("persists the initialization failure reason without rejecting the binding", async () => {
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(item.binding).toMatchObject({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("re-checks bound repositories after credential refresh", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      refreshedHead
+    );
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      headCommitSha: refreshedHead,
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    });
   });
 
   it("creates a missing managed branch from the default head before binding", async () => {

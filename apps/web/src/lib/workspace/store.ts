@@ -7,9 +7,7 @@ import type {
 } from "@opencanvas/shared";
 import {
   RepositoryStatusSchema,
-  ResearchRepositoryWorkspaceItemSchema,
   type RepositoryStatus,
-  type ResearchRepositoryWorkspaceItem,
 } from "@opencanvas/shared/research-repository";
 import { LANGGRAPH_API_URL } from "@/constants";
 import { githubErrorStatus } from "./research-repository/github-error-status";
@@ -84,6 +82,11 @@ import {
   getGithubInstallationRepository,
   getGithubRepositoryBranchHead,
 } from "./research-repository/github-app";
+import { probeMethodHostInitialization } from "./research-repository/git-adapter";
+import {
+  ResearchRepositoryWorkspaceItemSchema,
+  type ResearchRepositoryWorkspaceItem,
+} from "./research-repository/method-host-types";
 
 const MANIFEST_KEY = "manifest";
 const LOCK_KEY = "lock";
@@ -687,6 +690,11 @@ export async function createResearchRepositoryItem(
     }
 
     const now = new Date().toISOString();
+    const initialization = await probeMethodHostInitialization(
+      input.installationId,
+      repository,
+      headCommitSha
+    );
     const item = ResearchRepositoryWorkspaceItemSchema.parse({
       id: `wi_${randomUUID()}`,
       ownerId: userId,
@@ -702,12 +710,91 @@ export async function createResearchRepositoryItem(
         layoutVersion: RESEARCH_REPOSITORY_LAYOUT_VERSION,
         headCommitSha,
         boundAt: now,
+        ...initialization,
       },
     });
     manifest.initialized = true;
     manifest.items[item.id] = item;
     await writeManifest(userId, manifest);
     return item;
+  });
+}
+
+/** Re-probe every still-authorized Method host after GitHub reconnects. */
+export async function refreshResearchRepositoryBindings(
+  userId: string
+): Promise<void> {
+  const credentials = await readGithubResearchCredentials(userId);
+  if (!credentials?.installationId) return;
+
+  const manifest = await readManifest(userId);
+  const bindings = Object.values(manifest.items).filter(
+    (item): item is ResearchRepositoryWorkspaceItem =>
+      isUsableResearchRepository(item) &&
+      item.ownerId === userId &&
+      item.binding.installationId === credentials.installationId &&
+      credentials.repositoryIds.includes(item.binding.repositoryId)
+  );
+  const refreshed = (
+    await Promise.all(
+      bindings.map(async (item) => {
+        try {
+          const repository = await getGithubInstallationRepository(
+            item.binding.installationId,
+            item.binding.repositoryId
+          );
+          if (!repository.private) return undefined;
+          const headCommitSha = await getGithubRepositoryBranchHead(
+            item.binding.installationId,
+            repository,
+            item.binding.branch
+          );
+          const initialization = await probeMethodHostInitialization(
+            item.binding.installationId,
+            repository,
+            headCommitSha
+          );
+          return { itemId: item.id, headCommitSha, initialization };
+        } catch (error) {
+          console.error(
+            "[workspace] Method-host refresh failed",
+            item.id,
+            error instanceof Error ? error.message : "unknown error"
+          );
+          return undefined;
+        }
+      })
+    )
+  ).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  if (refreshed.length === 0) return;
+
+  await withUserLock(userId, async () => {
+    const currentManifest = await readManifest(userId);
+    const now = new Date().toISOString();
+    for (const entry of refreshed) {
+      const item = currentManifest.items[entry.itemId];
+      if (
+        !item ||
+        !isUsableResearchRepository(item) ||
+        item.ownerId !== userId ||
+        item.binding.installationId !== credentials.installationId
+      ) {
+        continue;
+      }
+      currentManifest.items[item.id] =
+        ResearchRepositoryWorkspaceItemSchema.parse({
+          ...item,
+          updatedAt: now,
+          binding: {
+            ...item.binding,
+            headCommitSha: entry.headCommitSha,
+            ...entry.initialization,
+            initializationFailureReason:
+              entry.initialization.initializationFailureReason,
+          },
+        });
+    }
+    await writeManifest(userId, currentManifest);
   });
 }
 

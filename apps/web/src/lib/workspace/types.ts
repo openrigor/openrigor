@@ -6,7 +6,7 @@ import type {
   LedgerPublicationRef,
   LedgerSnapshotData,
 } from "@opencanvas/shared";
-import type { ResearchRepositoryWorkspaceItem } from "@opencanvas/shared/research-repository";
+import type { ResearchRepositoryWorkspaceItem } from "./research-repository/method-host-types";
 
 export const DEFAULT_WORKSPACE_TEMPLATE_ID = "evaluchat-getting-started";
 export const FINDING_STARTER_TEMPLATE_ID = "finding-starter";

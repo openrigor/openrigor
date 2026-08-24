@@ -16,6 +16,7 @@ import {
   commitArtifactBlobs,
   GITHUB_RESEARCH_APP_COMMITTER,
   listRepositoryArtifactRefs,
+  probeMethodHostInitialization,
   StaleRepositoryError,
 } from "./git-adapter";
 import { RepositoryLayoutError } from "./layout";
@@ -32,6 +33,61 @@ describe("GitHub repository Git Data adapter", () => {
     for (const method of Object.values(harness)) method.mockReset();
     harness.createOctokit.mockReturnValue({ request: harness.request });
     harness.getHead.mockResolvedValue(baseSha);
+  });
+
+  it.each([
+    {
+      name: "initialized",
+      tree: [
+        { path: "methods", mode: "040000", type: "tree", sha: treeSha },
+        {
+          path: "methods/index.md",
+          mode: "100644",
+          type: "blob",
+          sha: blobSha,
+        },
+      ],
+      expected: { initialized: true },
+    },
+    {
+      name: "missing methods directory",
+      tree: [{ path: "README.md", mode: "100644", type: "blob", sha: blobSha }],
+      expected: {
+        initialized: false,
+        initializationFailureReason: "methods_directory_missing",
+      },
+    },
+    {
+      name: "missing methods index",
+      tree: [
+        { path: "methods", mode: "040000", type: "tree", sha: treeSha },
+        {
+          path: "methods/example/example.en.md",
+          mode: "100644",
+          type: "blob",
+          sha: blobSha,
+        },
+      ],
+      expected: {
+        initialized: false,
+        initializationFailureReason: "methods_index_missing",
+      },
+    },
+  ])("probes Method-host initialization: $name", async ({ tree, expected }) => {
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+        return { data: { tree: { sha: baseTreeSha } } };
+      }
+      if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+        return { data: { tree } };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      probeMethodHostInitialization(99, repository, baseSha)
+    ).resolves.toEqual(expected);
+    expect(harness.request).toHaveBeenCalledTimes(2);
   });
 
   it("creates blob, tree, commit, and a non-forced CAS ref update", async () => {
