@@ -6,6 +6,7 @@ import {
   setMultiSelectFilter,
   setRangeFilter,
 } from "./helpers/workspace";
+import { sendLedgerChatMessage } from "./helpers/chat";
 
 /**
  * Wave A Evidence Ledger end-to-end coverage against the LIVE dev deployment.
@@ -188,10 +189,11 @@ test.describe("@regression evidence-ledger", () => {
       timeout: TIMEOUTS.pageLoad,
     });
 
-    const chatInput = page.getByTestId("chat-input");
-    await expect(chatInput).toBeVisible({ timeout: TIMEOUTS.pageLoad });
-    await chatInput.fill("Filter the ledger to education_level k12");
-    await chatInput.press("Enter");
+    // Send via the self-verifying helper: Enter right after the kickoff
+    // stream can race assistant-ui's run-state and silently no-op, so the
+    // helper confirms the composer accepted the message (input clears) and
+    // falls back to a Send click when it did not.
+    await sendLedgerChatMessage(page, "Filter the ledger to education_level k12");
 
     const predicate = page
       .locator("[data-testid='ledger-canvas'] p.font-mono")
@@ -342,8 +344,11 @@ test.describe("@regression evidence-ledger", () => {
     );
     await expect(assistantMessages).not.toHaveCount(0, { timeout: 60_000 });
     const assistantMessageCount = await assistantMessages.count();
-    await chatInput.fill("Summarise the evidence and gaps");
-    await chatInput.press("Enter");
+    await sendLedgerChatMessage(
+      page,
+      "Summarise the evidence and gaps",
+      "#ledger-snapshot-chat-panel"
+    );
     await expect
       .poll(() => assistantMessages.count(), { timeout: 60_000 })
       .toBeGreaterThan(assistantMessageCount);
