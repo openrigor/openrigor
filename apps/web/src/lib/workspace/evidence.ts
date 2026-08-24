@@ -155,6 +155,9 @@ export function privateEvidenceTemplateSnapshot(
         return field ? [[id, field]] : [];
       })
   );
+  const firstEditableDeclaredFieldId = Object.values(fields).find(
+    (field) => !field.readOnly
+  )?.id;
   Object.assign(fields, {
     method_id: {
       id: "method_id",
@@ -246,9 +249,15 @@ export function privateEvidenceTemplateSnapshot(
     "",
     "{{data_sharing_limits}}",
   ].join("\n");
+  const fallbackFieldId = fields.observations
+    ? "observations"
+    : firstEditableDeclaredFieldId;
   const body = parsed.body.trim()
     ? parsed.body.trim()
-    : "# Evidence contribution\n\n{{observations}}";
+    : [
+        "# Evidence contribution",
+        ...(fallbackFieldId ? ["", `{{${fallbackFieldId}}}`] : []),
+      ].join("\n");
   return {
     kind: "evidence",
     templateId: "evidence-template",

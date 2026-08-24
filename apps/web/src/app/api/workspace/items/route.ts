@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
 import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
+import { StaleRepositoryError } from "@/lib/workspace/research-repository/git-adapter";
+import { SealSnapshotError } from "@/lib/workspace/research-repository/seals";
 import {
   createResearchRepositoryItem,
   createPrivateMethodWorkspaceItem,
@@ -176,6 +178,12 @@ export async function POST(request: NextRequest) {
         { error: error.message, code: error.code },
         { status: 400 }
       );
+    }
+    if (error instanceof SealSnapshotError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    if (error instanceof StaleRepositoryError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error("[workspace] failed to create item", error);
     return NextResponse.json(

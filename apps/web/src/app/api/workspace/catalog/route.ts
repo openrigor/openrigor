@@ -7,6 +7,31 @@ import { searchTemplates } from "@/lib/workspace/template-catalog";
 import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
 import { listSelectedPrivateMethods } from "@/lib/workspace/store";
 
+async function privateCatalogEntries(
+  userId: string,
+  needle: string,
+  status?: "Private repository"
+) {
+  if (!isGithubResearchWorkspacesEnabled()) return [];
+  return (await listSelectedPrivateMethods(userId))
+    .filter((method) => {
+      if (!needle) return true;
+      return [method.id, method.title ?? "", method.description ?? ""].some(
+        (value) => value.toLowerCase().includes(needle)
+      );
+    })
+    .map((method) => ({
+      id: method.id,
+      title: method.title ?? method.id,
+      description: method.description ?? "Private repository Method",
+      disabled: false,
+      ...(status ? { status } : {}),
+      private: true,
+      repositoryItemId: method.repositoryItemId,
+      commitSha: method.commitSha,
+    }));
+}
+
 export async function GET(request: NextRequest) {
   const auth = await verifyUserAuthenticated();
   if (!auth?.user)
@@ -28,27 +53,11 @@ export async function GET(request: NextRequest) {
       .map((method) =>
         toLedgerCatalogResult(method, method.acceptedEvidenceCount)
       );
-    const privateResults = isGithubResearchWorkspacesEnabled()
-      ? (await listSelectedPrivateMethods(auth.user.id))
-          .filter((method) => {
-            if (!needle) return true;
-            return [
-              method.id,
-              method.title ?? "",
-              method.description ?? "",
-            ].some((value) => value.toLowerCase().includes(needle));
-          })
-          .map((method) => ({
-            id: method.id,
-            title: method.title ?? method.id,
-            description: method.description ?? "Private repository Method",
-            disabled: false,
-            status: "Private repository",
-            private: true,
-            repositoryItemId: method.repositoryItemId,
-            commitSha: method.commitSha,
-          }))
-      : [];
+    const privateResults = await privateCatalogEntries(
+      auth.user.id,
+      needle,
+      "Private repository"
+    );
     return NextResponse.json({
       kind,
       results: [...results, ...privateResults],
@@ -71,26 +80,7 @@ export async function GET(request: NextRequest) {
         description: method.description,
         disabled: false,
       }));
-    const privateMethods = isGithubResearchWorkspacesEnabled()
-      ? (await listSelectedPrivateMethods(auth.user.id))
-          .filter((method) => {
-            if (!needle) return true;
-            return [
-              method.id,
-              method.title ?? "",
-              method.description ?? "",
-            ].some((value) => value.toLowerCase().includes(needle));
-          })
-          .map((method) => ({
-            id: method.id,
-            title: method.title ?? method.id,
-            description: method.description ?? "Private repository Method",
-            disabled: false,
-            private: true,
-            repositoryItemId: method.repositoryItemId,
-            commitSha: method.commitSha,
-          }))
-      : [];
+    const privateMethods = await privateCatalogEntries(auth.user.id, needle);
     return NextResponse.json({
       kind,
       results: [...methods, ...privateMethods],

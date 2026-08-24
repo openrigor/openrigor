@@ -91,6 +91,45 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+function createConcurrencyLimitedMapper<T, R>(
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): (item: T) => Promise<R> {
+  const queued: Array<{
+    item: T;
+    resolve: (value: R | PromiseLike<R>) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
+  let draining = false;
+
+  async function drain() {
+    while (queued.length > 0) {
+      const batch = queued.splice(0);
+      await mapWithConcurrency(
+        batch,
+        concurrency,
+        async ({ item, resolve, reject }) => {
+          try {
+            resolve(await mapper(item));
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    }
+    draining = false;
+  }
+
+  return (item) =>
+    new Promise<R>((resolve, reject) => {
+      queued.push({ item, resolve, reject });
+      if (!draining) {
+        draining = true;
+        queueMicrotask(() => void drain());
+      }
+    });
+}
+
 async function repositoryTree(
   installationId: number,
   repository: GithubRepositoryCoordinates,
@@ -166,9 +205,14 @@ export async function discoverPrivateMethods(
   methods: PrivateMethodDefinition[];
 }> {
   const tree = await repositoryTree(installationId, repository, commitSha);
-  return discoverPrivateMethodsFromTree(tree, async (blobSha) =>
-    (await readBlobBuffer(installationId, repository, blobSha)).toString("utf8")
+  const readBlob = createConcurrencyLimitedMapper(
+    GITHUB_BLOB_CONCURRENCY,
+    async (blobSha: string) =>
+      (await readBlobBuffer(installationId, repository, blobSha)).toString(
+        "utf8"
+      )
   );
+  return discoverPrivateMethodsFromTree(tree, readBlob);
 }
 
 async function readBlobBuffer(

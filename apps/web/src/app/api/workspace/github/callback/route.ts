@@ -70,7 +70,14 @@ export async function GET(request: NextRequest) {
       repositoryIds: connection.repositoryIds,
       displayMetadata: connection.displayMetadata,
     });
-    await refreshResearchRepositoryBindings(auth.user.id);
+    try {
+      await refreshResearchRepositoryBindings(auth.user.id);
+    } catch (error) {
+      console.error(
+        "[github-research] repository refresh failed",
+        error instanceof Error ? error.message : "unknown error"
+      );
+    }
     return NextResponse.redirect(appRedirect(request, "connected"));
   } catch (error) {
     console.error(
