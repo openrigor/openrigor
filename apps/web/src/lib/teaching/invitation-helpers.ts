@@ -8,6 +8,7 @@ import {
   type InviteEmailFailure,
 } from "./invite-email-failure";
 import { isTeacher, isOwner } from "./teacher-utils";
+import { notifyWorkspaceParticipant } from "./participant-notify";
 
 export { createAdminClient, getSiteUrl } from "./admin-client";
 /** @deprecated Prefer isOwner — re-exported for soft migration. */
@@ -93,10 +94,26 @@ export async function inviteUserByEmail(
   }
 }
 
+export type ParticipantInviteOutcome =
+  | "emailed"
+  | "notified"
+  | "added_no_email"
+  | "failed";
+
+export type ParticipantInviteResult = {
+  /** A Supabase Auth invite email was sent (new-user path only). */
+  emailed: boolean;
+  /** An AgentMail notification reached an existing user. */
+  notified?: boolean;
+  outcome: ParticipantInviteOutcome;
+};
+
+const EMAIL_EXISTS_PATTERN = /already (been )?registered|already exists/i;
+
 export async function inviteWorkspaceParticipant(
   email: string,
   options?: { correlationId?: string }
-): Promise<{ emailed: boolean }> {
+): Promise<ParticipantInviteResult> {
   const admin = createAdminClient();
   const redirectTo = `${getSiteUrl()}/auth/confirm?next=/workspace`;
   const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(
@@ -104,7 +121,37 @@ export async function inviteWorkspaceParticipant(
     { redirectTo }
   );
   if (!inviteError) {
-    return { emailed: true };
+    return { emailed: true, notified: false, outcome: "emailed" };
+  }
+
+  // Existing Auth account: Supabase never sends invite emails for those.
+  // Generate the magic link (keeps acceptance working), then notify via
+  // AgentMail instead of pretending an email went out.
+  if (EMAIL_EXISTS_PATTERN.test(inviteError.message || "")) {
+    const { error: linkError } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo },
+    });
+    if (linkError) {
+      console.error(
+        `[workspace] could not generate access link (${options?.correlationId ?? "unknown"}):`,
+        linkError.message
+      );
+      return { emailed: false, notified: false, outcome: "failed" };
+    }
+
+    const notify = await notifyWorkspaceParticipant({ email });
+    if ("ok" in notify && notify.ok) {
+      return { emailed: false, notified: true, outcome: "notified" };
+    }
+    if ("error" in notify) {
+      console.error(
+        `[workspace] participant notify failed (${options?.correlationId ?? "unknown"}):`,
+        notify.error
+      );
+    }
+    return { emailed: false, notified: false, outcome: "added_no_email" };
   }
 
   const { error: linkError } = await admin.auth.admin.generateLink({
@@ -113,7 +160,11 @@ export async function inviteWorkspaceParticipant(
     options: { redirectTo },
   });
   if (!linkError) {
-    return { emailed: true };
+    // Legacy behaviour treated this as emailed; that was a silent lie.
+    console.warn(
+      `[workspace] invite email not sent for ${email} — magic link generated without notification (${options?.correlationId ?? "unknown"})`
+    );
+    return { emailed: false, notified: false, outcome: "added_no_email" };
   }
 
   console.error(
@@ -121,7 +172,7 @@ export async function inviteWorkspaceParticipant(
     inviteError.message,
     linkError.message
   );
-  return { emailed: false };
+  return { emailed: false, notified: false, outcome: "failed" };
 }
 
 /**
