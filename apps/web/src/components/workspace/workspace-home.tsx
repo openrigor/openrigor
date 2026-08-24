@@ -6,14 +6,12 @@ import {
   ClipboardList,
   FileText,
   FlaskConical,
-  GitBranch,
   ListChecks,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateWorkspaceItemDialog } from "./create-workspace-item-dialog";
 import type { WorkspaceItem } from "@/lib/workspace/types";
-import { isUsableResearchRepository } from "@/lib/workspace/types";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   workspaceNavGhostClass,
@@ -39,20 +37,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
-import { ResearchRepositoryStatus } from "./research-repository-status";
 
 function WorkspaceItemTypeIcon({ item }: { item: WorkspaceItem }) {
   const type = workspaceItemType(item);
   const Icon =
-    item.kind === "research_repository"
-      ? GitBranch
-      : item.kind === "form_template"
-        ? ClipboardList
-        : item.kind === "ledger" || item.kind === "ledger_snapshot"
-          ? ListChecks
-          : item.kind === "method" || item.kind === "method_participant"
-            ? FlaskConical
-            : FileText;
+    item.kind === "form_template"
+      ? ClipboardList
+      : item.kind === "ledger" || item.kind === "ledger_snapshot"
+        ? ListChecks
+        : item.kind === "method" || item.kind === "method_participant"
+          ? FlaskConical
+          : FileText;
 
   return (
     <TooltipProvider>
@@ -72,11 +67,7 @@ function WorkspaceItemTypeIcon({ item }: { item: WorkspaceItem }) {
   );
 }
 
-export function WorkspaceHome({
-  githubResearchEnabled,
-}: {
-  githubResearchEnabled: boolean;
-}) {
+export function WorkspaceHome() {
   const [items, setItems] = useState<WorkspaceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [itemToDelete, setItemToDelete] = useState<WorkspaceItem>();
@@ -95,8 +86,7 @@ export function WorkspaceHome({
       .then((body) =>
         setItems(
           (body.items || []).filter(
-            (item) =>
-              githubResearchEnabled || item.kind !== "research_repository"
+            (item) => item.kind !== "research_repository"
           )
         )
       )
@@ -109,7 +99,7 @@ export function WorkspaceHome({
         });
       })
       .finally(() => setLoading(false));
-  }, [githubResearchEnabled]);
+  }, [toast]);
 
   async function deleteItem() {
     if (!itemToDelete) return;
@@ -152,7 +142,6 @@ export function WorkspaceHome({
       <section className="mx-auto flex h-[calc(100vh-60px)] max-w-5xl flex-col overflow-hidden px-4 py-6 sm:px-6">
         <div className="mb-4 flex justify-end">
           <CreateWorkspaceItemDialog
-            githubResearchEnabled={githubResearchEnabled}
             onCreated={(item) => setItems((current) => [item, ...current])}
           />
         </div>
@@ -178,68 +167,45 @@ export function WorkspaceHome({
               >
                 <CardContent className="flex items-center gap-3 px-4 py-3 sm:gap-4">
                   <WorkspaceItemTypeIcon item={item} />
-                  {item.kind === "research_repository" ? (
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={workspaceItemHref(item)}
-                        className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <p className="truncate text-base font-medium text-slate-900">
-                          {workspaceItemTitle(item)}
-                        </p>
-                        <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                          {workspaceItemKicker(item)}
-                        </span>
-                      </Link>
-                      {isUsableResearchRepository(item) ? (
-                        <ResearchRepositoryStatus item={item} />
-                      ) : (
-                        <p className="mt-1 text-sm text-amber-800">
-                          Repository binding is unusable
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <Link
-                      href={workspaceItemHref(item)}
-                      className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <p className="truncate text-base font-medium text-slate-900">
-                        {workspaceItemTitle(item)}
-                      </p>
-                      {workspaceItemKicker(item) && (
-                        <span
-                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                            item.kind === "method" && item.run
-                              ? "bg-violet-50 text-violet-700"
-                              : item.kind === "method_participant"
+                  <Link
+                    href={workspaceItemHref(item)}
+                    className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <p className="truncate text-base font-medium text-slate-900">
+                      {workspaceItemTitle(item)}
+                    </p>
+                    {workspaceItemKicker(item) && (
+                      <span
+                        className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          item.kind === "method" && item.run
+                            ? "bg-violet-50 text-violet-700"
+                            : item.kind === "method_participant"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : item.kind === "form_template" &&
+                                  item.submission?.status === "submitted"
                                 ? "bg-emerald-50 text-emerald-700"
-                                : item.kind === "form_template" &&
-                                    item.submission?.status === "submitted"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {workspaceItemKicker(item)}
-                        </span>
-                      )}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p
-                              className="truncate text-sm text-slate-500"
-                              title={workspaceItemDescription(item)}
-                            >
-                              {workspaceItemDescription(item)}
-                            </p>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-sm">
+                                : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {workspaceItemKicker(item)}
+                      </span>
+                    )}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p
+                            className="truncate text-sm text-slate-500"
+                            title={workspaceItemDescription(item)}
+                          >
                             {workspaceItemDescription(item)}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Link>
-                  )}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          {workspaceItemDescription(item)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Link>
                   <time
                     dateTime={item.createdAt}
                     title={new Date(item.createdAt).toLocaleString()}
@@ -275,11 +241,7 @@ export function WorkspaceHome({
   );
 }
 
-export function AuthenticatedWorkspaceHome({
-  githubResearchEnabled,
-}: {
-  githubResearchEnabled: boolean;
-}) {
+export function AuthenticatedWorkspaceHome() {
   const { user, loading } = useUserContext();
   const router = useRouter();
 
@@ -290,19 +252,13 @@ export function AuthenticatedWorkspaceHome({
   if (loading || !user) {
     return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   }
-  return <WorkspaceHome githubResearchEnabled={githubResearchEnabled} />;
+  return <WorkspaceHome />;
 }
 
-export function WorkspacePageClient({
-  githubResearchEnabled,
-}: {
-  githubResearchEnabled: boolean;
-}) {
+export function WorkspacePageClient() {
   return (
     <UserProvider>
-      <AuthenticatedWorkspaceHome
-        githubResearchEnabled={githubResearchEnabled}
-      />
+      <AuthenticatedWorkspaceHome />
     </UserProvider>
   );
 }

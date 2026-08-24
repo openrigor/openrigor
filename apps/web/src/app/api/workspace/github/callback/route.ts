@@ -10,6 +10,7 @@ import {
   consumeGithubOAuthState,
   storeGithubResearchCredentials,
 } from "@/lib/workspace/research-repository/credentials";
+import { refreshResearchRepositoryBindings } from "@/lib/workspace/store";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,14 @@ export async function GET(request: NextRequest) {
       repositoryIds: connection.repositoryIds,
       displayMetadata: connection.displayMetadata,
     });
+    try {
+      await refreshResearchRepositoryBindings(auth.user.id);
+    } catch (error) {
+      console.error(
+        "[github-research] repository refresh failed",
+        error instanceof Error ? error.message : "unknown error"
+      );
+    }
     return NextResponse.redirect(appRedirect(request, "connected"));
   } catch (error) {
     console.error(

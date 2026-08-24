@@ -6,7 +6,7 @@ import type {
   LedgerPublicationRef,
   LedgerSnapshotData,
 } from "@opencanvas/shared";
-import type { ResearchRepositoryWorkspaceItem } from "@opencanvas/shared/research-repository";
+import type { ResearchRepositoryWorkspaceItem } from "./research-repository/method-host-types";
 
 export const DEFAULT_WORKSPACE_TEMPLATE_ID = "evaluchat-getting-started";
 export const FINDING_STARTER_TEMPLATE_ID = "finding-starter";
@@ -132,7 +132,16 @@ export type MethodSource = {
   title?: string;
   description?: string;
   url?: string;
+  privateRepository?: {
+    repositoryItemId: string;
+    repositoryId: number;
+    commitSha: string;
+  };
 };
+
+export function isPrivateMethodSource(source: MethodSource): boolean {
+  return source.privateRepository !== undefined;
+}
 
 export type MethodProfileOption = {
   id: string;
@@ -178,6 +187,7 @@ export type MethodWorkspaceItem = WorkspaceItemBase & {
   methodSource: MethodSource;
   profileId: string;
   profiles: MethodProfileOption[];
+  privateEvidenceTemplate?: Omit<EvidenceTemplateSnapshot, "frozenValues">;
   submission?: SubmittedForm;
   run?: MethodRun;
   evidenceThreads?: EvidenceThreadReference[];
@@ -207,6 +217,11 @@ export type LedgerSource = {
   sourceCommit: string;
   methodTitle?: string;
   baselineAcceptedEvidenceCount?: number;
+  privateRepository?: {
+    repositoryItemId: string;
+    repositoryId: number;
+    commitSha: string;
+  };
 };
 
 export type LedgerWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
@@ -224,6 +239,7 @@ export type LedgerSnapshotWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
   publication?: LedgerPublicationRef;
   config: LedgerConfig;
   source: LedgerSource;
+  privatePublication?: { commitSha: string; snapshotId: string };
 };
 
 export type FormBackedWorkspaceItem = FormWorkspaceItem | MethodWorkspaceItem;
@@ -251,6 +267,16 @@ export type WorkspaceItem =
   | LedgerSnapshotWorkspaceItem
   | ResearchRepositoryWorkspaceItem
   | UnusableResearchRepositoryWorkspaceItem;
+
+export function isPrivateWorkspaceItem(item: WorkspaceItem): boolean {
+  if (item.kind === "method" || item.kind === "method_participant") {
+    return item.methodSource.privateRepository !== undefined;
+  }
+  if (item.kind === "ledger" || item.kind === "ledger_snapshot") {
+    return item.source.privateRepository !== undefined;
+  }
+  return item.kind === "research_repository";
+}
 
 export function isUsableResearchRepository(
   item: WorkspaceItem

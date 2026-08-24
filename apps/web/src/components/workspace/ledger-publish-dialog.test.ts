@@ -63,6 +63,7 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 import { ledgerPublishRequestBody } from "@/lib/workspace/ledger-publication";
+import { CONFIRMED_LEDGER_DECLARATIONS } from "./ledger-publication-declarations";
 import { LedgerPublishDialog } from "./ledger-publish-dialog";
 
 const item = {
@@ -105,11 +106,11 @@ const item = {
   },
 };
 
-function renderDialog() {
+function renderDialog(dialogItem = item) {
   state.index = 0;
   return renderToStaticMarkup(
     React.createElement(LedgerPublishDialog, {
-      item,
+      item: dialogItem,
       open: true,
       onOpenChange: vi.fn(),
       onPublished: vi.fn(),
@@ -133,7 +134,7 @@ describe("LedgerPublishDialog", () => {
       /<button[^>]*disabled=""[^>]*data-testid="ledger-confirm-publish"/
     );
 
-    state.slots = [{ value: true }, { value: true }, { value: true }];
+    state.slots = [{ value: { ...CONFIRMED_LEDGER_DECLARATIONS } }];
     expect(renderDialog()).toContain('data-testid="ledger-confirm-publish"');
     expect(renderDialog()).not.toMatch(
       /<button[^>]*disabled=""[^>]*data-testid="ledger-confirm-publish"/
@@ -147,7 +148,7 @@ describe("LedgerPublishDialog", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     state.enabled = true;
-    state.slots = [{ value: true }, { value: true }, { value: true }];
+    state.slots = [{ value: { ...CONFIRMED_LEDGER_DECLARATIONS } }];
     renderDialog();
 
     state.actions["ledger-confirm-publish"]!();
@@ -167,7 +168,7 @@ describe("LedgerPublishDialog", () => {
       })
     );
     await vi.waitFor(() => {
-      expect(String(state.slots[3].value)).toContain(
+      expect(String(state.slots[1].value)).toContain(
         "No branch or pull request was created"
       );
     });
@@ -205,7 +206,7 @@ describe("LedgerPublishDialog", () => {
     };
 
     state.enabled = true;
-    state.slots = [{ value: true }, { value: true }, { value: true }];
+    state.slots = [{ value: { ...CONFIRMED_LEDGER_DECLARATIONS } }];
     renderPendingDialog();
     state.actions["ledger-confirm-publish"]!();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
@@ -225,5 +226,28 @@ describe("LedgerPublishDialog", () => {
     });
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce());
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("marks the private destination and describes a direct commit", () => {
+    state.enabled = true;
+    state.slots = [{ value: { ...CONFIRMED_LEDGER_DECLARATIONS } }];
+    const privateItem = {
+      ...item,
+      source: {
+        ...item.source,
+        privateRepository: {
+          repositoryItemId: "wi_repo",
+          repositoryId: 101,
+          commitSha: "a".repeat(40),
+        },
+      },
+    };
+
+    const rendered = renderDialog(privateItem);
+
+    expect(rendered).toContain("Commit private Ledger Snapshot");
+    expect(rendered).toContain(">Private<");
+    expect(rendered).toContain("Commit privately");
+    expect(rendered).toContain("private repository");
   });
 });

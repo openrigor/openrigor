@@ -14,9 +14,25 @@ import {
 } from "@/lib/workspace/evidence-github";
 import {
   getLedgerSnapshotItem,
+  updateResearchRepositoryBindingHead,
   updateLedgerSnapshotPublication,
   WorkspaceItemNotFoundError,
 } from "@/lib/workspace/store";
+import {
+  privateMethodRepositoryAccess,
+  repositoryCommitAuthor,
+} from "@/lib/workspace/research-repository/private-method-writeback";
+import {
+  commitSealSnapshot,
+  previewSealSnapshot,
+  SealSnapshotError,
+} from "@/lib/workspace/research-repository/seals";
+import {
+  RepositoryAccessError,
+  repositoryAccessBody,
+  repositoryAccessHttpStatus,
+} from "@/lib/workspace/research-repository/access";
+import { StaleRepositoryError } from "@/lib/workspace/research-repository/git-adapter";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -78,6 +94,75 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
         { status: 409 }
       );
+    }
+
+    const privateRepository = item.source?.privateRepository;
+    if (privateRepository) {
+      if (rePublish || item.privatePublication) {
+        return NextResponse.json(
+          {
+            error:
+              "Private ledger snapshots are immutable after they are committed",
+            publication: item.publication,
+          },
+          { status: 409 }
+        );
+      }
+      const { access, repositoryItemId } = await privateMethodRepositoryAccess(
+        auth.user.id,
+        privateRepository
+      );
+      let preview = await previewSealSnapshot(access, {
+        methodId: item.snapshot.methodId,
+        snapshotId: item.snapshot.ledgerId,
+        reviewedAt: item.snapshot.generatedAt,
+        expectedHeadCommitSha: item.snapshot.sourceCommit,
+      });
+      if (
+        preview.snapshotData.inputFingerprint !==
+          item.snapshot.inputFingerprint ||
+        preview.renderHash !== item.snapshot.renderHash.replace(/^sha256:/, "")
+      ) {
+        return NextResponse.json(
+          { error: "Ledger snapshot no longer matches repository inputs" },
+          { status: 409 }
+        );
+      }
+      if (preview.latestSnapshotId) {
+        preview = await previewSealSnapshot(access, {
+          methodId: item.snapshot.methodId,
+          snapshotId: item.snapshot.ledgerId,
+          reviewedAt: item.snapshot.generatedAt,
+          expectedHeadCommitSha: item.snapshot.sourceCommit,
+          supersedes: preview.latestSnapshotId,
+        });
+      }
+      validateLedgerPublicationDeclarations(preview.snapshotData, body.values);
+      const { commitSha, snapshotId } = await commitSealSnapshot(
+        access,
+        preview,
+        repositoryCommitAuthor(access)
+      );
+      await updateResearchRepositoryBindingHead(
+        auth.user.id,
+        repositoryItemId,
+        commitSha
+      );
+      const publication = {
+        status: "merged" as const,
+        mergedAt: new Date().toISOString(),
+      };
+      await updateLedgerSnapshotPublication(auth.user.id, id, {
+        publication,
+        privatePublication: { commitSha, snapshotId },
+      });
+      return NextResponse.json({
+        publication,
+        commitSha,
+        snapshotId,
+        filePath: preview.ledgerPath,
+        private: true,
+      });
     }
 
     // This uses the exact token-backed identity that would create the branch.
@@ -186,6 +271,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { error: "Validation failed", issues: error.issues },
         { status: 422 }
       );
+    }
+    if (error instanceof RepositoryAccessError) {
+      return NextResponse.json(repositoryAccessBody(error), {
+        status: repositoryAccessHttpStatus(error.code),
+      });
+    }
+    if (error instanceof StaleRepositoryError) {
+      return NextResponse.json(
+        {
+          error: "Repository changed; generate a new ledger snapshot",
+          currentHeadCommitSha: error.currentHeadCommitSha,
+        },
+        { status: 409 }
+      );
+    }
+    if (error instanceof SealSnapshotError) {
+      return NextResponse.json({ error: error.code }, { status: 422 });
     }
     console.error("[workspace] failed to publish ledger snapshot", error);
     return NextResponse.json(

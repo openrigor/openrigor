@@ -38,10 +38,6 @@ const SEAL_INPUT_KINDS = new Set(["method", "evidence", "finding", "ledger"]);
  */
 const SEAL_OUTPUT_PREFIX = "ledger/seals/";
 
-function isSealManifestPath(path: string): boolean {
-  return SEAL_MANIFEST_PATH.test(path) || METHOD_SEAL_MANIFEST_PATH.test(path);
-}
-
 function isSealRenderPath(
   path: string,
   artifacts: readonly RepositoryArtifactRef[]
@@ -99,6 +95,7 @@ type PreviewOptions = {
   reviewedAt?: string;
   snapshotId?: string;
   supersedes?: string;
+  methodId?: string;
 };
 
 function sha256(value: string | Buffer): string {
@@ -133,6 +130,22 @@ export function sealLedgerPath(snapshotId: string): string {
 export function sealManifestPath(snapshotId: string): string {
   assertSnapshotId(snapshotId);
   return `ledger/seals/${snapshotId}.seal.yml`;
+}
+
+export function methodSealLedgerPath(
+  methodId: string,
+  snapshotId: string
+): string {
+  assertSnapshotId(snapshotId);
+  return `methods/${methodId}/evidence/ledgers/${snapshotId}.en.md`;
+}
+
+export function methodSealManifestPath(
+  methodId: string,
+  snapshotId: string
+): string {
+  assertSnapshotId(snapshotId);
+  return `methods/${methodId}/evidence/ledgers/${snapshotId}.seal.yml`;
 }
 
 /**
@@ -197,7 +210,8 @@ export function parseSealManifest(source: string): LedgerSealManifestV1 {
 
 function methodIdentity(
   artifacts: RepositoryArtifactRef[],
-  contents: Map<string, string>
+  contents: Map<string, string>,
+  fallbackVersion?: string
 ): { id: string; version: string } {
   const methodArtifact = artifacts.find(
     (artifact) => artifact.kind === "method"
@@ -218,7 +232,10 @@ function methodIdentity(
     );
   }
   const id = parsed.data.id;
-  const version = parsed.data.version;
+  const version =
+    typeof parsed.data.version === "string"
+      ? parsed.data.version
+      : fallbackVersion;
   if (typeof id !== "string" || typeof version !== "string") {
     throw new SealSnapshotError(
       "INVALID_METHOD",
@@ -292,20 +309,28 @@ function ledgerSnapshot(
   return { snapshot, config };
 }
 
-function sealRefs(artifacts: RepositoryArtifactRef[]): RepositoryArtifactRef[] {
+function sealRefs(
+  artifacts: RepositoryArtifactRef[],
+  methodId?: string
+): RepositoryArtifactRef[] {
   return artifacts.filter(
     (artifact) =>
-      artifact.kind === "ledger_seal" && isSealManifestPath(artifact.path)
+      artifact.kind === "ledger_seal" &&
+      (methodId
+        ? artifact.path.startsWith(`methods/${methodId}/evidence/ledgers/`) &&
+          METHOD_SEAL_MANIFEST_PATH.test(artifact.path)
+        : SEAL_MANIFEST_PATH.test(artifact.path))
   );
 }
 
 async function sealManifestsFromArtifacts(
   access: RepositorySealAccess,
   artifacts: RepositoryArtifactRef[],
-  expectedCommitSha: string
+  expectedCommitSha: string,
+  methodId?: string
 ): Promise<LedgerSealManifestV1[]> {
   return Promise.all(
-    sealRefs(artifacts).map(async (artifact) => {
+    sealRefs(artifacts, methodId).map(async (artifact) => {
       const blob = await readArtifactBlob(
         access.binding.installationId,
         access.repository,
@@ -323,12 +348,14 @@ async function sealManifestsFromArtifacts(
 async function newestSealFromArtifacts(
   access: RepositorySealAccess,
   artifacts: RepositoryArtifactRef[],
-  expectedCommitSha: string
+  expectedCommitSha: string,
+  methodId?: string
 ): Promise<string | undefined> {
   const manifests = await sealManifestsFromArtifacts(
     access,
     artifacts,
-    expectedCommitSha
+    expectedCommitSha,
+    methodId
   );
   return manifests.sort(
     (left, right) =>
@@ -365,7 +392,8 @@ export async function previewSealSnapshot(
   const sealed = await sealManifestsFromArtifacts(
     access,
     listed.artifacts,
-    listed.commitSha
+    listed.commitSha,
+    options.methodId
   );
   if (sealed.some((manifest) => manifest.snapshotId === snapshotId)) {
     throw new SealSnapshotError(
@@ -374,11 +402,19 @@ export async function previewSealSnapshot(
     );
   }
   if (
-    sealRefs(listed.artifacts).some(
-      (artifact) => artifact.path === sealManifestPath(snapshotId)
+    sealRefs(listed.artifacts, options.methodId).some(
+      (artifact) =>
+        artifact.path ===
+        (options.methodId
+          ? methodSealManifestPath(options.methodId, snapshotId)
+          : sealManifestPath(snapshotId))
     ) ||
     listed.artifacts.some(
-      (artifact) => artifact.path === sealLedgerPath(snapshotId)
+      (artifact) =>
+        artifact.path ===
+        (options.methodId
+          ? methodSealLedgerPath(options.methodId, snapshotId)
+          : sealLedgerPath(snapshotId))
     )
   ) {
     throw new SealSnapshotError(
@@ -397,7 +433,15 @@ export async function previewSealSnapshot(
     }
   }
 
-  const artifacts = listed.artifacts
+  const scopedArtifacts = options.methodId
+    ? listed.artifacts.filter(
+        (artifact) =>
+          artifact.path ===
+            `methods/${options.methodId}/${options.methodId}.en.md` ||
+          artifact.path.startsWith(`methods/${options.methodId}/evidence/`)
+      )
+    : listed.artifacts;
+  const artifacts = scopedArtifacts
     .filter(
       (artifact) =>
         SEAL_INPUT_KINDS.has(artifact.kind) &&
@@ -437,7 +481,17 @@ export async function previewSealSnapshot(
       };
     })
   );
-  const method = methodIdentity(artifacts, contents);
+  const method = methodIdentity(
+    artifacts,
+    contents,
+    options.methodId ? listed.commitSha : undefined
+  );
+  if (options.methodId && method.id !== options.methodId) {
+    throw new SealSnapshotError(
+      "INVALID_METHOD",
+      "The selected Method does not match the repository artifact"
+    );
+  }
   const reviewedAt = options.reviewedAt ?? new Date().toISOString();
   const configurationHash = sha256(
     canonicalSealConfigurationJson({
@@ -478,13 +532,18 @@ export async function previewSealSnapshot(
   const latestSnapshotId = await newestSealFromArtifacts(
     access,
     listed.artifacts,
-    listed.commitSha
+    listed.commitSha,
+    options.methodId
   );
 
   return {
     ...manifest,
-    ledgerPath: sealLedgerPath(snapshotId),
-    sealPath: sealManifestPath(snapshotId),
+    ledgerPath: options.methodId
+      ? methodSealLedgerPath(options.methodId, snapshotId)
+      : sealLedgerPath(snapshotId),
+    sealPath: options.methodId
+      ? methodSealManifestPath(options.methodId, snapshotId)
+      : sealManifestPath(snapshotId),
     ledgerMarkdown,
     manifestYaml,
     inputArtifactIds: artifacts.map((artifact) => artifact.artifactId),
@@ -499,9 +558,21 @@ export async function commitSealSnapshot(
   authorUser?: GithubCommitAuthor
 ): Promise<{ commitSha: string; snapshotId: string }> {
   const parsed = LedgerSealManifestV1Schema.parse(sealManifestFile(preview));
+  const methodLedgerPath = methodSealLedgerPath(
+    parsed.method.id,
+    parsed.snapshotId
+  );
+  const methodManifestPath = methodSealManifestPath(
+    parsed.method.id,
+    parsed.snapshotId
+  );
+  const pathsMatch =
+    (preview.ledgerPath === sealLedgerPath(parsed.snapshotId) &&
+      preview.sealPath === sealManifestPath(parsed.snapshotId)) ||
+    (preview.ledgerPath === methodLedgerPath &&
+      preview.sealPath === methodManifestPath);
   if (
-    preview.ledgerPath !== sealLedgerPath(parsed.snapshotId) ||
-    preview.sealPath !== sealManifestPath(parsed.snapshotId) ||
+    !pathsMatch ||
     preview.manifestYaml !== serializeSealManifest(parsed) ||
     sha256(preview.ledgerMarkdown) !== parsed.renderHash
   ) {
@@ -564,7 +635,8 @@ export async function supersedeSeal(
 }
 
 export async function latestSealSnapshotId(
-  access: RepositorySealAccess
+  access: RepositorySealAccess,
+  methodId?: string
 ): Promise<string | undefined> {
   const listed = await listRepositoryArtifactRefs(
     access.binding.installationId,
@@ -572,5 +644,10 @@ export async function latestSealSnapshotId(
     access.binding.branch,
     access.binding.layoutVersion
   );
-  return newestSealFromArtifacts(access, listed.artifacts, listed.commitSha);
+  return newestSealFromArtifacts(
+    access,
+    listed.artifacts,
+    listed.commitSha,
+    methodId
+  );
 }
