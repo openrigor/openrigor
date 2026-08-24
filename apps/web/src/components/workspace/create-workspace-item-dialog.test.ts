@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildResearchRepositoryCreateBody,
   buildWorkspaceItemCreateBody,
+  catalogResultTitle,
   workspaceItemCreationKinds,
 } from "./create-workspace-item-dialog";
 
@@ -10,6 +11,30 @@ describe("CreateWorkspaceItemDialog request bodies", () => {
     expect(
       buildWorkspaceItemCreateBody({ id: "method-1", kind: "method" })
     ).toEqual({ kind: "method", methodId: "method-1" });
+  });
+
+  it("includes the bound repository reference for a private Method", () => {
+    expect(
+      buildWorkspaceItemCreateBody({
+        id: "method-1",
+        kind: "method",
+        private: true,
+        repositoryItemId: "wi_repository",
+      })
+    ).toEqual({
+      kind: "method",
+      methodId: "method-1",
+      repositoryItemId: "wi_repository",
+    });
+  });
+
+  it("marks private Methods in the Create list", () => {
+    expect(catalogResultTitle({ title: "Owner Method", private: true })).toBe(
+      "Owner Method (Private)"
+    );
+    expect(catalogResultTitle({ title: "Catalog Method" })).toBe(
+      "Catalog Method"
+    );
   });
 
   it("creates an Evidence Ledger item request body", () => {

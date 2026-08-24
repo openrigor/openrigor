@@ -4,6 +4,8 @@ import { listApparatuses } from "@/lib/apparatuses/registry";
 import { toLedgerCatalogResult } from "@/lib/apparatuses/ledger-catalog";
 import { listResearchedMethods } from "@/lib/workspace/ledger-source";
 import { searchTemplates } from "@/lib/workspace/template-catalog";
+import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
+import { listSelectedPrivateMethods } from "@/lib/workspace/store";
 
 export async function GET(request: NextRequest) {
   const auth = await verifyUserAuthenticated();
@@ -45,7 +47,30 @@ export async function GET(request: NextRequest) {
         description: method.description,
         disabled: false,
       }));
-    return NextResponse.json({ kind, results: methods });
+    const privateMethods = isGithubResearchWorkspacesEnabled()
+      ? (await listSelectedPrivateMethods(auth.user.id))
+          .filter((method) => {
+            if (!needle) return true;
+            return [
+              method.id,
+              method.title ?? "",
+              method.description ?? "",
+            ].some((value) => value.toLowerCase().includes(needle));
+          })
+          .map((method) => ({
+            id: method.id,
+            title: method.title ?? method.id,
+            description: method.description ?? "Private repository Method",
+            disabled: false,
+            private: true,
+            repositoryItemId: method.repositoryItemId,
+            commitSha: method.commitSha,
+          }))
+      : [];
+    return NextResponse.json({
+      kind,
+      results: [...methods, ...privateMethods],
+    });
   }
 
   return NextResponse.json({

@@ -98,6 +98,7 @@ const harness = vi.hoisted(() => {
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
     probeMethodHostInitialization: vi.fn(),
+    discoverPrivateMethods: vi.fn(),
   };
 });
 
@@ -122,10 +123,12 @@ vi.mock("./research-repository/github-app", () => ({
 }));
 vi.mock("./research-repository/git-adapter", () => ({
   probeMethodHostInitialization: harness.probeMethodHostInitialization,
+  discoverPrivateMethods: harness.discoverPrivateMethods,
 }));
 
 import {
   createResearchRepositoryItem,
+  createPrivateMethodWorkspaceItem,
   createWorkspaceItem,
   createMethodWorkspaceItem,
   deleteWorkspaceItem,
@@ -135,6 +138,7 @@ import {
   getMethodRun,
   getWorkspaceItem,
   listWorkspaceItems,
+  listSelectedPrivateMethods,
   pendingInviteNamespace,
   inviteLockId,
   resolveMethodTrackingAccess,
@@ -413,6 +417,7 @@ describe("research repository workspace items", () => {
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
     harness.probeMethodHostInitialization.mockReset();
+    harness.discoverPrivateMethods.mockReset();
     harness.readGithubResearchCredentials.mockResolvedValue(
       connectedGithubCredentials()
     );
@@ -427,6 +432,10 @@ describe("research repository workspace items", () => {
     harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
     harness.probeMethodHostInitialization.mockResolvedValue({
       initialized: true,
+    });
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [],
     });
     workspaceLockRetryDelayMs.value = defaultLockRetryDelayMs;
     workspaceLockAcquireTimeoutMs.value = defaultLockAcquireTimeoutMs;
@@ -742,6 +751,125 @@ describe("research repository workspace items", () => {
 
     expect(updated.selectedMethodIds).toEqual(["method-a", "method-b"]);
     expect(harness.state.manifest.items[item.id]).toEqual(updated);
+  });
+
+  it("lists only selected conforming private Methods at the current head", async () => {
+    const item = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          description: "Private description",
+          profiles: [],
+        },
+        { id: "not-selected", profiles: [] },
+      ],
+    });
+
+    await expect(listSelectedPrivateMethods("user-1")).resolves.toEqual([
+      {
+        id: "private-method",
+        title: "Private Method",
+        description: "Private description",
+        repositoryItemId: item.id,
+        repositoryId: 101,
+        commitSha: workspaceBranchSha,
+      },
+    ]);
+  });
+
+  it("adopts a selected private Method pinned to the adopt-time commit", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          description: "Owner-authored Method",
+          version: "owner-draft",
+          profiles: [],
+        },
+      ],
+    });
+
+    const item = await createPrivateMethodWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+
+    expect(item.templateSnapshot.templateId).toBe("evaluchat-assignment-brief");
+    expect(item.methodSource).toEqual({
+      id: "private-method",
+      version: "owner-draft",
+      title: "Private Method",
+      description: "Owner-authored Method",
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: 101,
+        commitSha: workspaceBranchSha,
+      },
+    });
+    expect(item.profileId).toBe("canonical-constrained-dialogue");
+    expect(item.profiles).toEqual([
+      {
+        id: "canonical-constrained-dialogue",
+        label: "Default apparatus profile",
+      },
+    ]);
+
+    harness.getGithubRepositoryBranchHead.mockResolvedValue("f".repeat(40));
+    const listed = await listWorkspaceItems("user-1");
+    const pinned = listed.find((candidate) => candidate.id === item.id);
+    expect(pinned?.kind).toBe("method");
+    if (pinned?.kind === "method") {
+      expect(pinned.methodSource.privateRepository?.commitSha).toBe(
+        workspaceBranchSha
+      );
+    }
+  });
+
+  it("accepts a private Method without version metadata using its commit SHA", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [{ id: "private-method", profiles: [] }],
+    });
+
+    const item = await createPrivateMethodWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+
+    expect(item.methodSource.version).toBe(workspaceBranchSha);
+    expect(item.methodSource.privateRepository?.commitSha).toBe(
+      workspaceBranchSha
+    );
   });
 
   it("projects a deleted repository as unavailable", async () => {

@@ -82,9 +82,14 @@ import {
   getGithubInstallationRepository,
   getGithubRepositoryBranchHead,
 } from "./research-repository/github-app";
-import { probeMethodHostInitialization } from "./research-repository/git-adapter";
+import {
+  discoverPrivateMethods,
+  probeMethodHostInitialization,
+} from "./research-repository/git-adapter";
 import {
   ResearchRepositoryWorkspaceItemSchema,
+  type PrivateMethodCatalogEntry,
+  type PrivateMethodDefinition,
   type ResearchRepositoryWorkspaceItem,
 } from "./research-repository/method-host-types";
 
@@ -94,6 +99,7 @@ const LOCK_KEY = "lock";
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
 export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
 export const RESEARCH_REPOSITORY_LAYOUT_VERSION = "1.0" as const;
+const PRIVATE_METHOD_DEFAULT_TEMPLATE_ID = "evaluchat-assignment-brief";
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */
 export const workspaceLockTtlMs = { value: 60_000 };
@@ -533,6 +539,7 @@ export async function ensureDefaultWorkspaceItem(
 }
 
 function enrichMethodSource(source: MethodSource): MethodSource {
+  if (source.privateRepository) return source;
   const url = publicMethodPageUrl(source.id);
   if (source.title && source.description && source.url === url) return source;
   const spec = getApparatusSpecification(source.id);
@@ -988,6 +995,181 @@ export async function createMethodWorkspaceItem(
     manifest.initialized = true;
     manifest.items[item.id] = item;
     await writeManifest(userId, manifest);
+    return item;
+  });
+}
+
+async function resolvePrivateMethodHost(
+  userId: string,
+  repositoryItem: ResearchRepositoryWorkspaceItem
+) {
+  const credentials = await readGithubResearchCredentials(userId);
+  if (
+    !credentials ||
+    credentials.installationId !== repositoryItem.binding.installationId ||
+    !credentials.repositoryIds.includes(repositoryItem.binding.repositoryId)
+  ) {
+    throw new UnsupportedMethodError();
+  }
+  const repository = await getGithubInstallationRepository(
+    repositoryItem.binding.installationId,
+    repositoryItem.binding.repositoryId
+  );
+  if (!repository.private) throw new UnsupportedMethodError();
+  const commitSha = await getGithubRepositoryBranchHead(
+    repositoryItem.binding.installationId,
+    repository,
+    repositoryItem.binding.branch
+  );
+  const discovery = await discoverPrivateMethods(
+    repositoryItem.binding.installationId,
+    repository,
+    commitSha
+  );
+  return { commitSha, discovery };
+}
+
+/** Selected, currently conforming private Methods for the Create catalog. */
+export async function listSelectedPrivateMethods(
+  userId: string
+): Promise<PrivateMethodCatalogEntry[]> {
+  const manifest = await readManifest(userId);
+  const repositoryItems = Object.values(manifest.items).filter(
+    (item): item is ResearchRepositoryWorkspaceItem =>
+      isUsableResearchRepository(item) &&
+      item.ownerId === userId &&
+      item.status === "active" &&
+      item.selectedMethodIds.length > 0
+  );
+  const results = await Promise.all(
+    repositoryItems.map(async (item) => {
+      try {
+        const { commitSha, discovery } = await resolvePrivateMethodHost(
+          userId,
+          item
+        );
+        const selected = new Set(item.selectedMethodIds);
+        return discovery.methods
+          .filter((method) => selected.has(method.id))
+          .map(({ id, title, description }) => ({
+            id,
+            title,
+            description,
+            repositoryItemId: item.id,
+            repositoryId: item.binding.repositoryId,
+            commitSha,
+          }));
+      } catch (error) {
+        console.error(
+          "[workspace] failed to list selected private Methods",
+          item.id,
+          error instanceof Error ? error.name : "unknown error"
+        );
+        return [];
+      }
+    })
+  );
+  return results
+    .flat()
+    .sort((left, right) =>
+      `${left.title ?? left.id}:${left.repositoryItemId}`.localeCompare(
+        `${right.title ?? right.id}:${right.repositoryItemId}`
+      )
+    );
+}
+
+function privateMethodTemplate(definition: PrivateMethodDefinition) {
+  const requestedTemplateId = definition.runBriefTemplate
+    ? parseCatalogTemplateRef(definition.runBriefTemplate).id
+    : PRIVATE_METHOD_DEFAULT_TEMPLATE_ID;
+  for (const templateId of [
+    requestedTemplateId,
+    PRIVATE_METHOD_DEFAULT_TEMPLATE_ID,
+  ]) {
+    try {
+      const snapshot = snapshotFromTemplate(templateId);
+      if (snapshot.kind === "form") return { templateId, snapshot };
+    } catch {
+      // Private metadata is data. An unknown template uses the platform default.
+    }
+  }
+  throw new UnsupportedMethodError();
+}
+
+export async function createPrivateMethodWorkspaceItem(
+  userId: string,
+  repositoryItemId: string,
+  methodId: string
+): Promise<MethodWorkspaceItem> {
+  const manifest = await readManifest(userId);
+  const repositoryItem = manifest.items[repositoryItemId];
+  if (
+    !repositoryItem ||
+    !isUsableResearchRepository(repositoryItem) ||
+    repositoryItem.ownerId !== userId ||
+    repositoryItem.status !== "active" ||
+    !repositoryItem.selectedMethodIds.includes(methodId)
+  ) {
+    throw new UnsupportedMethodError();
+  }
+
+  const { commitSha, discovery } = await resolvePrivateMethodHost(
+    userId,
+    repositoryItem
+  );
+  const definition = discovery.methods.find((method) => method.id === methodId);
+  if (!definition) throw new UnsupportedMethodError();
+  const { templateId, snapshot } = privateMethodTemplate(definition);
+  const fallbackProfile = {
+    id: DEFAULT_METHOD_PROFILE_ID,
+    label: "Default apparatus profile",
+  };
+  const profiles =
+    definition.profiles.length > 0 ? definition.profiles : [fallbackProfile];
+  const now = new Date().toISOString();
+  const item: MethodWorkspaceItem = {
+    id: `wi_${randomUUID()}`,
+    ownerId: userId,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    source: {
+      catalogRevision: snapshot.catalogRevision,
+      templateId,
+      templateVersion: snapshot.templateVersion,
+      sourcePath: snapshot.sourcePath,
+    },
+    kind: "method",
+    templateSnapshot: snapshot.templateSnapshot,
+    methodSource: {
+      id: definition.id,
+      version: definition.version || commitSha,
+      title: definition.title,
+      description: definition.description,
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: repositoryItem.binding.repositoryId,
+        commitSha,
+      },
+    },
+    profileId: profiles[0]?.id ?? DEFAULT_METHOD_PROFILE_ID,
+    profiles,
+  };
+
+  return withUserLock(userId, async () => {
+    const currentManifest = await readManifest(userId);
+    const currentRepositoryItem = currentManifest.items[repositoryItemId];
+    if (
+      !currentRepositoryItem ||
+      !isUsableResearchRepository(currentRepositoryItem) ||
+      currentRepositoryItem.ownerId !== userId ||
+      !currentRepositoryItem.selectedMethodIds.includes(methodId)
+    ) {
+      throw new UnsupportedMethodError();
+    }
+    currentManifest.initialized = true;
+    currentManifest.items[item.id] = item;
+    await writeManifest(userId, currentManifest);
     return item;
   });
 }

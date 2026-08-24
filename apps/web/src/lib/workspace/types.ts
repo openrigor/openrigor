@@ -132,7 +132,16 @@ export type MethodSource = {
   title?: string;
   description?: string;
   url?: string;
+  privateRepository?: {
+    repositoryItemId: string;
+    repositoryId: number;
+    commitSha: string;
+  };
 };
+
+export function isPrivateMethodSource(source: MethodSource): boolean {
+  return source.privateRepository !== undefined;
+}
 
 export type MethodProfileOption = {
   id: string;

@@ -28,6 +28,9 @@ export type CatalogResult = {
   methodVersion?: string;
   evidenceTemplate?: { id: string; version: string };
   acceptedEvidenceCount?: number;
+  private?: boolean;
+  repositoryItemId?: string;
+  commitSha?: string;
 };
 
 export type ResearchRepositoryOption = {
@@ -52,10 +55,16 @@ export function workspaceItemCreationKinds(githubResearchEnabled: boolean) {
 }
 
 export function buildWorkspaceItemCreateBody(
-  result: Pick<CatalogResult, "id" | "kind">
+  result: Pick<CatalogResult, "id" | "kind" | "private" | "repositoryItemId">
 ): Record<string, unknown> {
   if (result.kind === "method") {
-    return { kind: "method", methodId: result.id };
+    return {
+      kind: "method",
+      methodId: result.id,
+      ...(result.private && result.repositoryItemId
+        ? { repositoryItemId: result.repositoryItemId }
+        : {}),
+    };
   }
   if (result.kind === "ledger") {
     return { kind: "ledger", methodId: result.id };
@@ -72,6 +81,12 @@ export function buildResearchRepositoryCreateBody(
     installationId,
     repositoryId: repository.id,
   };
+}
+
+export function catalogResultTitle(
+  result: Pick<CatalogResult, "title" | "private">
+): string {
+  return `${result.title}${result.private ? " (Private)" : ""}`;
 }
 
 export function CreateWorkspaceItemDialog({
@@ -352,14 +367,16 @@ export function CreateWorkspaceItemDialog({
             {!loading &&
               results.map((result) => (
                 <button
-                  key={result.id}
+                  key={`${result.id}:${result.repositoryItemId ?? "catalog"}`}
                   type="button"
                   disabled={result.disabled || creating}
                   onClick={() => void create(result)}
                   className="w-full rounded-lg border p-4 text-left transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">{result.title}</span>
+                    <span className="font-medium">
+                      {catalogResultTitle(result)}
+                    </span>
                     {result.status && (
                       <span className="text-xs text-muted-foreground">
                         {result.status}

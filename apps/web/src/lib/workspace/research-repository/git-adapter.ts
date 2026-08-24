@@ -12,7 +12,7 @@ import {
 } from "./method-host";
 import type {
   MethodHostInitialization,
-  PrivateMethodSummary,
+  PrivateMethodDefinition,
 } from "./method-host-types";
 import {
   identifyRepositoryArtifactPath,
@@ -163,7 +163,7 @@ export async function discoverPrivateMethods(
   commitSha: string
 ): Promise<{
   initialization: MethodHostInitialization;
-  methods: PrivateMethodSummary[];
+  methods: PrivateMethodDefinition[];
 }> {
   const tree = await repositoryTree(installationId, repository, commitSha);
   return discoverPrivateMethodsFromTree(tree, async (blobSha) =>

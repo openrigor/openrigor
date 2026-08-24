@@ -46,3 +46,15 @@ export type PrivateMethodSummary = {
   title?: string;
   description?: string;
 };
+
+export type PrivateMethodDefinition = PrivateMethodSummary & {
+  version?: string;
+  runBriefTemplate?: string;
+  profiles: Array<{ id: string; label: string }>;
+};
+
+export type PrivateMethodCatalogEntry = PrivateMethodSummary & {
+  repositoryItemId: string;
+  repositoryId: number;
+  commitSha: string;
+};

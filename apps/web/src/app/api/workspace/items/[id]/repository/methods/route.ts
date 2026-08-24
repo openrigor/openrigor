@@ -98,7 +98,13 @@ export async function GET(_request: Request, context: RouteContext) {
     const result = await discover(auth.user.id, item);
     const qualifyingIds = new Set(result.methods.map((method) => method.id));
     return json({
-      ...result,
+      initialization: result.initialization,
+      headCommitSha: result.headCommitSha,
+      methods: result.methods.map(({ id, title, description }) => ({
+        id,
+        title,
+        description,
+      })),
       selectedMethodIds: item.selectedMethodIds.filter((methodId) =>
         qualifyingIds.has(methodId)
       ),
@@ -157,7 +163,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       selectedMethodIds
     );
     return json({
-      ...result,
+      initialization: result.initialization,
+      headCommitSha: result.headCommitSha,
+      methods: result.methods.map(({ id, title, description }) => ({
+        id,
+        title,
+        description,
+      })),
       selectedMethodIds: updated.selectedMethodIds,
     });
   } catch (error) {

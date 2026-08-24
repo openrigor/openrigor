@@ -1,7 +1,7 @@
 import { parseMarkdownFrontmatter } from "../ledger-reference";
 import type {
   MethodHostInitialization,
-  PrivateMethodSummary,
+  PrivateMethodDefinition,
 } from "./method-host-types";
 
 export type MethodHostTreeEntry = {
@@ -54,7 +54,7 @@ export async function discoverPrivateMethodsFromTree(
   readBlob: (sha: string) => Promise<string>
 ): Promise<{
   initialization: MethodHostInitialization;
-  methods: PrivateMethodSummary[];
+  methods: PrivateMethodDefinition[];
 }> {
   const initialization = inspectMethodHostInitialization(tree);
   if (!initialization.initialized) return { initialization, methods: [] };
@@ -83,6 +83,22 @@ export async function discoverPrivateMethodsFromTree(
       if (frontmatter.type !== "Method" || frontmatter.id !== directory) {
         return undefined;
       }
+      const profiles = Array.isArray(frontmatter.profiles)
+        ? frontmatter.profiles.flatMap((profile) => {
+            if (
+              !profile ||
+              typeof profile !== "object" ||
+              Array.isArray(profile)
+            ) {
+              return [];
+            }
+            const record = profile as Record<string, unknown>;
+            return typeof record.id === "string" &&
+              typeof record.label === "string"
+              ? [{ id: record.id, label: record.label }]
+              : [];
+          })
+        : [];
       return {
         id: directory,
         ...(typeof frontmatter.title === "string"
@@ -91,14 +107,21 @@ export async function discoverPrivateMethodsFromTree(
         ...(typeof frontmatter.description === "string"
           ? { description: frontmatter.description }
           : {}),
-      } satisfies PrivateMethodSummary;
+        ...(typeof frontmatter.version === "string"
+          ? { version: frontmatter.version }
+          : {}),
+        ...(typeof frontmatter.run_brief_template === "string"
+          ? { runBriefTemplate: frontmatter.run_brief_template }
+          : {}),
+        profiles,
+      } satisfies PrivateMethodDefinition;
     })
   );
 
   return {
     initialization,
     methods: methods
-      .filter((method): method is PrivateMethodSummary => Boolean(method))
+      .filter((method): method is PrivateMethodDefinition => Boolean(method))
       .sort((left, right) => left.id.localeCompare(right.id)),
   };
 }
