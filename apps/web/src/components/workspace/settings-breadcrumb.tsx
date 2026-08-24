@@ -1,7 +1,17 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-export function SettingsBreadcrumb() {
+export type SettingsBreadcrumbSegment = {
+  label: string;
+  href?: string;
+  testId?: string;
+};
+
+export function SettingsBreadcrumb({
+  trailingSegments = [],
+}: {
+  trailingSegments?: SettingsBreadcrumbSegment[];
+}) {
   return (
     <nav
       aria-label="Settings navigation"
@@ -12,7 +22,37 @@ export function SettingsBreadcrumb() {
         Workspace
       </Link>
       <ChevronRight className="h-4 w-4" aria-hidden />
-      <span className="font-medium text-foreground">Settings</span>
+      {trailingSegments.length > 0 ? (
+        <Link
+          href="/workspace/settings"
+          className="hover:text-foreground hover:underline"
+        >
+          Settings
+        </Link>
+      ) : (
+        <span className="font-medium text-foreground">Settings</span>
+      )}
+      {trailingSegments.map((segment, index) => (
+        <span key={`${segment.label}:${index}`} className="contents">
+          <ChevronRight className="h-4 w-4" aria-hidden />
+          {segment.href ? (
+            <Link
+              href={segment.href}
+              className="hover:text-foreground hover:underline"
+              data-testid={segment.testId}
+            >
+              {segment.label}
+            </Link>
+          ) : (
+            <span
+              className="font-medium text-foreground"
+              data-testid={segment.testId}
+            >
+              {segment.label}
+            </span>
+          )}
+        </span>
+      ))}
     </nav>
   );
 }

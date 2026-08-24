@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserProvider, useUserContext } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,9 @@ function SettingsForm() {
   return (
     <main className="min-h-screen bg-slate-50">
       <WorkspaceSiteHeader workspaceLabel="Settings" maxWidthClass="max-w-3xl">
+        <Link href="/workspace/settings" className={workspaceNavGhostClass}>
+          Settings
+        </Link>
         <a
           href={DOCS_URL}
           target="_blank"

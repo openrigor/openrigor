@@ -12,4 +12,22 @@ describe("SettingsBreadcrumb", () => {
     expect(markup).toContain("Settings");
     expect(markup).toContain('data-testid="settings-breadcrumb"');
   });
+
+  it("extends the settings trail with a repository segment", () => {
+    const markup = renderToStaticMarkup(
+      createElement(SettingsBreadcrumb, {
+        trailingSegments: [
+          {
+            label: "essay-study",
+            testId: "settings-breadcrumb-repository",
+          },
+        ],
+      })
+    );
+
+    expect(markup).toContain('href="/workspace/settings"');
+    expect(markup).toContain("essay-study");
+    expect(markup).toContain('data-testid="settings-breadcrumb-repository"');
+    expect(markup).toContain('data-testid="settings-breadcrumb"');
+  });
 });

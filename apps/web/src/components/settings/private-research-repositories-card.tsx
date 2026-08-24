@@ -15,6 +15,7 @@ import type {
   PrivateMethodSummary,
   ResearchRepositoryWorkspaceItem,
 } from "@/lib/workspace/research-repository/method-host-types";
+import { repositorySettingsHref } from "@/lib/workspace/repository-settings-routes";
 
 export type GithubRepositoryOption = {
   id: number;
@@ -263,7 +264,7 @@ function RepositoryRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/workspace/settings/repositories/${encodeURIComponent(item.id)}`}
+              href={repositorySettingsHref(item.id)}
               className="font-medium text-slate-950 hover:underline"
             >
               {shortRepositoryName(nameWithOwner)}
