@@ -146,6 +146,7 @@ import {
   refreshResearchRepositoryBindings,
   ResearchRepositoryBindingError,
   updateResearchRepositoryBindingHead,
+  updateResearchRepositoryMethodSelection,
   workspaceLockAcquireTimeoutMs,
   workspaceLockRetryDelayMs,
   workspaceLockTtlMs,
@@ -724,6 +725,23 @@ describe("research repository workspace items", () => {
     expect(updated.binding.headCommitSha).toBe(reconciledHead);
     expect(harness.state.manifest.items[item.id]).toEqual(updated);
     expect(JSON.stringify(harness.state.manifest)).not.toContain("content");
+  });
+
+  it("persists a normalized private Method selection", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+
+    const updated = await updateResearchRepositoryMethodSelection(
+      "user-1",
+      item.id,
+      ["method-b", "method-a", "method-b"]
+    );
+
+    expect(updated.selectedMethodIds).toEqual(["method-a", "method-b"]);
+    expect(harness.state.manifest.items[item.id]).toEqual(updated);
   });
 
   it("projects a deleted repository as unavailable", async () => {

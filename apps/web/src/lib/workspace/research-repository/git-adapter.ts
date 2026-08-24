@@ -6,7 +6,14 @@ import {
   getGithubRepositoryBranchHead,
 } from "./github-app";
 import { githubErrorStatus } from "./github-error-status";
-import type { MethodHostInitialization } from "./method-host-types";
+import {
+  discoverPrivateMethodsFromTree,
+  inspectMethodHostInitialization,
+} from "./method-host";
+import type {
+  MethodHostInitialization,
+  PrivateMethodSummary,
+} from "./method-host-types";
 import {
   identifyRepositoryArtifactPath,
   RepositoryLayoutError,
@@ -147,28 +154,21 @@ export async function probeMethodHostInitialization(
   commitSha: string
 ): Promise<MethodHostInitialization> {
   const tree = await repositoryTree(installationId, repository, commitSha);
-  const hasMethodsDirectory = tree.some(
-    (entry) =>
-      (entry.path === "methods" && entry.type === "tree") ||
-      entry.path.startsWith("methods/")
+  return inspectMethodHostInitialization(tree);
+}
+
+export async function discoverPrivateMethods(
+  installationId: number,
+  repository: GithubRepositoryCoordinates,
+  commitSha: string
+): Promise<{
+  initialization: MethodHostInitialization;
+  methods: PrivateMethodSummary[];
+}> {
+  const tree = await repositoryTree(installationId, repository, commitSha);
+  return discoverPrivateMethodsFromTree(tree, async (blobSha) =>
+    (await readBlobBuffer(installationId, repository, blobSha)).toString("utf8")
   );
-  if (!hasMethodsDirectory) {
-    return {
-      initialized: false,
-      initializationFailureReason: "methods_directory_missing",
-    };
-  }
-  if (
-    !tree.some(
-      (entry) => entry.path === "methods/index.md" && entry.type === "blob"
-    )
-  ) {
-    return {
-      initialized: false,
-      initializationFailureReason: "methods_index_missing",
-    };
-  }
-  return { initialized: true };
 }
 
 async function readBlobBuffer(

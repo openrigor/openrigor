@@ -24,6 +24,10 @@ const ResearchRepositoryBindingSchema =
 export const ResearchRepositoryWorkspaceItemSchema =
   SharedResearchRepositoryWorkspaceItemSchema.extend({
     binding: ResearchRepositoryBindingSchema,
+    selectedMethodIds: z
+      .array(z.string().min(1).max(256))
+      .max(1000)
+      .default([]),
   });
 
 export type ResearchRepositoryWorkspaceItem = z.infer<
@@ -36,3 +40,9 @@ export type MethodHostInitialization =
       initialized: false;
       initializationFailureReason: MethodHostInitializationFailureReason;
     };
+
+export type PrivateMethodSummary = {
+  id: string;
+  title?: string;
+  description?: string;
+};

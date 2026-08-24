@@ -2120,6 +2120,33 @@ export async function updateResearchRepositoryBindingHead(
   });
 }
 
+export async function updateResearchRepositoryMethodSelection(
+  userId: string,
+  itemId: string,
+  selectedMethodIds: readonly string[]
+): Promise<ResearchRepositoryWorkspaceItem> {
+  return withUserLock(userId, async () => {
+    const manifest = await readManifest(userId);
+    const item = manifest.items[itemId];
+    if (
+      !item ||
+      !isUsableResearchRepository(item) ||
+      item.ownerId !== userId ||
+      item.status !== "active"
+    ) {
+      throw new WorkspaceItemNotFoundError();
+    }
+    const updated = ResearchRepositoryWorkspaceItemSchema.parse({
+      ...item,
+      updatedAt: new Date().toISOString(),
+      selectedMethodIds: [...new Set(selectedMethodIds)].sort(),
+    });
+    manifest.items[itemId] = updated;
+    await writeManifest(userId, manifest);
+    return updated;
+  });
+}
+
 /** Read a sealed snapshot owned by the active workspace user. */
 export async function getLedgerSnapshotItem(
   userId: string,
