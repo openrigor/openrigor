@@ -8,6 +8,7 @@ import type {
   ResearchRepositoryBinding,
 } from "@opencanvas/shared/research-repository";
 import { ArtifactEditor } from "./artifact-editor";
+import { Badge } from "@/components/ui/badge";
 import {
   RESEARCH_REPOSITORY_TRUST_COPY,
   REPOSITORY_PUBLIC_COPY,
@@ -272,9 +273,12 @@ function BoundRepositoryPanel({
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 p-5">
         <div>
-          <h1 className="text-lg font-semibold text-slate-950">
-            Private research repository
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-slate-950">
+              Private research repository
+            </h1>
+            <Badge variant="secondary">Private</Badge>
+          </div>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
             {RESEARCH_REPOSITORY_TRUST_COPY}
           </p>

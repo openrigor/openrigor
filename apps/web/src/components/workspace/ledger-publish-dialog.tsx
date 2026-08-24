@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ export function LedgerPublishDialog({
   } = useLedgerPublicationDeclarations();
   const [error, setError] = useState<string>();
   const [isPublishing, setIsPublishing] = useState(false);
+  const privateDestination = item.source.privateRepository !== undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -108,12 +110,18 @@ export function LedgerPublishDialog({
         data-testid="ledger-publish-dialog"
       >
         <DialogHeader>
-          <DialogTitle>
-            {rePublish ? "Republish sealed Ledger Snapshot" : "Create draft PR"}
+          <DialogTitle className="flex items-center gap-2">
+            {privateDestination
+              ? "Commit private Ledger Snapshot"
+              : rePublish
+                ? "Republish sealed Ledger Snapshot"
+                : "Create draft PR"}
+            {privateDestination && <Badge variant="secondary">Private</Badge>}
           </DialogTitle>
           <DialogDescription>
-            Create one draft PR under your connected GitHub identity. It will
-            not merge automatically.
+            {privateDestination
+              ? "Commit the sealed ledger and manifest to the Method's private repository under your connected GitHub identity."
+              : "Create one draft PR under your connected GitHub identity. It will not merge automatically."}
           </DialogDescription>
         </DialogHeader>
         <LedgerPublicationDeclarations
@@ -140,7 +148,13 @@ export function LedgerPublishDialog({
             disabled={!declarationsConfirmed || isPublishing}
             data-testid="ledger-confirm-publish"
           >
-            {isPublishing ? "Creating draft PR…" : "Create draft PR"}
+            {isPublishing
+              ? privateDestination
+                ? "Committing privately…"
+                : "Creating draft PR…"
+              : privateDestination
+                ? "Commit privately"
+                : "Create draft PR"}
           </Button>
         </DialogFooter>
       </DialogContent>

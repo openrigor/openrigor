@@ -268,6 +268,16 @@ export type WorkspaceItem =
   | ResearchRepositoryWorkspaceItem
   | UnusableResearchRepositoryWorkspaceItem;
 
+export function isPrivateWorkspaceItem(item: WorkspaceItem): boolean {
+  if (item.kind === "method" || item.kind === "method_participant") {
+    return item.methodSource.privateRepository !== undefined;
+  }
+  if (item.kind === "ledger" || item.kind === "ledger_snapshot") {
+    return item.source.privateRepository !== undefined;
+  }
+  return item.kind === "research_repository";
+}
+
 export function isUsableResearchRepository(
   item: WorkspaceItem
 ): item is ResearchRepositoryWorkspaceItem {

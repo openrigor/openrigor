@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { RESEARCH_REPOSITORY_TRUST_COPY } from "@/components/research-repository/copy";
@@ -93,6 +94,12 @@ export function catalogResultTitle(
   result: Pick<CatalogResult, "title" | "private">
 ): string {
   return `${result.title}${result.private ? " (Private)" : ""}`;
+}
+
+export function catalogResultBadge(
+  result: Pick<CatalogResult, "private">
+): "Private" | undefined {
+  return result.private ? "Private" : undefined;
 }
 
 export function CreateWorkspaceItemDialog({
@@ -377,11 +384,17 @@ export function CreateWorkspaceItemDialog({
                   type="button"
                   disabled={result.disabled || creating}
                   onClick={() => void create(result)}
+                  aria-label={catalogResultTitle(result)}
                   className="w-full rounded-lg border p-4 text-left transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">
-                      {catalogResultTitle(result)}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">
+                        {result.title}
+                      </span>
+                      {catalogResultBadge(result) && (
+                        <Badge variant="secondary">Private</Badge>
+                      )}
                     </span>
                     {result.status && (
                       <span className="text-xs text-muted-foreground">

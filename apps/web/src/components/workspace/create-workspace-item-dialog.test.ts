@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildResearchRepositoryCreateBody,
   buildWorkspaceItemCreateBody,
+  catalogResultBadge,
   catalogResultTitle,
   workspaceItemCreationKinds,
 } from "./create-workspace-item-dialog";
@@ -35,6 +36,8 @@ describe("CreateWorkspaceItemDialog request bodies", () => {
     expect(catalogResultTitle({ title: "Catalog Method" })).toBe(
       "Catalog Method"
     );
+    expect(catalogResultBadge({ private: true })).toBe("Private");
+    expect(catalogResultBadge({})).toBeUndefined();
   });
 
   it("creates an Evidence Ledger item request body", () => {

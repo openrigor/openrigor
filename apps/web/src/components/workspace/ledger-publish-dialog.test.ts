@@ -106,11 +106,11 @@ const item = {
   },
 };
 
-function renderDialog() {
+function renderDialog(dialogItem = item) {
   state.index = 0;
   return renderToStaticMarkup(
     React.createElement(LedgerPublishDialog, {
-      item,
+      item: dialogItem,
       open: true,
       onOpenChange: vi.fn(),
       onPublished: vi.fn(),
@@ -226,5 +226,28 @@ describe("LedgerPublishDialog", () => {
     });
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce());
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("marks the private destination and describes a direct commit", () => {
+    state.enabled = true;
+    state.slots = [{ value: { ...CONFIRMED_LEDGER_DECLARATIONS } }];
+    const privateItem = {
+      ...item,
+      source: {
+        ...item.source,
+        privateRepository: {
+          repositoryItemId: "wi_repo",
+          repositoryId: 101,
+          commitSha: "a".repeat(40),
+        },
+      },
+    };
+
+    const rendered = renderDialog(privateItem);
+
+    expect(rendered).toContain("Commit private Ledger Snapshot");
+    expect(rendered).toContain(">Private<");
+    expect(rendered).toContain("Commit privately");
+    expect(rendered).toContain("private repository");
   });
 });

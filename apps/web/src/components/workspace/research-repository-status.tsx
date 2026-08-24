@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { RepositoryStatus } from "@opencanvas/shared/research-repository";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import type {
   PrivateMethodSummary,
@@ -164,6 +165,7 @@ export function ResearchRepositoryStatus({
         <span className="font-medium text-slate-800">
           {repositoryName ?? `Repository #${item.binding.repositoryId}`}
         </span>
+        <Badge variant="secondary">Private</Badge>
         <span>{item.binding.branch}</span>
         <code className="rounded bg-slate-100 px-1.5 py-0.5">
           {shortRepositoryCommit(headCommitSha)}
