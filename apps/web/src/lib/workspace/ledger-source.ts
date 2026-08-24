@@ -22,6 +22,7 @@ const CONTENTS_PREFIX = `/repos/${RESEARCH_REPOSITORY}/contents`;
 const LARGE_FILE_BYTES = 1_000_000;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RESERVED_PACKET_NAMES = new Set(["index.md", "log.md"]);
+const RESERVED_DIR_NAMES = new Set(["ledgers"]);
 
 type Frontmatter = Record<string, unknown>;
 
@@ -186,9 +187,11 @@ async function markdownFiles(path: string): Promise<GithubContent[]> {
   }
   if (!Array.isArray(listed)) return listed.type === "file" ? [listed] : [];
   const nested = await Promise.all(
-    listed.map(async (entry) =>
-      entry.type === "dir" ? markdownFiles(entry.path) : [entry]
-    )
+    listed.map(async (entry) => {
+      if (entry.type !== "dir") return [entry];
+      if (RESERVED_DIR_NAMES.has(entry.name)) return [];
+      return markdownFiles(entry.path);
+    })
   );
   const files = nested.flat() as GithubContent[];
   return files
