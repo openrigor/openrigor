@@ -1,12 +1,12 @@
-# AGENTS.md — Evaluchat
+# AGENTS.md — OpenRigor
 
 Guidance for AI coding agents (and humans) working in this repository.
 
 ## What this is
 
-Evaluchat is an open-source, AI-native Markdown document workspace — an
+OpenRigor is an open-source, AI-native Markdown document workspace — an
 independent continuation of LangChain Open Canvas (MIT), and the public beta
-application for the Evaluchat education research platform. See [README.md](README.md)
+application for the OpenRigor education research platform. See [README.md](README.md)
 for the product story and setup, [CONTRIBUTING.md](CONTRIBUTING.md) for the
 contribution workflow.
 
@@ -55,7 +55,7 @@ Unit tests: `cd apps/agents && npx vitest run` and `cd packages/shared && npx vi
 
 - Education workflows, role routes, assignment APIs, apparatus runtime, prompts,
   routing, and instrumentation are open source in this repository.
-- The public beta is hosted at `https://evaluchat.org`; `dev.evaluchat.org` is
+- The public beta is hosted at `https://openrigor.org`; `dev.openrigor.org` is
   the pre-cutover environment. Credentials, production configuration, billing,
   and identifiable classroom data must never be committed.
 - Research apparatus specifications and immutable profiles are authored through
@@ -76,9 +76,9 @@ Unit tests: `cd apps/agents && npx vitest run` and `cd packages/shared && npx vi
 | README, CONTRIBUTING, `docs/contributing/` | `docs/architecture/`, `docs/research/`, `docs/*.html` |
 | Code + tests + `.env.example` | Feature ADRs, threat models, orchestration plans |
 
-Public product docs (including platform security designs) → [github.com/evaluchat/knowledge](https://github.com/evaluchat/knowledge)
+Public product docs (including platform security designs) → [github.com/openrigor/knowledge](https://github.com/openrigor/knowledge)
 
-Public research methodology governance → [github.com/evaluchat/research](https://github.com/evaluchat/research)
+Public research methodology governance → [github.com/openrigor/research](https://github.com/openrigor/research)
 
 Private strategy and orchestration plans are not stored in this repository.
 

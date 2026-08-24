@@ -1,11 +1,11 @@
-# Evaluchat Desktop — Iteration Runbook
+# OpenRigor Desktop — Iteration Runbook
 
-Executed by the daily cron job (`evaluchat canvas desktop iteration`, 07:00) and by interactive sessions.
+Executed by the daily cron job (`openrigor canvas desktop iteration`, 07:00) and by interactive sessions.
 Orchestrator-only: **you never edit source files — Cursor Agent does.** You verify with real command output.
 
 ## 0. Fixed facts
 
-- Repo: `/home/cronjev/canvas-public` (github.com/evaluchat/evaluchat, public OSS). Remote: `origin`.
+- Repo: `/home/cronjev/canvas-public` (github.com/openrigor/openrigor, public OSS). Remote: `origin`.
 - Branch: `feat/electron-desktop` (long-lived). `origin/main` is the integration base — merge it in every run.
 - Plan: `docs/electron-desktop/PLAN.md` · Progress: `docs/electron-desktop/PROGRESS.md`.
 - Node 22 (.nvmrc); local node ≥22 fine. Package manager: yarn 1.22 (workspaces, `apps/*` auto-included).
@@ -22,7 +22,7 @@ yarn build
 CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win dir --x64
 ```
 
-Copy `apps/desktop/release/win-unpacked/` to a **native Windows path** (not `\\wsl$\\...`), e.g. `C:\Users\Public\Evaluchat`, then double-click `Evaluchat.exe` **or** `scripts/Launch Evaluchat.cmd` (clears `ELECTRON_RUN_AS_NODE`).
+Copy `apps/desktop/release/win-unpacked/` to a **native Windows path** (not `\\wsl$\\...`), e.g. `C:\Users\Public\OpenRigor`, then double-click `OpenRigor.exe` **or** `scripts/Launch OpenRigor.cmd` (clears `ELECTRON_RUN_AS_NODE`).
 
 If the window never appears and the process exits immediately with `bad option: --…`, the shell inherited `ELECTRON_RUN_AS_NODE=1` (common in IDE/agent terminals). Unset it before launch, or use the `.cmd` launcher from Explorer.
 

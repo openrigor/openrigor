@@ -1,18 +1,18 @@
-# Evaluchat
+# OpenRigor
 
-[TRY IT OUT HERE](https://evaluchat.org/)
+[TRY IT OUT HERE](https://openrigor.org/)
 
 ![Screenshot of app](./public/screenshot.png)
 
-Evaluchat is an open-source web application for collaborating with agents to write and revise documents in the Workspace.
+OpenRigor is an open-source web application for collaborating with agents to write and revise documents in the Workspace.
 
 1. **Open Source**: All the code, from the frontend, to the content generation agent, to the reflection agent is open source and MIT licensed.
-2. **Built in memory**: Evaluchat ships out of the box with a [reflection agent](https://langchain-ai.github.io/langgraphjs/tutorials/reflection/reflection/) which stores style rules and user insights in a [shared memory store](https://langchain-ai.github.io/langgraphjs/concepts/memory/). This allows Evaluchat to remember facts about you across sessions.
-3. **Start from existing documents**: Evaluchat allows users to start with a blank text, or code editor in the language of their choice, allowing you to start the session with your existing content, instead of being forced to start with a chat interaction. We believe this is an ideal UX because many times you will already have some content to start with, and want to iterate on-top of it.
+2. **Built in memory**: OpenRigor ships out of the box with a [reflection agent](https://langchain-ai.github.io/langgraphjs/tutorials/reflection/reflection/) which stores style rules and user insights in a [shared memory store](https://langchain-ai.github.io/langgraphjs/concepts/memory/). This allows OpenRigor to remember facts about you across sessions.
+3. **Start from existing documents**: OpenRigor allows users to start with a blank text, or code editor in the language of their choice, allowing you to start the session with your existing content, instead of being forced to start with a chat interaction. We believe this is an ideal UX because many times you will already have some content to start with, and want to iterate on-top of it.
 
 ## Features
 
-- **Memory**: Evaluchat has a built in memory system which will automatically generate reflections and memories on you, and your chat history. These are then included in subsequent chat interactions to give a more personalized experience.
+- **Memory**: OpenRigor has a built in memory system which will automatically generate reflections and memories on you, and your chat history. These are then included in subsequent chat interactions to give a more personalized experience.
 - **Custom quick actions**: Custom quick actions allow you to define your own prompts which are tied to your user, and persist across sessions. These then can be easily invoked through a single click, and apply to the artifact you're currently viewing.
 - **Pre-built quick actions**: There are also a series of pre-built quick actions for common writing and coding tasks that are always available.
 - **Artifact versioning**: All artifacts have a "version" tied to them, allowing you to travel back in time and see previous versions of your artifact.
@@ -24,11 +24,11 @@ Evaluchat is an open-source web application for collaborating with agents to wri
 
 ## Setup locally
 
-This guide covers how to set up and run Evaluchat locally. If you prefer a YouTube video guide, check out [this video](https://youtu.be/sBzcQYPMekc).
+This guide covers how to set up and run OpenRigor locally. If you prefer a YouTube video guide, check out [this video](https://youtu.be/sBzcQYPMekc).
 
 ### Prerequisites
 
-Evaluchat requires the following API keys and external services:
+OpenRigor requires the following API keys and external services:
 
 #### Package Manager
 
@@ -58,8 +58,8 @@ Evaluchat requires the following API keys and external services:
 First, clone the repository:
 
 ```bash
-git clone https://github.com/evaluchat/evaluchat.git
-cd evaluchat
+git clone https://github.com/openrigor/openrigor.git
+cd openrigor
 ```
 
 Next, install the dependencies:
@@ -107,7 +107,7 @@ Now we'll cover how to setup and run the LangGraph server locally.
 
 Follow the [`Installation` instructions in the LangGraph docs](https://langchain-ai.github.io/langgraph/cloud/reference/cli/#installation) to install the LangGraph CLI.
 
-Once installed, navigate to the root of the Evaluchat repo and run `yarn dev:server` (this runs `npx @langchain/langgraph-cli dev --port 54367`).
+Once installed, navigate to the root of the OpenRigor repo and run `yarn dev:server` (this runs `npx @langchain/langgraph-cli dev --port 54367`).
 
 Once it finishes pulling the docker image and installing dependencies, you should see it log:
 
@@ -117,7 +117,7 @@ Ready!
 - 🎨 Studio UI: https://smith.langchain.com/studio?baseUrl=http://localhost:54367
 ```
 
-After your LangGraph server is running, execute the following command to start Evaluchat:
+After your LangGraph server is running, execute the following command to start OpenRigor:
 
 ```bash
 yarn dev
@@ -129,7 +129,7 @@ Then, open [localhost:3000](http://localhost:3000) with your browser and start i
 
 ## LLM Models
 
-Evaluchat is designed to be compatible with any LLM model. The current deployment has the following models configured:
+OpenRigor is designed to be compatible with any LLM model. The current deployment has the following models configured:
 
 - **Anthropic Claude 3 Haiku 👤**: Haiku is Anthropic's fastest model, great for quick tasks like making edits to your document. Sign up for an Anthropic account [here](https://console.anthropic.com/).
 - **Fireworks Llama 3 70B 🦙**: Llama 3 is a SOTA open source model from Meta, powered by [Fireworks AI](https://fireworks.ai/). You can sign up for an account [here](https://fireworks.ai/login).
@@ -149,7 +149,7 @@ If you'd like to add a new model, follow these simple steps:
 
 ### Local Ollama models
 
-Evaluchat supports calling local LLMs running on Ollama. This is not enabled in the hosted version, but you can use this in your own local or deployed instance.
+OpenRigor supports calling local LLMs running on Ollama. This is not enabled in the hosted version, but you can use this in your own local or deployed instance.
 
 To use a local Ollama model, first ensure you have [Ollama](https://ollama.com) installed, and a model that supports tool calling pulled (the default model is `llama3.3`).
 
@@ -162,7 +162,7 @@ Then, set the `NEXT_PUBLIC_OLLAMA_ENABLED` environment variable to `true`, and t
 
 ## Troubleshooting
 
-Below are some common issues you may run into if running Evaluchat yourself:
+Below are some common issues you may run into if running OpenRigor yourself:
 
 - **I have the LangGraph server running successfully, and my client can make requests, but no text is being generated:** This can happen if you start & connect to multiple different LangGraph servers locally in the same browser. Try clearing the `oc_thread_id_v2` cookie and refreshing the page. This is because each unique LangGraph server has its own database where threads are stored, so a thread ID from one server will not be found in the database of another server.
 
@@ -176,17 +176,17 @@ Below are some common issues you may run into if running Evaluchat yourself:
 
 ### Features
 
-Below is a list of features we'd like to add to Evaluchat in the near future:
+Below is a list of features we'd like to add to OpenRigor in the near future:
 
-- **Render React in the editor**: Ideally, if you have Evaluchat generate React (or HTML) code, we should be able to render it live in the editor. **Edit**: This is in the planning stage now!
+- **Render React in the editor**: Ideally, if you have OpenRigor generate React (or HTML) code, we should be able to render it live in the editor. **Edit**: This is in the planning stage now!
 - **Multiple assistants**: Users should be able to create multiple assistants, each having their own memory store.
 - **Give assistants custom 'tools'**: Once we've implemented `RemoteGraph` in LangGraph.js, users should be able to give assistants access to call their own graphs as tools. This means you could customize your assistant to have access to current events, your own personal knowledge graph, etc.
 
-Do you have a feature request? Please [open an issue](https://github.com/evaluchat/evaluchat/issues/new)!
+Do you have a feature request? Please [open an issue](https://github.com/openrigor/openrigor/issues/new)!
 
 ### Contributing
 
-We'd like to continue developing and improving Evaluchat, and want your help!
+We'd like to continue developing and improving OpenRigor, and want your help!
 
 To start, there are a handful of GitHub issues with feature requests outlining improvements and additions to make the app's UX even better.
 There are three main labels:
@@ -195,4 +195,4 @@ There are three main labels:
 - `ai`: This label is added to issues which are focused on improving the LLM agent(s).
 - `fullstack`: This label is added to issues which require touching both the frontend and agent code.
 
-For contribution questions and bug reports, please [open an issue on GitHub](https://github.com/evaluchat/evaluchat/issues/new).
+For contribution questions and bug reports, please [open an issue on GitHub](https://github.com/openrigor/openrigor/issues/new).

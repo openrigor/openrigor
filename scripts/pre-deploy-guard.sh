@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # pre-deploy-guard.sh — assert the pre-deploy invariants before ANY dev or prod
-# deploy of evaluchat/evaluchat. Hard-fails with a remediation hint when any
+# deploy of openrigor/openrigor. Hard-fails with a remediation hint when any
 # invariant is violated. Run it inside the working clone or a git worktree.
 #
 # Usage:

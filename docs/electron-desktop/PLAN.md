@@ -1,23 +1,23 @@
-# Evaluchat — Electron Desktop App (Long-Horizon Plan)
+# OpenRigor — Electron Desktop App (Long-Horizon Plan)
 
-> Branch: `feat/electron-desktop` · Repo: `evaluchat/evaluchat` (public OSS) · Status: **AI-off MVP landed (2026-08-09); next = Windows packaging path (T3.1a→T3.1b), then E2E, then BYOK**
+> Branch: `feat/electron-desktop` · Repo: `openrigor/openrigor` (public OSS) · Status: **AI-off MVP landed (2026-08-09); next = Windows packaging path (T3.1a→T3.1b), then E2E, then BYOK**
 > Companion files: `PROGRESS.md` (iteration log) · `RUNBOOK.md` (exact commands for the daily cron iteration)
 
 ## Goal
 
-Turn Evaluchat into a **usable desktop application** (Electron) for **Windows and Linux first** (macOS eventual — keep code cross-platform, compile-gated in CI). The AI assistant and Workspace must be **completely separable** — with AI off, the app is a pure WYSIWYG Markdown Workspace with the main workspace features (BlockNote editing, Mermaid + LaTeX rendering, raw/preview toggle, print view). With AI on, the user supplies **their own API credentials** (BYOK).
+Turn OpenRigor into a **usable desktop application** (Electron) for **Windows and Linux first** (macOS eventual — keep code cross-platform, compile-gated in CI). The AI assistant and Workspace must be **completely separable** — with AI off, the app is a pure WYSIWYG Markdown Workspace with the main workspace features (BlockNote editing, Mermaid + LaTeX rendering, raw/preview toggle, print view). With AI on, the user supplies **their own API credentials** (BYOK).
 
 ## Strategic fit
 
-Per the OSS strategy (`concepts/open-source-strategy.md` in the evaluchat knowledge bundle): Evaluchat is a standalone OSS distribution surface. The desktop app is the strongest distribution form — a genuinely useful AI-native Markdown workspace that works fully offline and without any Evaluchat SaaS dependency. Reference: Glyph (Tauri markdown desktop) — the desktop distribution pattern, but we target Win/Linux first and use Electron (per Cronje's requirement).
+Per the OSS strategy (`concepts/open-source-strategy.md` in the openrigor knowledge bundle): OpenRigor is a standalone OSS distribution surface. The desktop app is the strongest distribution form — a genuinely useful AI-native Markdown workspace that works fully offline and without any OpenRigor SaaS dependency. Reference: Glyph (Tauri markdown desktop) — the desktop distribution pattern, but we target Win/Linux first and use Electron (per Cronje's requirement).
 
 ## Hard constraints
 
 1. **AI OFF by default and fully removable at runtime.** When disabled: no chat pane, no AI toolbar items, no AI code paths executed, no network calls to any AI endpoint. Workspace + Mermaid + LaTeX + preview + print all work.
-2. **BYOK when AI is on:** settings UI for provider (OpenAI-compatible base URL), model, and API key. Key persisted via Electron `safeStorage` (OS keychain). No Evaluchat account, no Evaluchat backend.
+2. **BYOK when AI is on:** settings UI for provider (OpenAI-compatible base URL), model, and API key. Key persisted via Electron `safeStorage` (OS keychain). No OpenRigor account, no OpenRigor backend.
 3. **No SaaS coupling in the desktop app:** no Supabase auth, no LangGraph server, no assignment routing. Local files only (open/save/recent/autosave).
 4. **Windows + Linux are the testable platforms** (WSL + Windows host available). macOS: no platform-specific APIs, `dmg` target configured, mac CI job compile-gated only.
-5. **Never deployed from this workstream.** The VPS evaluchat deployments are untouched. This branch only ever produces desktop builds + releases.
+5. **Never deployed from this workstream.** The VPS deployments are untouched. This branch only ever produces desktop builds + releases.
 6. Implementation is delegated to Cursor Agent (orchestrator-only rule). Verification is real command output only.
 
 ## Architecture decision (ADR-1, 2026-08-08)
@@ -35,7 +35,7 @@ Migration is incremental: Phase 0 ships a standalone shell; Phase 1 extracts the
 Do **not** resume daily cron on T1.5 first — packaging/host-run is the bottleneck for a usable Win+Linux product.
 
 1. **T3.1a — Windows host packaging path (current)**  
-   Commit/stabilize: `win.signAndEditExecutable: false`, `package:win`, `RUNBOOK.md` §0b, `Launch Evaluchat.cmd`. Document: build `win dir` from WSL → copy to native `C:\…` path → launch with `ELECTRON_RUN_AS_NODE` unset. Guard against electron-builder stripping `apps/desktop/package.json` scripts during pack.
+   Commit/stabilize: `win.signAndEditExecutable: false`, `package:win`, `RUNBOOK.md` §0b, `Launch OpenRigor.cmd`. Document: build `win dir` from WSL → copy to native `C:\…` path → launch with `ELECTRON_RUN_AS_NODE` unset. Guard against electron-builder stripping `apps/desktop/package.json` scripts during pack.
 
 2. **T3.1b — Icons + CI artifacts**  
    App icons; CI produces linux AppImage/deb **and** windows unpacked/portable (or NSIS once Wine/signing story is settled); keep metadata already fixed for deb/fpm.
@@ -76,7 +76,7 @@ Do **not** resume daily cron on T1.5 first — packaging/host-run is the bottlen
 
 ### Phase 3 — Packaging & distribution
 
-- [ ] **T3.1a** Windows host packaging path: WSL cross-build `win dir` without Wine (`signAndEditExecutable: false`), native `C:\` install copy, `Launch Evaluchat.cmd` clearing `ELECTRON_RUN_AS_NODE`, RUNBOOK §0b. — *in progress 2026-08-09 (working tree)*
+- [ ] **T3.1a** Windows host packaging path: WSL cross-build `win dir` without Wine (`signAndEditExecutable: false`), native `C:\` install copy, `Launch OpenRigor.cmd` clearing `ELECTRON_RUN_AS_NODE`, RUNBOOK §0b. — *in progress 2026-08-09 (working tree)*
 - [ ] **T3.1b** electron-builder polish: icons, CI artifacts for linux AppImage/deb + windows unpacked/portable (NSIS when signing/Wine available); dmg config present (untested).
 - [ ] T3.2 Auto-update via GitHub Releases (electron-updater), signed later; manual "Check for updates".
 - [ ] T3.3 First tagged release (v0.1.0) with installers + release notes.
@@ -85,13 +85,13 @@ Do **not** resume daily cron on T1.5 first — packaging/host-run is the bottlen
 
 - [ ] T4.1 Desktop README (install, BYOK setup, AI-off mode), screenshots, CONTRIBUTING note.
 - [ ] T4.2 Sample documents (Mermaid + LaTeX showcase), keyboard shortcuts doc.
-- [ ] T4.3 OSS pull measurement (stars/issues on evaluchat/evaluchat) feeding the OSS strategy reviews.
+- [ ] T4.3 OSS pull measurement (stars/issues on openrigor/openrigor) feeding the OSS strategy reviews.
 
 ## Non-goals (for now)
 
-- No Evaluchat Essays/SaaS features, no LangGraph in the desktop app, no cloud sync, no telemetry without consent, no mobile.
+- No OpenRigor Essays/SaaS features, no LangGraph in the desktop app, no cloud sync, no telemetry without consent, no mobile.
 - No shared `packages/canvas-editor` extraction until after Win+Linux packaging + E2E (optional cleanup).
 
 ## Iteration cadence
 
-Daily cron (`evaluchat canvas desktop iteration`, 07:00 UTC+2): pull `origin/main` → merge into `feat/electron-desktop` → execute **next task from “What's next”** (not merely the first unchecked box out of order) via Cursor Agent → verify → commit/push → update `PROGRESS.md`. Full protocol: `RUNBOOK.md`.
+Daily cron (`openrigor canvas desktop iteration`, 07:00 UTC+2): pull `origin/main` → merge into `feat/electron-desktop` → execute **next task from “What's next”** (not merely the first unchecked box out of order) via Cursor Agent → verify → commit/push → update `PROGRESS.md`. Full protocol: `RUNBOOK.md`.
