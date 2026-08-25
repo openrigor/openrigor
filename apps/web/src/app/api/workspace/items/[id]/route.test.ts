@@ -129,6 +129,50 @@ describe("PATCH /api/workspace/items/[id]", () => {
     expect(harness.reconcileWorkspaceItemThread).not.toHaveBeenCalled();
   });
 
+  it("reconciles a ledger item thread with a 200 response", async () => {
+    const item = { id: "wi_1", kind: "ledger" };
+    harness.getWorkspaceItem.mockResolvedValue(item);
+    harness.reconcileWorkspaceItemThread.mockResolvedValue({
+      ...item,
+      threadId: "thread-1",
+    });
+
+    const response = await PATCH(
+      request({ threadId: "thread-1" }),
+      context("wi_1")
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      item: { ...item, threadId: "thread-1" },
+    });
+    expect(harness.reconcileWorkspaceItemThread).toHaveBeenCalledWith(
+      "user-1",
+      "wi_1",
+      "thread-1"
+    );
+  });
+
+  it("keeps research repository thread linking at 400", async () => {
+    harness.getWorkspaceItem.mockResolvedValue({
+      id: "wi_1",
+      kind: "research_repository",
+    });
+    harness.reconcileWorkspaceItemThread.mockRejectedValue(
+      new harness.WorkspaceItemThreadNotAllowedError()
+    );
+
+    const response = await PATCH(
+      request({ threadId: "thread-1" }),
+      context("wi_1")
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "This item does not support an assistant thread",
+    });
+  });
+
   it.each([
     [
       "not found",

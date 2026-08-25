@@ -226,6 +226,7 @@ export type LedgerSource = {
 
 export type LedgerWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
   kind: "ledger";
+  threadId?: string;
   ledgerConfig: LedgerConfig;
   snapshotIds: string[];
   source: LedgerSource;
@@ -233,6 +234,7 @@ export type LedgerWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
 
 export type LedgerSnapshotWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
   kind: "ledger_snapshot";
+  threadId?: string;
   parentLedgerItemId: string;
   snapshot: LedgerSnapshotData;
   /** Present after a draft research PR has been created. */

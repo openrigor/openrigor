@@ -12,6 +12,7 @@ import { createClient } from "../hooks/utils";
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 import { useUserContext } from "./UserContext";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { useQueryState } from "nuqs";
 import {
   emptyKickoffsToAbandon,
@@ -167,6 +168,47 @@ export function ThreadProvider({
     });
   };
 
+  async function attachWorkspaceThread(
+    workspaceItemId: string,
+    workspaceThreadId: string
+  ): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `/api/workspace/items/${encodeURIComponent(workspaceItemId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ threadId: workspaceThreadId }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to attach workspace thread", error);
+      toast({
+        title: "Could not link thread",
+        description:
+          "The thread was created but could not be linked to this item. Retry to link it.",
+        action: (
+          <ToastAction
+            altText="Retry linking thread"
+            onClick={() => {
+              void attachWorkspaceThread(workspaceItemId, workspaceThreadId);
+            }}
+          >
+            Retry
+          </ToastAction>
+        ),
+        duration: 10000,
+        variant: "destructive",
+      });
+      return false;
+    }
+  }
+
   const createThread = async (
     assignmentId?: string,
     workspaceItemIdOverride?: string
@@ -240,19 +282,7 @@ export function ThreadProvider({
 
       setThreadId(thread.thread_id);
       if (ownedWorkspaceItemId) {
-        try {
-          await fetch(
-            `/api/workspace/items/${encodeURIComponent(ownedWorkspaceItemId)}`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ threadId: thread.thread_id }),
-            }
-          );
-        } catch (error) {
-          console.error("Failed to attach workspace thread", error);
-        }
+        await attachWorkspaceThread(ownedWorkspaceItemId, thread.thread_id);
       }
       if (assignmentId) {
         try {

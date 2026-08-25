@@ -325,6 +325,53 @@ describe("workspace item lifecycle", () => {
     expect(attached.kind === "method" && attached.threadId).toBe("thread-1");
   });
 
+  it("attaches a thread to ledger items for the workspace chat", async () => {
+    const ledger = {
+      id: "wi_ledger",
+      ownerId: "user-1",
+      kind: "ledger" as const,
+      status: "active" as const,
+      createdAt: "2026-08-25T10:00:00.000Z",
+      updatedAt: "2026-08-25T10:00:00.000Z",
+      ledgerConfig: {
+        methodId: "demo-method",
+        methodVersion: "1.0.0",
+        templateId: "demo-template",
+        templateVersion: "1.0.0",
+        filters: [],
+      },
+      snapshotIds: [],
+      source: {
+        catalogRevision: "test",
+        templateId: "demo-template",
+        templateVersion: "1.0.0",
+        sourcePath: "test",
+        methodId: "demo-method",
+        methodVersion: "1.0.0",
+      },
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [ledger.id]: ledger },
+    };
+    harness.state.threads.set("thread-1", {
+      metadata: { user_id: "user-1", workspace_item_id: ledger.id },
+    });
+
+    const attached = await reconcileWorkspaceItemThread(
+      "user-1",
+      ledger.id,
+      "thread-1"
+    );
+
+    expect(attached).toMatchObject({
+      id: ledger.id,
+      kind: "ledger",
+      threadId: "thread-1",
+    });
+    expect(harness.state.manifest.items[ledger.id].threadId).toBe("thread-1");
+  });
+
   it("creates a Form-backed method draft from a built-in method id", async () => {
     const item = await createMethodWorkspaceItem("user-1", "ai-assisted-essay");
     expect(item.kind).toBe("method");
