@@ -127,9 +127,7 @@ describe("deniedTeachingRoleRedirect", () => {
 describe("sharedAuthCookieDomain", () => {
   it("scopes openrigor hosts to .openrigor.org", () => {
     expect(sharedAuthCookieDomain("openrigor.org")).toBe(".openrigor.org");
-    expect(sharedAuthCookieDomain("docs.openrigor.org")).toBe(
-      ".openrigor.org"
-    );
+    expect(sharedAuthCookieDomain("docs.openrigor.org")).toBe(".openrigor.org");
     expect(sharedAuthCookieDomain("dev.openrigor.org")).toBe(".openrigor.org");
   });
 
