@@ -67,8 +67,16 @@ function isGenuineUserMessage(message: {
   getType?: () => string;
   additional_kwargs?: Record<string, unknown>;
 }): boolean {
+  // Restored thread history can be plain objects (no class instance), so
+  // classify by id prefix first and fall back to the live-message check.
+  const type = message.getType?.();
+  if (type === "human") {
+    return message.additional_kwargs?.[OC_HIDE_FROM_UI_KEY] !== true;
+  }
+  if (type !== undefined) return false;
   return (
-    message.getType?.() === "human" &&
+    typeof (message as { id?: unknown }).id === "string" &&
+    !(message as { id?: string }).id!.startsWith("ledger-kickoff-") &&
     message.additional_kwargs?.[OC_HIDE_FROM_UI_KEY] !== true
   );
 }
@@ -247,6 +255,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
       // Reopen: restore the persisted thread so prior chat history loads.
       // Ledger drafts persist to their workspace item, never thread state,
       // but the conversation transcript lives on the thread.
+      threadRestoreSettled.current = null;
       void setThreadId(persistedThreadId);
       graphData.setChatStarted(true);
       // Hold the kickoff gate briefly while GraphContext reloads history;
@@ -348,6 +357,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     item.id,
     preview,
     selectedAssistant,
+    threadRestorePending,
     toast,
   ]);
 
