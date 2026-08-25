@@ -175,6 +175,11 @@ function BoundRepositoryPanel({
             {RESEARCH_REPOSITORY_TRUST_COPY}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span>
+              {status?.repositoryFullName ??
+                item.binding.repositoryFullName ??
+                `Repository #${item.binding.repositoryId}`}
+            </span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
               {statusLabel(status)}
             </span>

@@ -253,9 +253,15 @@ describe("repository ledger seals", () => {
       email: "7+researcher@users.noreply.github.com",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       commitSha: resultCommitSha,
       snapshotId: snapshotOne,
+      provenance: {
+        repository: "octocat/private",
+        branch: "openrigor/workspace",
+        path: preview.ledgerPath,
+        revision: resultCommitSha,
+      },
     });
     expect(harness.commitArtifacts).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).toHaveBeenCalledWith(

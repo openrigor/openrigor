@@ -72,9 +72,10 @@ export function ResearchRepositoryStatus({
         if (!cancelled) {
           setStatus(statusBody.status);
           setRepositoryName(
-            repositoriesBody?.repositories?.find(
-              (repository) => repository.id === item.binding.repositoryId
-            )?.nameWithOwner
+            statusBody.status.repositoryFullName ??
+              repositoriesBody?.repositories?.find(
+                (repository) => repository.id === item.binding.repositoryId
+              )?.nameWithOwner
           );
         }
       })
@@ -92,11 +93,14 @@ export function ResearchRepositoryStatus({
   if (unavailable) return null;
 
   const headCommitSha = status?.headCommitSha ?? item.binding.headCommitSha;
+  const fullName =
+    repositoryName ??
+    status?.repositoryFullName ??
+    item.binding.repositoryFullName ??
+    `Repository #${item.binding.repositoryId}`;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-600">
-      <span className="font-medium text-slate-800">
-        {repositoryName ?? `Repository #${item.binding.repositoryId}`}
-      </span>
+      <span className="font-medium text-slate-800">{fullName}</span>
       <span>{item.binding.branch}</span>
       <code className="rounded bg-slate-100 px-1.5 py-0.5">
         {shortRepositoryCommit(headCommitSha)}

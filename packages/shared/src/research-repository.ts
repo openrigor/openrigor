@@ -101,6 +101,8 @@ export const ResearchRepositoryBindingSchema = z
     provider: z.literal("github"),
     repositoryId: GithubNumericIdSchema,
     installationId: GithubNumericIdSchema,
+    /** The immutable GitHub full_name selected at bind time. */
+    repositoryFullName: z.string().min(1).max(512).optional(),
     branch: z.literal("openrigor/workspace"),
     layoutVersion: LayoutVersionSchema,
     headCommitSha: CommitShaSchema,
@@ -171,6 +173,7 @@ export const RepositoryStatusSchema = z
   .object({
     workspaceId: OpaqueIdSchema,
     repositoryId: GithubNumericIdSchema,
+    repositoryFullName: z.string().min(1).max(512).optional(),
     state: z.enum(["ready", "read_only", "blocked", "disconnected"]),
     reason: RepositoryStatusReasonSchema.optional(),
     readonlyReason: z.enum(["repository_public"]).optional(),
@@ -229,6 +232,20 @@ export const RepositoryStatusSchema = z
   });
 
 export type RepositoryStatus = z.infer<typeof RepositoryStatusSchema>;
+
+/** Provenance attached to every private-repository commit response. */
+export const RepositoryCommitProvenanceSchema = z
+  .object({
+    repository: z.string().min(1).max(512),
+    branch: BranchNameSchema,
+    path: RepositoryPathSchema,
+    revision: CommitShaSchema,
+  })
+  .strict();
+
+export type RepositoryCommitProvenance = z.infer<
+  typeof RepositoryCommitProvenanceSchema
+>;
 
 /**
  * Retained operation metadata. The strict schema deliberately has no artifact

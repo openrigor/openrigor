@@ -8,6 +8,7 @@ import {
 } from "@/lib/workspace/store";
 import { readGithubResearchCredentials } from "@/lib/workspace/research-repository/credentials";
 import {
+  repositoryCommitProvenance,
   StaleRepositoryError,
   type GithubCommitAuthor,
 } from "@/lib/workspace/research-repository/git-adapter";
@@ -320,8 +321,11 @@ export async function POST(request: Request, context: RouteContext) {
 
   const proposedSnapshotId =
     body.action === "seal" ? body.preview.snapshotId : randomUUID();
+  let repositoryForCommit:
+    | { owner: string; name: string; nameWithOwner?: string }
+    | undefined;
   try {
-    await assertRepositoryWriteAccess({
+    const access = await assertRepositoryWriteAccess({
       installationId: item.binding.installationId,
       repositoryId: item.binding.repositoryId,
       branch: item.binding.branch,
@@ -331,6 +335,7 @@ export async function POST(request: Request, context: RouteContext) {
         sealManifestPath(proposedSnapshotId),
       ],
     });
+    repositoryForCommit = access.repository;
   } catch (error) {
     const response = sealError(error);
     if (response) return response;
@@ -378,6 +383,16 @@ export async function POST(request: Request, context: RouteContext) {
         operationId: operation.operationId,
         commitSha: operation.resultCommitSha,
         snapshotId,
+        provenance: repositoryCommitProvenance(
+          repositoryForCommit ?? {
+            owner: "github",
+            name: String(item.binding.repositoryId),
+            nameWithOwner: item.binding.repositoryFullName,
+          },
+          item.binding.branch,
+          sealManifestPath(snapshotId),
+          operation.resultCommitSha
+        ),
       });
     } catch (error) {
       console.error(
@@ -446,6 +461,7 @@ export async function POST(request: Request, context: RouteContext) {
       expectedHeadSha: item.binding.headCommitSha,
       files: [sealLedgerPath(snapshotId), sealManifestPath(snapshotId)],
     });
+    repositoryForCommit = repository;
     access = { binding: item.binding, credentials, repository };
   } catch (error) {
     try {
@@ -467,6 +483,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   let commitSha: string;
+  let commitProvenance: ReturnType<typeof repositoryCommitProvenance>;
   try {
     if (body.action === "seal") {
       const preview = await previewSealSnapshot(access, {
@@ -481,7 +498,7 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
       assertSealDeclarations(preview, body.declarations);
-      ({ commitSha } = await commitSealSnapshot(
+      ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,
         authorFor(access)
@@ -493,7 +510,7 @@ export async function POST(request: Request, context: RouteContext) {
         expectedHeadCommitSha: operation.baseCommitSha,
       });
       assertSealDeclarations(preview, body.declarations);
-      ({ commitSha } = await commitSealSnapshot(
+      ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,
         authorFor(access)
@@ -536,7 +553,12 @@ export async function POST(request: Request, context: RouteContext) {
       operation,
       commitSha
     );
-    return json({ operationId: completed.operationId, commitSha, snapshotId });
+    return json({
+      operationId: completed.operationId,
+      commitSha,
+      snapshotId,
+      provenance: commitProvenance,
+    });
   } catch (error) {
     try {
       await failRepositoryOperation(

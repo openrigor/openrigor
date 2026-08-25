@@ -162,6 +162,7 @@ import {
   reconcileWorkspaceItemThread,
   refreshResearchRepositoryBindings,
   ResearchRepositoryBindingError,
+  replaceResearchRepositoryBinding,
   updateResearchRepositoryBindingHead,
   updateResearchRepositoryMethodSelection,
   workspaceLockAcquireTimeoutMs,
@@ -778,6 +779,56 @@ describe("research repository workspace items", () => {
     ).rejects.toBeInstanceOf(ResearchRepositoryBindingError);
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledTimes(1);
     expect(Object.keys(harness.state.manifest.items)).toHaveLength(1);
+  });
+
+  it("replaces one item's binding atomically after the new repository is ready", async () => {
+    const original = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    const originalManifest = structuredClone(harness.state.manifest);
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "replacement",
+      nameWithOwner: "octocat/replacement",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    harness.getGithubRepositoryBranchHead.mockResolvedValue("d".repeat(40));
+
+    const replaced = await replaceResearchRepositoryBinding(
+      "user-1",
+      original.id,
+      { repositoryId: 102, installationId: 99 }
+    );
+
+    expect(replaced.id).toBe(original.id);
+    expect(replaced.binding).toMatchObject({
+      repositoryId: 102,
+      repositoryFullName: "octocat/replacement",
+      headCommitSha: "d".repeat(40),
+    });
+    expect(replaced.selectedMethodIds).toEqual([]);
+    expect(harness.state.manifest.items[original.id]).toEqual(replaced);
+    expect(Object.keys(harness.state.manifest.items)).toEqual([original.id]);
+
+    harness.probeMethodHostInitialization.mockRejectedValueOnce(
+      new Error("probe failed")
+    );
+    await expect(
+      replaceResearchRepositoryBinding("user-1", original.id, {
+        repositoryId: 102,
+        installationId: 99,
+      })
+    ).rejects.toThrow("probe failed");
+    expect(harness.state.manifest).toEqual(
+      expect.objectContaining({ items: { [original.id]: replaced } })
+    );
+    expect(harness.state.manifest).not.toEqual(originalManifest);
   });
 
   it("normalises stored repository items even while the flag is off", async () => {

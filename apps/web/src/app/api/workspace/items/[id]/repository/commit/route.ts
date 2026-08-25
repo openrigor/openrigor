@@ -17,6 +17,7 @@ import { readGithubResearchCredentials } from "@/lib/workspace/research-reposito
 import {
   commitArtifactBlobs,
   getRepositoryBranchHead,
+  repositoryCommitProvenance,
   StaleRepositoryError,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
@@ -122,14 +123,22 @@ export async function POST(request: Request, context: RouteContext) {
     throw error;
   }
 
+  let repositoryForCommit:
+    | {
+        owner: string;
+        name: string;
+        nameWithOwner?: string;
+      }
+    | undefined;
   try {
-    await assertRepositoryWriteAccess({
+    const access = await assertRepositoryWriteAccess({
       installationId: item.binding.installationId,
       repositoryId: item.binding.repositoryId,
       branch: item.binding.branch,
       expectedHeadSha: item.binding.headCommitSha,
       files: [artifact.path],
     });
+    repositoryForCommit = access.repository;
   } catch (error) {
     if (error instanceof RepositoryAccessError) {
       return json(
@@ -215,6 +224,16 @@ export async function POST(request: Request, context: RouteContext) {
     return json({
       operationId: operation.operationId,
       commitSha: operation.resultCommitSha,
+      provenance: repositoryCommitProvenance(
+        repositoryForCommit ?? {
+          owner: "github",
+          name: String(item.binding.repositoryId),
+          nameWithOwner: item.binding.repositoryFullName,
+        },
+        item.binding.branch,
+        artifact.path,
+        operation.resultCommitSha
+      ),
     });
   }
   if (operation.status === "failed") {
@@ -296,6 +315,7 @@ export async function POST(request: Request, context: RouteContext) {
       item.binding.installationId,
       item.binding.repositoryId
     );
+    repositoryForCommit = repository;
     assertRepositoryPrivate(repository);
     const metadata = credentials.displayMetadata;
     const githubLogin =
@@ -423,7 +443,16 @@ export async function POST(request: Request, context: RouteContext) {
       operation,
       commitSha
     );
-    return json({ operationId: completed.operationId, commitSha });
+    return json({
+      operationId: completed.operationId,
+      commitSha,
+      provenance: repositoryCommitProvenance(
+        repositoryForCommit,
+        item.binding.branch,
+        artifact.path,
+        commitSha
+      ),
+    });
   } catch (error) {
     try {
       await failRepositoryOperation(

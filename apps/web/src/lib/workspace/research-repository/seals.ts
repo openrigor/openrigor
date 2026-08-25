@@ -14,6 +14,7 @@ import {
   commitArtifactBlobs,
   listRepositoryArtifactRefs,
   readArtifactBlob,
+  repositoryCommitProvenance,
   StaleRepositoryError,
   type GithubCommitAuthor,
   type GithubRepositoryCoordinates,
@@ -556,7 +557,11 @@ export async function commitSealSnapshot(
   access: RepositorySealAccess,
   preview: SealSnapshotPreview,
   authorUser?: GithubCommitAuthor
-): Promise<{ commitSha: string; snapshotId: string }> {
+): Promise<{
+  commitSha: string;
+  snapshotId: string;
+  provenance: ReturnType<typeof repositoryCommitProvenance>;
+}> {
   const parsed = LedgerSealManifestV1Schema.parse(sealManifestFile(preview));
   const methodLedgerPath = methodSealLedgerPath(
     parsed.method.id,
@@ -616,7 +621,16 @@ export async function commitSealSnapshot(
       ],
     }
   );
-  return { commitSha, snapshotId: parsed.snapshotId };
+  return {
+    commitSha,
+    snapshotId: parsed.snapshotId,
+    provenance: repositoryCommitProvenance(
+      access.repository,
+      access.binding.branch,
+      preview.ledgerPath,
+      commitSha
+    ),
+  };
 }
 
 export async function supersedeSeal(

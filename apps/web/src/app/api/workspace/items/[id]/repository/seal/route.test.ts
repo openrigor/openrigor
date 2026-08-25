@@ -281,10 +281,16 @@ describe("POST repository seal", () => {
     );
 
     expect(await first.json()).toMatchObject({ commitSha: resultCommitSha });
-    expect(await replay.json()).toEqual({
+    expect(await replay.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
       snapshotId: snapshotOne,
+      provenance: {
+        repository: "octocat/private",
+        branch: "openrigor/workspace",
+        path: `ledger/seals/${snapshotOne}.seal.yml`,
+        revision: resultCommitSha,
+      },
     });
     expect(harness.commit).toHaveBeenCalledTimes(1);
   });

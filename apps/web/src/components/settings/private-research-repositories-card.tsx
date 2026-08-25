@@ -16,6 +16,7 @@ import type {
   ResearchRepositoryWorkspaceItem,
 } from "@/lib/workspace/research-repository/method-host-types";
 import { repositorySettingsHref } from "@/lib/workspace/repository-settings-routes";
+import { ResearchRepositoryStatus } from "@/components/workspace/research-repository-status";
 
 export type GithubRepositoryOption = {
   id: number;
@@ -282,6 +283,7 @@ function RepositoryRow({
           <p className="mt-1 truncate text-sm text-slate-600">
             {nameWithOwner} (Private)
           </p>
+          {usable && <ResearchRepositoryStatus item={item} />}
         </div>
         <Button
           type="button"

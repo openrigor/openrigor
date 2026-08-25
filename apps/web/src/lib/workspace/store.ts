@@ -611,6 +611,54 @@ export async function createResearchRepositoryItem(
   userId: string,
   input: { repositoryId: number; installationId: number }
 ): Promise<ResearchRepositoryWorkspaceItem> {
+  const repository = await loadResearchRepositoryForBinding(userId, input);
+  return withUserLock(userId, async () => {
+    const manifest = await readManifest(userId);
+    const duplicate = Object.values(manifest.items).some(
+      (item) =>
+        item.kind === "research_repository" &&
+        item.binding?.repositoryId === input.repositoryId
+    );
+    if (duplicate) {
+      throw new ResearchRepositoryBindingError(
+        "repository_already_bound",
+        "This repository is already bound to a workspace item"
+      );
+    }
+
+    const { headCommitSha, initialization } =
+      await prepareResearchRepositoryBinding(input, repository);
+    const now = new Date().toISOString();
+    const item = ResearchRepositoryWorkspaceItemSchema.parse({
+      id: `wi_${randomUUID()}`,
+      ownerId: userId,
+      kind: "research_repository",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+      binding: {
+        provider: "github",
+        repositoryId: input.repositoryId,
+        installationId: input.installationId,
+        repositoryFullName: repository.nameWithOwner,
+        branch: RESEARCH_REPOSITORY_BRANCH,
+        layoutVersion: RESEARCH_REPOSITORY_LAYOUT_VERSION,
+        headCommitSha,
+        boundAt: now,
+        ...initialization,
+      },
+    });
+    manifest.initialized = true;
+    manifest.items[item.id] = item;
+    await writeManifest(userId, manifest);
+    return item;
+  });
+}
+
+async function loadResearchRepositoryForBinding(
+  userId: string,
+  input: { repositoryId: number; installationId: number }
+) {
   const credentials = await readGithubResearchCredentials(userId);
   if (!credentials) {
     throw new ResearchRepositoryBindingError(
@@ -641,10 +689,91 @@ export async function createResearchRepositoryItem(
       "Research repositories must be private"
     );
   }
+  return repository;
+}
+
+async function prepareResearchRepositoryBinding(
+  input: { repositoryId: number; installationId: number },
+  repository: Awaited<ReturnType<typeof getGithubInstallationRepository>>
+) {
+  let headCommitSha: string;
+  try {
+    headCommitSha = await getGithubRepositoryBranchHead(
+      input.installationId,
+      repository,
+      RESEARCH_REPOSITORY_BRANCH
+    );
+  } catch (error) {
+    if (githubErrorStatus(error) !== 404) throw error;
+    const defaultBranchHead = await getGithubRepositoryBranchHead(
+      input.installationId,
+      repository,
+      repository.defaultBranch
+    );
+    let recoveredHeadCommitSha: string | undefined;
+    try {
+      await createGithubRepositoryBranch(
+        input.installationId,
+        repository,
+        RESEARCH_REPOSITORY_BRANCH,
+        defaultBranchHead
+      );
+    } catch (creationError) {
+      const status = githubErrorStatus(creationError);
+      if (status !== 409 && status !== 422) throw creationError;
+      try {
+        recoveredHeadCommitSha = await getGithubRepositoryBranchHead(
+          input.installationId,
+          repository,
+          RESEARCH_REPOSITORY_BRANCH
+        );
+      } catch {
+        throw creationError;
+      }
+    }
+    headCommitSha =
+      recoveredHeadCommitSha ??
+      (await getGithubRepositoryBranchHead(
+        input.installationId,
+        repository,
+        RESEARCH_REPOSITORY_BRANCH
+      ));
+  }
+
+  return {
+    headCommitSha,
+    initialization: await probeMethodHostInitialization(
+      input.installationId,
+      repository,
+      headCommitSha
+    ),
+  };
+}
+
+/** Replace one item's binding only after the selected repository is fully validated. */
+export async function replaceResearchRepositoryBinding(
+  userId: string,
+  itemId: string,
+  input: { repositoryId: number; installationId: number }
+): Promise<ResearchRepositoryWorkspaceItem> {
+  const repository = await loadResearchRepositoryForBinding(userId, input);
+  const { headCommitSha, initialization } =
+    await prepareResearchRepositoryBinding(input, repository);
+
   return withUserLock(userId, async () => {
     const manifest = await readManifest(userId);
+    const current = manifest.items[itemId];
+    if (
+      !current ||
+      !isUsableResearchRepository(current) ||
+      current.ownerId !== userId ||
+      current.status !== "active"
+    ) {
+      throw new WorkspaceItemNotFoundError();
+    }
     const duplicate = Object.values(manifest.items).some(
       (item) =>
+        item.id !== itemId &&
         item.kind === "research_repository" &&
         item.binding?.repositoryId === input.repositoryId
     );
@@ -655,82 +784,28 @@ export async function createResearchRepositoryItem(
       );
     }
 
-    let headCommitSha: string;
-    try {
-      headCommitSha = await getGithubRepositoryBranchHead(
-        input.installationId,
-        repository,
-        RESEARCH_REPOSITORY_BRANCH
-      );
-    } catch (error) {
-      if (githubErrorStatus(error) !== 404) {
-        throw error;
-      }
-      const defaultBranchHead = await getGithubRepositoryBranchHead(
-        input.installationId,
-        repository,
-        repository.defaultBranch
-      );
-      let recoveredHeadCommitSha: string | undefined;
-      try {
-        await createGithubRepositoryBranch(
-          input.installationId,
-          repository,
-          RESEARCH_REPOSITORY_BRANCH,
-          defaultBranchHead
-        );
-      } catch (creationError) {
-        const status = githubErrorStatus(creationError);
-        if (status !== 409 && status !== 422) {
-          throw creationError;
-        }
-        try {
-          recoveredHeadCommitSha = await getGithubRepositoryBranchHead(
-            input.installationId,
-            repository,
-            RESEARCH_REPOSITORY_BRANCH
-          );
-        } catch {
-          throw creationError;
-        }
-      }
-      headCommitSha =
-        recoveredHeadCommitSha ??
-        (await getGithubRepositoryBranchHead(
-          input.installationId,
-          repository,
-          RESEARCH_REPOSITORY_BRANCH
-        ));
-    }
-
     const now = new Date().toISOString();
-    const initialization = await probeMethodHostInitialization(
-      input.installationId,
-      repository,
-      headCommitSha
-    );
-    const item = ResearchRepositoryWorkspaceItemSchema.parse({
-      id: `wi_${randomUUID()}`,
-      ownerId: userId,
-      kind: "research_repository",
-      status: "active",
-      createdAt: now,
+    const updated = ResearchRepositoryWorkspaceItemSchema.parse({
+      ...current,
       updatedAt: now,
       binding: {
         provider: "github",
         repositoryId: input.repositoryId,
         installationId: input.installationId,
+        repositoryFullName: repository.nameWithOwner,
         branch: RESEARCH_REPOSITORY_BRANCH,
         layoutVersion: RESEARCH_REPOSITORY_LAYOUT_VERSION,
         headCommitSha,
         boundAt: now,
         ...initialization,
       },
+      // Method selections belong to the old repository and must not leak
+      // across an atomic replacement.
+      selectedMethodIds: [],
     });
-    manifest.initialized = true;
-    manifest.items[item.id] = item;
+    manifest.items[itemId] = updated;
     await writeManifest(userId, manifest);
-    return item;
+    return updated;
   });
 }
 
@@ -846,6 +921,7 @@ function githubFailureStatus(
   return RepositoryStatusSchema.parse({
     workspaceId: item.id,
     repositoryId: item.binding.repositoryId,
+    repositoryFullName: item.binding.repositoryFullName,
     ...failure,
     checkedAt: new Date().toISOString(),
   });
@@ -862,6 +938,7 @@ export async function getResearchRepositoryStatus(
     return RepositoryStatusSchema.parse({
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
+      repositoryFullName: item.binding.repositoryFullName,
       state: "blocked",
       reason: "credential_corrupt",
       checkedAt: new Date().toISOString(),
@@ -874,6 +951,7 @@ export async function getResearchRepositoryStatus(
     return RepositoryStatusSchema.parse({
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
+      repositoryFullName: item.binding.repositoryFullName,
       state: "disconnected",
       reason: "disconnected",
       checkedAt: new Date().toISOString(),
@@ -883,6 +961,7 @@ export async function getResearchRepositoryStatus(
     return RepositoryStatusSchema.parse({
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
+      repositoryFullName: item.binding.repositoryFullName,
       state: "blocked",
       reason: "permission_lost",
       checkedAt: new Date().toISOString(),
@@ -902,6 +981,7 @@ export async function getResearchRepositoryStatus(
     return RepositoryStatusSchema.parse({
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
+      repositoryFullName: repository.nameWithOwner,
       state: "read_only",
       reason: "repository_public",
       readonlyReason: "repository_public",
@@ -929,6 +1009,7 @@ export async function getResearchRepositoryStatus(
     return RepositoryStatusSchema.parse({
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
+      repositoryFullName: repository.nameWithOwner,
       state: "read_only",
       reason:
         major === supportedMajor
@@ -943,6 +1024,7 @@ export async function getResearchRepositoryStatus(
   return RepositoryStatusSchema.parse({
     workspaceId: item.id,
     repositoryId: item.binding.repositoryId,
+    repositoryFullName: repository.nameWithOwner,
     state: "ready",
     layoutVersion: item.binding.layoutVersion,
     headCommitSha,

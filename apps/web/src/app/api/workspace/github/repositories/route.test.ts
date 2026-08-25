@@ -53,12 +53,13 @@ describe("GET /api/workspace/github/repositories", () => {
   it("lists only repositories retained for the installation", async () => {
     harness.readGithubResearchCredentials.mockResolvedValue({
       installationId: 99,
-      repositoryIds: [101],
+      repositoryIds: [101, 303],
       displayMetadata: {
         login: "octocat",
         repositories: [
-          { id: 101, nameWithOwner: "octocat/private" },
-          { id: 202, nameWithOwner: "octocat/removed" },
+          { id: 101, nameWithOwner: "octocat/private", private: true },
+          { id: 202, nameWithOwner: "octocat/removed", private: true },
+          { id: 303, nameWithOwner: "octocat/public", private: false },
         ],
       },
     });

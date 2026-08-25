@@ -27,10 +27,17 @@ export async function GET() {
     const repositories = Array.isArray(displayRepositories)
       ? displayRepositories
           .filter(
-            (entry): entry is { id: number; nameWithOwner?: string } =>
+            (
+              entry
+            ): entry is {
+              id: number;
+              nameWithOwner?: string;
+              private?: boolean;
+            } =>
               Boolean(entry) &&
               typeof entry === "object" &&
               typeof (entry as { id?: unknown }).id === "number" &&
+              (entry as { private?: unknown }).private === true &&
               repositoryIds.has((entry as { id: number }).id)
           )
           .map((entry) => ({

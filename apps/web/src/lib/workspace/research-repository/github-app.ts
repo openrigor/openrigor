@@ -32,6 +32,7 @@ type GithubInstallation = {
 type GithubRepository = {
   id?: unknown;
   full_name?: unknown;
+  private?: unknown;
 };
 
 type GithubRepositoryResponse = {
@@ -62,7 +63,11 @@ export type GithubResearchConnection = {
     login: string;
     avatarUrl?: string;
     installationAccount?: string;
-    repositories: Array<{ id: number; nameWithOwner?: string }>;
+    repositories: Array<{
+      id: number;
+      nameWithOwner?: string;
+      private?: boolean;
+    }>;
   };
 };
 
@@ -288,7 +293,7 @@ export async function resolveGithubResearchConnection(
   const displayRepositories = repositories
     .filter(
       (repository): repository is GithubRepository & { id: number } =>
-        typeof repository.id === "number"
+        typeof repository.id === "number" && repository.private === true
     )
     .map((repository) => ({
       id: repository.id,
@@ -296,6 +301,7 @@ export async function resolveGithubResearchConnection(
         typeof repository.full_name === "string"
           ? repository.full_name
           : undefined,
+      private: true,
     }));
 
   return {
@@ -315,7 +321,7 @@ export async function resolveGithubResearchConnection(
   };
 }
 
-function githubAppAuthOptions(installationId?: number) {
+function githubAppAuthOptions(installationId?: number, repositoryId?: number) {
   return {
     appId: requiredEnvironment("GITHUB_RESEARCH_APP_ID"),
     privateKey: requiredEnvironment("GITHUB_RESEARCH_APP_PRIVATE_KEY").replace(
@@ -323,16 +329,18 @@ function githubAppAuthOptions(installationId?: number) {
       "\n"
     ),
     installationId,
+    ...(repositoryId === undefined ? {} : { repositoryIds: [repositoryId] }),
   };
 }
 
 export function createGithubInstallationOctokit(
-  installationId: number
+  installationId: number,
+  repositoryId?: number
 ): Octokit {
   return applyGithubRequestTimeout(
     new Octokit({
       authStrategy: createAppAuth,
-      auth: githubAppAuthOptions(installationId),
+      auth: githubAppAuthOptions(installationId, repositoryId),
     })
   );
 }
@@ -342,7 +350,7 @@ export async function getGithubInstallationRepository(
   installationId: number,
   repositoryId: number
 ): Promise<GithubInstallationRepository> {
-  const octokit = createGithubInstallationOctokit(installationId);
+  const octokit = createGithubInstallationOctokit(installationId, repositoryId);
   const response = await octokit.request("GET /repositories/{repository_id}", {
     repository_id: repositoryId,
     headers: { "x-github-api-version": GITHUB_API_VERSION },
@@ -375,10 +383,15 @@ export async function getGithubInstallationRepository(
 /** Resolve the current head of one branch without retaining an App token. */
 export async function getGithubRepositoryBranchHead(
   installationId: number,
-  repository: Pick<GithubInstallationRepository, "owner" | "name">,
+  repository: Pick<GithubInstallationRepository, "owner" | "name"> & {
+    id?: number;
+  },
   branch: string
 ): Promise<string> {
-  const octokit = createGithubInstallationOctokit(installationId);
+  const octokit = createGithubInstallationOctokit(
+    installationId,
+    repository.id
+  );
   const response = await octokit.request(
     "GET /repos/{owner}/{repo}/branches/{branch}",
     {
@@ -398,11 +411,16 @@ export async function getGithubRepositoryBranchHead(
 /** Create a repository branch with installation-scoped App credentials. */
 export async function createGithubRepositoryBranch(
   installationId: number,
-  repository: Pick<GithubInstallationRepository, "owner" | "name">,
+  repository: Pick<GithubInstallationRepository, "owner" | "name"> & {
+    id?: number;
+  },
   branch: string,
   sha: string
 ): Promise<void> {
-  const octokit = createGithubInstallationOctokit(installationId);
+  const octokit = createGithubInstallationOctokit(
+    installationId,
+    repository.id
+  );
   await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
     owner: repository.owner,
     repo: repository.name,

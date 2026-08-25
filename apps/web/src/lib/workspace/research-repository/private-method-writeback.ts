@@ -14,8 +14,10 @@ import {
 import {
   commitArtifactBlobs,
   getRepositoryBranchHead,
+  repositoryCommitProvenance,
   type GithubCommitAuthor,
 } from "./git-adapter";
+import type { RepositoryCommitProvenance } from "@opencanvas/shared/research-repository";
 import type { RepositorySealAccess } from "./seals";
 
 type PrivateRepository = NonNullable<MethodSource["privateRepository"]>;
@@ -88,7 +90,7 @@ export async function commitPrivateMethodEvidence(input: {
   methodId: string;
   filePath: string;
   markdown: string;
-}): Promise<{ commitSha: string }> {
+}): Promise<{ commitSha: string; provenance: RepositoryCommitProvenance }> {
   const expectedPrefix = `methods/${input.methodId}/evidence/`;
   if (!input.filePath.startsWith(expectedPrefix)) {
     throw new Error("Private evidence path does not match Method provenance");
@@ -113,5 +115,13 @@ export async function commitPrivateMethodEvidence(input: {
     repositoryItemId,
     commitSha
   );
-  return { commitSha };
+  return {
+    commitSha,
+    provenance: repositoryCommitProvenance(
+      access.repository,
+      access.binding.branch,
+      input.filePath,
+      commitSha
+    ),
+  };
 }

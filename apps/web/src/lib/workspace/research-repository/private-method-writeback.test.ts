@@ -7,6 +7,20 @@ const harness = vi.hoisted(() => ({
   loadRepository: vi.fn(),
   getHead: vi.fn(),
   commitArtifacts: vi.fn(),
+  commitProvenance: vi.fn(
+    (
+      repository: { owner: string; name: string; nameWithOwner?: string },
+      branch: string,
+      path: string,
+      revision: string
+    ) => ({
+      repository:
+        repository.nameWithOwner ?? `${repository.owner}/${repository.name}`,
+      branch,
+      path,
+      revision,
+    })
+  ),
 }));
 
 vi.mock("../store", () => ({
@@ -22,6 +36,7 @@ vi.mock("./github-app", () => ({
 vi.mock("./git-adapter", () => ({
   getRepositoryBranchHead: harness.getHead,
   commitArtifactBlobs: harness.commitArtifacts,
+  repositoryCommitProvenance: harness.commitProvenance,
 }));
 
 import {
@@ -130,7 +145,15 @@ describe("private Method repository write-back authorization", () => {
         filePath,
         markdown: "---\ntype: Evidence\n---\n",
       })
-    ).resolves.toEqual({ commitSha: committedSha });
+    ).resolves.toMatchObject({
+      commitSha: committedSha,
+      provenance: {
+        repository: "researcher/private-methods",
+        branch: "openrigor/workspace",
+        path: filePath,
+        revision: committedSha,
+      },
+    });
 
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,

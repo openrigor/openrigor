@@ -45,6 +45,18 @@ vi.mock("@/lib/workspace/research-repository/github-app", () => ({
 vi.mock("@/lib/workspace/research-repository/git-adapter", () => ({
   commitArtifactBlobs: harness.commitArtifacts,
   getRepositoryBranchHead: harness.getHead,
+  repositoryCommitProvenance: (
+    repository: { owner: string; name: string; nameWithOwner?: string },
+    branch: string,
+    path: string,
+    revision: string
+  ) => ({
+    repository:
+      repository.nameWithOwner ?? `${repository.owner}/${repository.name}`,
+    branch,
+    path,
+    revision,
+  }),
   StaleRepositoryError: harness.StaleRepositoryError,
 }));
 vi.mock("@/lib/workspace/research-repository/operations", () => ({
@@ -268,11 +280,17 @@ describe("POST repository artifact commit", () => {
     const first = await POST(request(), context);
     const second = await POST(request(), context);
 
-    expect(await first.json()).toEqual({
+    expect(await first.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
+      provenance: {
+        repository: "octocat/private",
+        branch: "openrigor/workspace",
+        path: "index.md",
+        revision: resultCommitSha,
+      },
     });
-    expect(await second.json()).toEqual({
+    expect(await second.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -319,7 +337,7 @@ describe("POST repository artifact commit", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -332,7 +350,7 @@ describe("POST repository artifact commit", () => {
     const response = await POST(request(), context);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -357,7 +375,7 @@ describe("POST repository artifact commit", () => {
 
     expect(first.status).toBe(500);
     expect(replay.status).toBe(200);
-    expect(await replay.json()).toEqual({
+    expect(await replay.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -378,7 +396,7 @@ describe("POST repository artifact commit", () => {
     const response = await POST(request(), context);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
