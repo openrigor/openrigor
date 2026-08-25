@@ -25,11 +25,18 @@ function appRedirect(request: NextRequest, status: string): URL {
   // Behind the Cloudflare tunnel the Host header seen by this route can be an
   // internal origin, which sent users to https://localhost:3000/... after
   // GitHub authorization. SITE_URL is the same escape hatch admin-client uses.
+  let base = request.url;
   const configuredBase = process.env.SITE_URL?.trim();
-  const base =
-    configuredBase && /^https?:\/\//i.test(configuredBase)
-      ? configuredBase
-      : request.url;
+  if (configuredBase) {
+    try {
+      const parsed = new URL(configuredBase);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        base = configuredBase;
+      }
+    } catch {
+      // Malformed SITE_URL (e.g. "https://"): fall back to the request URL.
+    }
+  }
   const target = new URL("/workspace/settings", base);
   target.searchParams.set("github", status);
   return target;

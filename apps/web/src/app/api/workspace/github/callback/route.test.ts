@@ -176,4 +176,23 @@ describe("GET /api/workspace/github/callback", () => {
       else process.env.SITE_URL = previous;
     }
   });
+
+  it("falls back to the request URL when SITE_URL is unparseable", async () => {
+    const previous = process.env.SITE_URL;
+    process.env.SITE_URL = "https://";
+    try {
+      const response = await GET(
+        new NextRequest(
+          "http://localhost:3000/api/workspace/github/callback?code=code-1&state=state-1&installation_id=99"
+        )
+      );
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        "http://localhost:3000/workspace/settings?github=connected"
+      );
+    } finally {
+      if (previous === undefined) delete process.env.SITE_URL;
+      else process.env.SITE_URL = previous;
+    }
+  });
 });

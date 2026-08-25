@@ -22,7 +22,9 @@ export async function sendLedgerChatMessage(
   panelSelector = "#ledger-chat-panel"
 ): Promise<void> {
   const panel = page.locator(panelSelector);
-  const chatInput = page.getByTestId("chat-input");
+  // Scope to the panel: page-scoped lookup matches multiple composers when
+  // several canvas panels render at once (strict-mode violation).
+  const chatInput = panel.getByTestId("chat-input");
   await expect(chatInput).toBeVisible({ timeout: TIMEOUTS.pageLoad });
 
   let streamFired: Promise<boolean> = Promise.resolve(false);
@@ -46,9 +48,13 @@ export async function sendLedgerChatMessage(
   for (let attempt = 0; attempt < 4; attempt++) {
     // Wait out any in-flight run: the Cancel affordance disappears when idle.
     const cancel = panel.getByRole("button", { name: /^cancel$/i });
-    await cancel
-      .waitFor({ state: "hidden", timeout: 150_000 })
-      .catch(() => undefined);
+    try {
+      await cancel.waitFor({ state: "hidden", timeout: 150_000 });
+    } catch {
+      throw new Error(
+        "Chat runtime never went idle: Cancel button stayed visible for 150s"
+      );
+    }
 
     await chatInput.fill(text);
     armStreamWatcher();
