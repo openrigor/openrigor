@@ -476,6 +476,60 @@ describe("replyToGeneralInput", () => {
     ]);
   });
 
+  it("builds the ledger update example from the declared context dimensions", async () => {
+    const state = createMockState({
+      _messages: [
+        new HumanMessage({
+          content: "Filter to public-health evidence",
+          id: "1",
+        }),
+      ],
+      ledgerContext: {
+        kind: "ledger",
+        methodId: "other-method",
+        methodTitle: "Other method",
+        methodVersion: "1.0.0",
+        templateId: "other-template",
+        templateVersion: "1.0.0",
+        dimensions: [
+          {
+            id: "study_design",
+            role: "context",
+            control: "multi-select",
+            options: ["cohort", "case_control"],
+            type: "text",
+          },
+          {
+            id: "sample_size",
+            role: "collection",
+            control: "range",
+            type: "number",
+          },
+        ],
+        filters: {},
+        baselineCount: 7,
+      },
+    });
+    const config = createMockConfig({ assistant_id: "test-123" });
+
+    await replyToGeneralInput(state, config);
+
+    expect(mockModel.invoke).toHaveBeenCalledWith([
+      expect.objectContaining({
+        content: expect.stringContaining(
+          '<ledger-updates>{"study_design":{"control":"multi-select","values":["cohort"]}}</ledger-updates>'
+        ),
+      }),
+      ...state._messages,
+    ]);
+    expect(mockModel.invoke).toHaveBeenCalledWith([
+      expect.objectContaining({
+        content: expect.not.stringContaining("education_level"),
+      }),
+      ...state._messages,
+    ]);
+  });
+
   it("includes only the read-only Ledger Snapshot summary", async () => {
     const state = createMockState({
       _messages: [
