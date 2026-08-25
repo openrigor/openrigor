@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { inviteUserByEmail, generateLink } = vi.hoisted(() => ({
-  inviteUserByEmail: vi.fn(),
-  generateLink: vi.fn(),
-}));
+const { inviteUserByEmail, generateLink, notifyWorkspaceParticipant } =
+  vi.hoisted(() => ({
+    inviteUserByEmail: vi.fn(),
+    generateLink: vi.fn(),
+    notifyWorkspaceParticipant: vi.fn(),
+  }));
 
 vi.mock("./admin-client", () => ({
   createAdminClient: () => ({
@@ -12,32 +14,85 @@ vi.mock("./admin-client", () => ({
   getSiteUrl: () => "https://dev.openrigor.org",
 }));
 
-import { inviteWorkspaceParticipant } from "./invitation-helpers";
+vi.mock("./participant-notify", () => ({
+  notifyWorkspaceParticipant,
+}));
+
+import {
+  inviteWorkspaceParticipant,
+  type ParticipantInviteOutcome,
+} from "./invitation-helpers";
+
+const EMAIL_EXISTS_ERROR = {
+  message: "A user with this email address has already been registered",
+};
 
 describe("inviteWorkspaceParticipant", () => {
   beforeEach(() => {
     inviteUserByEmail.mockReset();
     generateLink.mockReset();
+    notifyWorkspaceParticipant.mockReset();
   });
 
   it("sends an Auth invite for an unknown address", async () => {
     inviteUserByEmail.mockResolvedValue({ error: null });
     await expect(
       inviteWorkspaceParticipant("new@example.com")
-    ).resolves.toEqual({ emailed: true });
+    ).resolves.toEqual({
+      emailed: true,
+      notified: false,
+      outcome: "emailed" satisfies ParticipantInviteOutcome,
+    });
     expect(generateLink).not.toHaveBeenCalled();
+    expect(notifyWorkspaceParticipant).not.toHaveBeenCalled();
   });
 
-  it("falls back to a magic link when the address is already registered", async () => {
-    inviteUserByEmail.mockResolvedValue({
-      error: {
-        message: "A user with this email address has already been registered",
+  it("notifies an existing user via AgentMail instead of faking emailed", async () => {
+    inviteUserByEmail.mockResolvedValue({ error: EMAIL_EXISTS_ERROR });
+    generateLink.mockResolvedValue({
+      error: null,
+      data: {
+        properties: {
+          action_link:
+            "https://supabase.openrigor.org/auth/v1/verify?token=tok&type=magiclink",
+        },
       },
     });
-    generateLink.mockResolvedValue({ error: null });
+    notifyWorkspaceParticipant.mockResolvedValue({
+      ok: true,
+      messageId: "m1",
+    });
+
     await expect(
       inviteWorkspaceParticipant("cronjev@outlook.com")
-    ).resolves.toEqual({ emailed: true });
+    ).resolves.toEqual({
+      emailed: false,
+      notified: true,
+      outcome: "notified" satisfies ParticipantInviteOutcome,
+    });
+    expect(notifyWorkspaceParticipant).toHaveBeenCalledWith({
+      email: "cronjev@outlook.com",
+      actionLink:
+        "https://supabase.openrigor.org/auth/v1/verify?token=tok&type=magiclink",
+    });
+  });
+
+  it("keeps magic-link access working but reports no email when notify skips", async () => {
+    inviteUserByEmail.mockResolvedValue({ error: EMAIL_EXISTS_ERROR });
+    generateLink.mockResolvedValue({ error: null });
+    notifyWorkspaceParticipant.mockResolvedValue({
+      skipped: true,
+      reason: "missing_api_key",
+    });
+
+    await expect(
+      inviteWorkspaceParticipant("cronjev@outlook.com")
+    ).resolves.toEqual({
+      emailed: false,
+      notified: false,
+      outcome: "added_no_email" satisfies ParticipantInviteOutcome,
+    });
+    // Magic link still generated so acceptance keeps working.
     expect(generateLink).toHaveBeenCalledWith({
       type: "magiclink",
       email: "cronjev@outlook.com",
@@ -47,7 +102,7 @@ describe("inviteWorkspaceParticipant", () => {
     });
   });
 
-  it("does not fail the caller when neither mail path works", async () => {
+  it("reports failure when neither mail path works", async () => {
     inviteUserByEmail.mockResolvedValue({
       error: { message: "535 authentication failed" },
     });
@@ -56,6 +111,10 @@ describe("inviteWorkspaceParticipant", () => {
     });
     await expect(
       inviteWorkspaceParticipant("cronjev@outlook.com")
-    ).resolves.toEqual({ emailed: false });
+    ).resolves.toEqual({
+      emailed: false,
+      notified: false,
+      outcome: "failed" satisfies ParticipantInviteOutcome,
+    });
   });
 });
