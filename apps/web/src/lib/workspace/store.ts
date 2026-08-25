@@ -3016,7 +3016,9 @@ export async function reconcileWorkspaceItemThread(
       item.kind !== "markdown_template" &&
       item.kind !== "form_template" &&
       item.kind !== "method" &&
-      item.kind !== "method_participant"
+      item.kind !== "method_participant" &&
+      item.kind !== "ledger" &&
+      item.kind !== "ledger_snapshot"
     ) {
       throw new WorkspaceItemThreadNotAllowedError();
     }
