@@ -760,8 +760,6 @@ export async function replaceResearchRepositoryBinding(
   input: { repositoryId: number; installationId: number }
 ): Promise<ResearchRepositoryWorkspaceItem> {
   const repository = await loadResearchRepositoryForBinding(userId, input);
-  const { headCommitSha, initialization } =
-    await prepareResearchRepositoryBinding(input, repository);
 
   return withUserLock(userId, async () => {
     const manifest = await readManifest(userId);
@@ -787,6 +785,8 @@ export async function replaceResearchRepositoryBinding(
       );
     }
 
+    const { headCommitSha, initialization } =
+      await prepareResearchRepositoryBinding(input, repository);
     const now = new Date().toISOString();
     const updated = ResearchRepositoryWorkspaceItemSchema.parse({
       ...current,
@@ -972,17 +972,22 @@ export async function getResearchRepositoryStatus(
     });
   }
   if (!credentials.repositoryIds.includes(item.binding.repositoryId)) {
-    const reason =
-      credentials.repositoryStatusReasons?.[
-        String(item.binding.repositoryId)
-      ] ?? "permission_lost";
-    return RepositoryStatusSchema.parse({
+    const candidate = {
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
       repositoryFullName: item.binding.repositoryFullName,
-      state: "blocked",
-      reason,
+      state: "blocked" as const,
+      reason:
+        credentials.repositoryStatusReasons?.[
+          String(item.binding.repositoryId)
+        ] ?? "permission_lost",
       checkedAt: new Date().toISOString(),
+    };
+    const parsed = RepositoryStatusSchema.safeParse(candidate);
+    if (parsed.success) return parsed.data;
+    return RepositoryStatusSchema.parse({
+      ...candidate,
+      reason: "permission_lost",
     });
   }
 

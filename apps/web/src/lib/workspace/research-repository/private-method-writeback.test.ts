@@ -85,6 +85,7 @@ describe("private Method repository write-back authorization", () => {
     harness.getWorkspaceItem.mockResolvedValue(repositoryItem);
     harness.readCredentials.mockResolvedValue(credentials);
     harness.loadRepository.mockResolvedValue({
+      id: 101,
       owner: "researcher",
       name: "private-methods",
       private: true,
@@ -123,6 +124,7 @@ describe("private Method repository write-back authorization", () => {
 
   it("rejects a repository that is no longer private", async () => {
     harness.loadRepository.mockResolvedValue({
+      id: 101,
       owner: "researcher",
       name: "private-methods",
       private: false,
@@ -157,7 +159,7 @@ describe("private Method repository write-back authorization", () => {
 
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "researcher", name: "private-methods", private: true },
+      { id: 101, owner: "researcher", name: "private-methods", private: true },
       "openrigor/workspace",
       expect.objectContaining({
         baseSha: headCommitSha,

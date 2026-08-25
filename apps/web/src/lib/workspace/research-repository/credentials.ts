@@ -427,6 +427,20 @@ export async function markGithubAuthorizationRevoked(
   });
 }
 
+/** Delete usable credentials and persist the revocation state as one mutation. */
+export async function revokeGithubAuthorization(userId: string): Promise<void> {
+  await withUserLock(userId, async () => {
+    const namespace = githubResearchCredentialsNamespace(userId);
+    await client().store.deleteItem(namespace, GITHUB_RESEARCH_CREDENTIALS_KEY);
+    await client().store.putItem(
+      namespace,
+      connectionStatusKey(),
+      { reason: "authorization_required" },
+      { index: false }
+    );
+  });
+}
+
 export async function deleteGithubResearchCredentials(
   userId: string
 ): Promise<void> {
@@ -477,33 +491,43 @@ export async function findGithubCredentialOwnersByInstallationId(
 export async function findGithubCredentialOwnersByGithubUserId(
   githubUserId: number
 ): Promise<string[]> {
-  const expectedHash = hashGithubCredentialIdentifier(String(githubUserId));
-  const items = [];
-  let offset = 0;
-  for (let page = 0; page < MAX_CREDENTIAL_SEARCH_PAGES; page += 1) {
-    const response = await client().store.searchItems(
-      [GITHUB_RESEARCH_CREDENTIALS_ROOT],
-      {
-        filter: { githubUserIdHash: expectedHash },
-        limit: SEARCH_PAGE_SIZE,
-        offset,
-      }
+  const owners = new Set<string>();
+  for (const key of encryptionKeyRing()) {
+    const expectedHash = hashGithubCredentialIdentifierWithKey(
+      String(githubUserId),
+      key
     );
-    items.push(...response.items);
-    if (response.items.length < SEARCH_PAGE_SIZE) {
-      return items
-        .filter(
-          (item) =>
-            item.key === GITHUB_RESEARCH_CREDENTIALS_KEY &&
-            item.value?.githubUserIdHash === expectedHash &&
-            item.namespace[0] === GITHUB_RESEARCH_CREDENTIALS_ROOT &&
-            typeof item.namespace[1] === "string"
-        )
-        .map((item) => item.namespace[1] as string);
+    let offset = 0;
+    let pageComplete = false;
+    for (let page = 0; page < MAX_CREDENTIAL_SEARCH_PAGES; page += 1) {
+      const response = await client().store.searchItems(
+        [GITHUB_RESEARCH_CREDENTIALS_ROOT],
+        {
+          filter: { githubUserIdHash: expectedHash },
+          limit: SEARCH_PAGE_SIZE,
+          offset,
+        }
+      );
+      for (const item of response.items) {
+        if (
+          item.key === GITHUB_RESEARCH_CREDENTIALS_KEY &&
+          item.value?.githubUserIdHash === expectedHash &&
+          item.namespace[0] === GITHUB_RESEARCH_CREDENTIALS_ROOT &&
+          typeof item.namespace[1] === "string"
+        ) {
+          owners.add(item.namespace[1]);
+        }
+      }
+      if (response.items.length < SEARCH_PAGE_SIZE) {
+        pageComplete = true;
+        break;
+      }
+      offset += response.items.length;
     }
-    offset += response.items.length;
+    if (!pageComplete)
+      throw new CredentialOwnerSearchTruncatedError(githubUserId);
   }
-  throw new CredentialOwnerSearchTruncatedError(githubUserId);
+  return [...owners];
 }
 
 export async function claimGithubWebhookDelivery(

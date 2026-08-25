@@ -12,7 +12,7 @@ const harness = vi.hoisted(() => ({
   claimDelivery: vi.fn(),
   releaseDelivery: vi.fn(),
   deleteCredentials: vi.fn(),
-  markAuthorizationRevoked: vi.fn(),
+  revokeAuthorization: vi.fn(),
   updateInstallation: vi.fn(),
   updateRepositories: vi.fn(),
   recordPush: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock("@/lib/workspace/research-repository/credentials", () => ({
   claimGithubWebhookDelivery: harness.claimDelivery,
   releaseGithubWebhookDelivery: harness.releaseDelivery,
   deleteGithubResearchCredentials: harness.deleteCredentials,
-  markGithubAuthorizationRevoked: harness.markAuthorizationRevoked,
+  revokeGithubAuthorization: harness.revokeAuthorization,
   updateGithubInstallation: harness.updateInstallation,
   updateGithubInstallationRepositories: harness.updateRepositories,
   recordGithubPush: harness.recordPush,
@@ -64,7 +64,7 @@ describe("POST /api/workspace/github/webhook", () => {
     harness.findOwnersByGithubUser.mockResolvedValue([]);
     harness.claimDelivery.mockResolvedValue(true);
     harness.releaseDelivery.mockResolvedValue(undefined);
-    harness.markAuthorizationRevoked.mockResolvedValue(undefined);
+    harness.revokeAuthorization.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -216,8 +216,8 @@ describe("POST /api/workspace/github/webhook", () => {
     expect(response.status).toBe(200);
     expect(harness.findOwnersByGithubUser).toHaveBeenCalledWith(7);
     expect(harness.findOwners).not.toHaveBeenCalled();
-    expect(harness.deleteCredentials).toHaveBeenCalledWith("user-1");
-    expect(harness.markAuthorizationRevoked).toHaveBeenCalledWith("user-1");
+    expect(harness.revokeAuthorization).toHaveBeenCalledWith("user-1");
+    expect(harness.deleteCredentials).not.toHaveBeenCalled();
     expect(harness.recordPush).not.toHaveBeenCalled();
     expect(harness.updateRepositories).not.toHaveBeenCalled();
   });

@@ -71,12 +71,12 @@ import {
   githubResearchCredentialsNamespace,
   MAX_CREDENTIAL_SEARCH_PAGES,
   hashGithubCredentialIdentifier,
-  markGithubAuthorizationRevoked,
   readGithubResearchCredentialRecord,
   readGithubResearchConnectionStatus,
   readGithubResearchCredentials,
   recordGithubPush,
   releaseGithubWebhookDelivery,
+  revokeGithubAuthorization,
   storeGithubOAuthState,
   storeGithubResearchCredentials,
   updateGithubInstallationRepositories,
@@ -144,6 +144,27 @@ describe("GitHub research credential Store", () => {
     ).resolves.toBe("v".repeat(43));
   });
 
+  it("finds credential owners hashed with a previous encryption key", async () => {
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_access" },
+      repositoryIds: [],
+      displayMetadata: { githubUserId: 7 },
+    });
+    vi.stubEnv("GITHUB_RESEARCH_TOKEN_ENCRYPTION_KEY", OTHER_KEY);
+    vi.stubEnv("GITHUB_RESEARCH_TOKEN_ENCRYPTION_PREVIOUS_KEYS", KEY);
+
+    await expect(findGithubCredentialOwnersByGithubUserId(7)).resolves.toEqual([
+      "user-1",
+    ]);
+    expect(harness.store.searchItems).toHaveBeenCalledWith(
+      ["github_research_credentials"],
+      expect.objectContaining({
+        filter: { githubUserIdHash: expect.any(String) },
+      })
+    );
+    expect(harness.store.searchItems).toHaveBeenCalledTimes(2);
+  });
+
   it("uses a keyed hash for stored credential identifiers", () => {
     const firstHash = hashGithubCredentialIdentifier("7");
     vi.stubEnv("GITHUB_RESEARCH_TOKEN_ENCRYPTION_KEY", OTHER_KEY);
@@ -208,8 +229,7 @@ describe("GitHub research credential Store", () => {
       displayMetadata: { githubUserId: 7 },
     });
 
-    await deleteGithubResearchCredentials("user-1");
-    await markGithubAuthorizationRevoked("user-1");
+    await revokeGithubAuthorization("user-1");
 
     await expect(readGithubResearchConnectionStatus("user-1")).resolves.toEqual(
       { reason: "authorization_required" }

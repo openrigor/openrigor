@@ -168,6 +168,7 @@ describe("POST repository artifact commit", () => {
       displayMetadata: { githubUserId: 7, login: "researcher" },
     });
     harness.getRepository.mockResolvedValue({
+      id: 101,
       owner: "octocat",
       name: "private",
       private: true,
@@ -216,7 +217,7 @@ describe("POST repository artifact commit", () => {
     expect(response.status).toBe(200);
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private", private: true },
+      { id: 101, owner: "octocat", name: "private", private: true },
       "openrigor/workspace",
       expect.objectContaining({
         files: [
@@ -290,14 +291,16 @@ describe("POST repository artifact commit", () => {
         revision: resultCommitSha,
       },
     });
-    expect(await second.json()).toMatchObject({
+    const secondBody = await second.json();
+    expect(secondBody).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
+    expect(secondBody.provenance).toBeUndefined();
     expect(harness.commitArtifacts).toHaveBeenCalledTimes(1);
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private", private: true },
+      { id: 101, owner: "octocat", name: "private", private: true },
       "openrigor/workspace",
       expect.objectContaining({
         authorUser: {
@@ -540,6 +543,7 @@ describe("POST repository artifact commit", () => {
 
   it("rejects writes when the repository became public", async () => {
     harness.getRepository.mockResolvedValue({
+      id: 101,
       owner: "octocat",
       name: "public",
       private: false,
@@ -570,6 +574,7 @@ describe("POST repository artifact commit", () => {
   it("returns a structured 409 when the repository is deleted after the access check", async () => {
     harness.getRepository
       .mockResolvedValueOnce({
+        id: 101,
         owner: "octocat",
         name: "private",
         private: true,

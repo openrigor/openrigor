@@ -836,6 +836,41 @@ describe("research repository workspace items", () => {
     expect(harness.state.manifest).not.toEqual(originalManifest);
   });
 
+  it("checks replacement duplicates before creating the replacement branch", async () => {
+    const original = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "other",
+      nameWithOwner: "octocat/other",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    await createResearchRepositoryItem("user-1", {
+      repositoryId: 102,
+      installationId: 99,
+    });
+    harness.getGithubRepositoryBranchHead.mockReset();
+    harness.createGithubRepositoryBranch.mockReset();
+    harness.probeMethodHostInitialization.mockReset();
+
+    await expect(
+      replaceResearchRepositoryBinding("user-1", original.id, {
+        repositoryId: 102,
+        installationId: 99,
+      })
+    ).rejects.toMatchObject({ code: "repository_already_bound" });
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+    expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).not.toHaveBeenCalled();
+  });
+
   it("normalises stored repository items even while the flag is off", async () => {
     const item = await createResearchRepositoryItem("user-1", {
       repositoryId: 101,
@@ -894,6 +929,20 @@ describe("research repository workspace items", () => {
     harness.readGithubResearchCredentials.mockResolvedValue(
       connectedGithubCredentials([])
     );
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
+    });
+  });
+
+  it("falls back to permission_lost for an invalid persisted status reason", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      ...connectedGithubCredentials([]),
+      repositoryStatusReasons: { "101": "not-a-status-reason" },
+    });
+
     await expect(
       getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
     ).resolves.toMatchObject({

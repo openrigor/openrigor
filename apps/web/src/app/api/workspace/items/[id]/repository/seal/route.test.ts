@@ -151,9 +151,16 @@ const pendingOperation = {
   updatedAt: "2026-08-23T10:00:00.000Z",
 };
 const runningOperation = { ...pendingOperation, status: "running" };
+const sealProvenance = {
+  repository: "octocat/private",
+  branch: "openrigor/workspace",
+  path: preview.ledgerPath,
+  revision: resultCommitSha,
+};
 const landedOperation = {
   ...runningOperation,
   resultCommitSha,
+  resultProvenance: sealProvenance,
 };
 const succeededOperation = {
   ...landedOperation,
@@ -191,16 +198,23 @@ describe("POST repository seal", () => {
       displayMetadata: { githubUserId: 7, login: "researcher" },
     });
     harness.repository.mockResolvedValue({
+      id: 101,
       owner: "octocat",
       name: "private",
       private: true,
     });
     harness.getHead.mockResolvedValue(baseCommitSha);
     harness.preview.mockResolvedValue(preview);
-    harness.commit.mockResolvedValue({
-      commitSha: resultCommitSha,
-      snapshotId: snapshotOne,
-    });
+    harness.commit.mockImplementation(
+      async (
+        _access: unknown,
+        committedPreview: { snapshotId: string; ledgerPath: string }
+      ) => ({
+        commitSha: resultCommitSha,
+        snapshotId: committedPreview.snapshotId,
+        provenance: { ...sealProvenance, path: committedPreview.ledgerPath },
+      })
+    );
     harness.validateDeclarations.mockReturnValue(undefined);
     harness.claim.mockResolvedValue(pendingOperation);
     harness.start.mockResolvedValue(runningOperation);
@@ -227,7 +241,12 @@ describe("POST repository seal", () => {
     expect(harness.preview).toHaveBeenCalledWith({
       binding: item.binding,
       credentials: expect.objectContaining({ installationId: 99 }),
-      repository: { owner: "octocat", name: "private", private: true },
+      repository: {
+        id: 101,
+        owner: "octocat",
+        name: "private",
+        private: true,
+      },
     });
     expect(harness.commit).not.toHaveBeenCalled();
     expect(harness.claim).not.toHaveBeenCalled();
@@ -262,6 +281,7 @@ describe("POST repository seal", () => {
       operationId: "operation-one",
       commitSha: resultCommitSha,
       snapshotId: snapshotOne,
+      provenance: sealProvenance,
     });
     expect(harness.commit).toHaveBeenCalledWith(expect.any(Object), preview, {
       name: "researcher",
@@ -311,7 +331,7 @@ describe("POST repository seal", () => {
       provenance: {
         repository: "octocat/private",
         branch: "openrigor/workspace",
-        path: `ledger/seals/${snapshotOne}.seal.yml`,
+        path: preview.ledgerPath,
         revision: resultCommitSha,
       },
     });
@@ -386,6 +406,8 @@ describe("POST repository seal", () => {
       ...preview,
       snapshotId: snapshotTwo,
       supersedes: snapshotOne,
+      ledgerPath: `ledger/seals/${snapshotTwo}.en.md`,
+      sealPath: `ledger/seals/${snapshotTwo}.seal.yml`,
     });
 
     const response = await POST(
@@ -402,6 +424,10 @@ describe("POST repository seal", () => {
       operationId: "operation-one",
       commitSha: resultCommitSha,
       snapshotId: snapshotTwo,
+      provenance: {
+        ...sealProvenance,
+        path: `ledger/seals/${snapshotTwo}.en.md`,
+      },
     });
     expect(harness.preview).toHaveBeenCalledWith(
       expect.any(Object),

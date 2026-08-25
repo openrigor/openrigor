@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
 import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
 import { readGithubResearchCredentials } from "@/lib/workspace/research-repository/credentials";
+import { getGithubInstallationRepository } from "@/lib/workspace/research-repository/github-app";
 import { buildGithubResearchTemplateUrl } from "@/lib/workspace/research-repository/template";
 
 export const dynamic = "force-dynamic";
@@ -21,33 +22,53 @@ export async function GET() {
     if (!credentials || credentials.installationId === undefined) {
       return NextResponse.json({ connected: false, repositories: [] });
     }
+    const installationId = credentials.installationId;
     const login = credentials.displayMetadata.login;
     const displayRepositories = credentials.displayMetadata.repositories;
     const repositoryIds = new Set(credentials.repositoryIds);
-    const repositories = Array.isArray(displayRepositories)
-      ? displayRepositories
-          .filter(
-            (
-              entry
-            ): entry is {
-              id: number;
-              nameWithOwner?: string;
-              private?: boolean;
-            } =>
-              Boolean(entry) &&
-              typeof entry === "object" &&
-              typeof (entry as { id?: unknown }).id === "number" &&
-              (entry as { private?: unknown }).private === true &&
-              repositoryIds.has((entry as { id: number }).id)
-          )
-          .map((entry) => ({
+    const retainedRepositories = Array.isArray(displayRepositories)
+      ? displayRepositories.filter(
+          (
+            entry
+          ): entry is {
+            id: number;
+            nameWithOwner?: string;
+            private?: boolean;
+          } =>
+            Boolean(entry) &&
+            typeof entry === "object" &&
+            typeof (entry as { id?: unknown }).id === "number" &&
+            repositoryIds.has((entry as { id: number }).id)
+        )
+      : [];
+    const repositories = (
+      await Promise.all(
+        retainedRepositories.map(async (entry) => {
+          let isPrivate = entry.private;
+          let nameWithOwner = entry.nameWithOwner;
+          if (isPrivate !== true && isPrivate !== false) {
+            try {
+              const repository = await getGithubInstallationRepository(
+                installationId,
+                entry.id
+              );
+              isPrivate = repository.private;
+              nameWithOwner = repository.nameWithOwner;
+            } catch {
+              return undefined;
+            }
+          }
+          if (!isPrivate) return undefined;
+          return {
             id: entry.id,
             nameWithOwner:
-              typeof entry.nameWithOwner === "string"
-                ? entry.nameWithOwner
+              typeof nameWithOwner === "string"
+                ? nameWithOwner
                 : `Repository #${entry.id}`,
-          }))
-      : [];
+          };
+        })
+      )
+    ).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
     return NextResponse.json({
       connected: true,
       installationId: credentials.installationId,

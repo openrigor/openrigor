@@ -283,7 +283,7 @@ describe("GitHub App OAuth helpers", () => {
     await expect(
       getGithubRepositoryBranchHead(
         99,
-        { owner: "octocat", name: "private" },
+        { id: 101, owner: "octocat", name: "private" },
         "openrigor/workspace"
       )
     ).resolves.toBe(sha);
@@ -333,7 +333,7 @@ describe("GitHub App OAuth helpers", () => {
 
     await createGithubRepositoryBranch(
       99,
-      { owner: "octocat", name: "private" },
+      { id: 101, owner: "octocat", name: "private" },
       "openrigor/workspace",
       sha
     );

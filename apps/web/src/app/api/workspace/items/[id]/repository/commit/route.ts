@@ -19,6 +19,7 @@ import {
   getRepositoryBranchHead,
   repositoryCommitProvenance,
   StaleRepositoryError,
+  type GithubRepositoryCoordinates,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
   RepositoryLayoutError,
@@ -123,13 +124,7 @@ export async function POST(request: Request, context: RouteContext) {
     throw error;
   }
 
-  let repositoryForCommit:
-    | {
-        owner: string;
-        name: string;
-        nameWithOwner?: string;
-      }
-    | undefined;
+  let repositoryForCommit: GithubRepositoryCoordinates | undefined;
   let preflightCredentials;
   try {
     preflightCredentials = await readGithubResearchCredentials(auth.user.id);
@@ -220,19 +215,20 @@ export async function POST(request: Request, context: RouteContext) {
       }
       return json({ error: "Could not record repository commit" }, 500);
     }
+    const provenance =
+      operation.resultProvenance ??
+      (repositoryForCommit
+        ? repositoryCommitProvenance(
+            repositoryForCommit,
+            item.binding.branch,
+            artifact.path,
+            operation.resultCommitSha
+          )
+        : undefined);
     return json({
       operationId: operation.operationId,
       commitSha: operation.resultCommitSha,
-      provenance: repositoryCommitProvenance(
-        repositoryForCommit ?? {
-          owner: "github",
-          name: String(item.binding.repositoryId),
-          nameWithOwner: item.binding.repositoryFullName,
-        },
-        item.binding.branch,
-        artifact.path,
-        operation.resultCommitSha
-      ),
+      ...(provenance ? { provenance } : {}),
     });
   }
   if (operation.status === "failed" && operation.resultCommitSha) {
@@ -426,11 +422,22 @@ export async function POST(request: Request, context: RouteContext) {
     return json({ error: "Could not commit repository artifact" }, 500);
   }
 
+  let commitProvenance: ReturnType<typeof repositoryCommitProvenance>;
   try {
+    if (!repositoryForCommit) {
+      throw new Error("Repository coordinates were not retained after commit");
+    }
+    commitProvenance = repositoryCommitProvenance(
+      repositoryForCommit,
+      item.binding.branch,
+      artifact.path,
+      commitSha
+    );
     operation = await recordRepositoryOperationResult(
       auth.user.id,
       operation,
-      commitSha
+      commitSha,
+      commitProvenance
     );
   } catch (error) {
     try {
@@ -491,12 +498,7 @@ export async function POST(request: Request, context: RouteContext) {
     return json({
       operationId: completed.operationId,
       commitSha,
-      provenance: repositoryCommitProvenance(
-        repositoryForCommit,
-        item.binding.branch,
-        artifact.path,
-        commitSha
-      ),
+      provenance: commitProvenance,
     });
   } catch (error) {
     try {

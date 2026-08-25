@@ -123,7 +123,7 @@ const access = {
     repositoryIds: [101],
     displayMetadata: { githubUserId: 7, login: "researcher" },
   },
-  repository: { owner: "octocat", name: "private" },
+  repository: { id: 101, owner: "octocat", name: "private" },
 };
 
 function oldManifest(snapshotId = snapshotOne, at = reviewedAt) {

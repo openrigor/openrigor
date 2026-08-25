@@ -22,7 +22,7 @@ import {
 } from "./git-adapter";
 import { RepositoryLayoutError } from "./layout";
 
-const repository = { owner: "octocat", name: "private" };
+const repository = { id: 101, owner: "octocat", name: "private" };
 const baseSha = "a".repeat(40);
 const baseTreeSha = "b".repeat(40);
 const blobSha = "c".repeat(40);
@@ -40,6 +40,7 @@ describe("GitHub repository Git Data adapter", () => {
     expect(
       repositoryCommitProvenance(
         {
+          id: 101,
           owner: "octocat",
           name: "private",
           fullName: "octocat/private",

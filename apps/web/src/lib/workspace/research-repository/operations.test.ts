@@ -94,11 +94,19 @@ describe("repository operation Store", () => {
   it("replays a succeeded idempotency key with the original result", async () => {
     const pending = await claimRepositoryOperation("user-1", claim);
     const running = await startRepositoryOperation("user-1", pending);
+    const resultProvenance = {
+      repository: "octocat/private",
+      branch: "openrigor/workspace",
+      path: "ledger/seals/snapshot.seal.yml",
+      revision: resultCommitSha,
+    };
     const landed = await recordRepositoryOperationResult(
       "user-1",
       running,
-      resultCommitSha
+      resultCommitSha,
+      resultProvenance
     );
+    expect(landed.resultProvenance).toEqual(resultProvenance);
     const completed = await completeRepositoryOperation(
       "user-1",
       landed,
