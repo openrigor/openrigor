@@ -76,7 +76,10 @@ function buildLedgerExample(context: LedgerAgentContext): string {
       (dimension) =>
         dimension.control === "multi-select" &&
         (dimension.options?.length ?? 0) > 0
-    ) ?? context.dimensions.find((dimension) => dimension.control === "range");
+    ) ??
+    context.dimensions.find(
+      (dimension) => dimension.control === "range" && dimension.type !== "date"
+    );
   if (!exampleDimension) return "";
   const update =
     exampleDimension.control === "multi-select"
@@ -87,7 +90,10 @@ function buildLedgerExample(context: LedgerAgentContext): string {
           },
         })
       : JSON.stringify({
-          [exampleDimension.id]: { control: "range", min: 1, max: 10 },
+          [exampleDimension.id]:
+            exampleDimension.type === "number"
+              ? { control: "range", min: 1, max: 10 }
+              : { control: "range", min: "a", max: "z" },
         });
   return `When the user asks to filter, narrow, or reset the ledger, keep your concise
 conversational reply and append exactly one machine-readable update block.
