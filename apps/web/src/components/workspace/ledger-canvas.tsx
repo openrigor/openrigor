@@ -60,6 +60,16 @@ function withFilter(
   return { ...config, filters: next ? [...filters, next] : filters };
 }
 
+function isGenuineUserMessage(message: {
+  getType?: () => string;
+  additional_kwargs?: Record<string, unknown>;
+}): boolean {
+  return (
+    message.getType?.() === "human" &&
+    message.additional_kwargs?.[OC_HIDE_FROM_UI_KEY] !== true
+  );
+}
+
 function buildLedgerAgentContext(
   item: LedgerWorkspaceItem,
   config: LedgerConfig,
@@ -315,6 +325,22 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     if (lastAppliedUpdate.current === assistantMessage) return;
 
     lastAppliedUpdate.current = assistantMessage;
+    if (!graphData.messages.some(isGenuineUserMessage)) {
+      const cleanContent = parsed.cleanContent.trim();
+      graphData.setMessages((messages) =>
+        messages.map((message) =>
+          message === assistantMessage
+            ? new AIMessage({
+                id: message.id,
+                content: cleanContent,
+                additional_kwargs: message.additional_kwargs,
+              })
+            : message
+        )
+      );
+      return;
+    }
+
     const nextConfig = { ...config, filters: parsed.updates };
     setConfig(nextConfig);
     void refresh(nextConfig);

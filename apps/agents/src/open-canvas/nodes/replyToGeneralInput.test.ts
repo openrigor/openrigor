@@ -476,6 +476,55 @@ describe("replyToGeneralInput", () => {
     ]);
   });
 
+  it("uses prose-only instructions for a hidden ledger kickoff", async () => {
+    const state = createMockState({
+      _messages: [
+        new HumanMessage({
+          content:
+            "Open this Evidence Ledger, understand the current filters, and welcome the user.",
+          id: "ledger-kickoff",
+          additional_kwargs: { [OC_HIDE_FROM_UI_KEY]: true },
+        }),
+      ],
+      ledgerContext: {
+        kind: "ledger",
+        methodId: "evidence-method",
+        methodVersion: "1.0.0",
+        templateId: "evidence-template",
+        templateVersion: "1.0.0",
+        dimensions: [
+          {
+            id: "education_level",
+            role: "context",
+            control: "multi-select",
+            options: ["k12", "higher_ed"],
+            type: "text",
+          },
+        ],
+        filters: {
+          education_level: { control: "multi-select", values: ["k12"] },
+        },
+      },
+    });
+    const config = createMockConfig({ assistant_id: "test-123" });
+
+    const result = await replyToGeneralInput(state, config);
+    const systemPrompt = String(
+      mockModel.invoke.mock.calls[0]?.[0]?.[0]?.content
+    );
+
+    expect(systemPrompt).toMatch(
+      /The ONLY valid output is\s+ordinary conversational prose/
+    );
+    expect(systemPrompt).toContain(
+      "Filter update blocks are reserved for explicit user filter requests"
+    );
+    expect(systemPrompt).not.toContain("<ledger-updates>");
+    expect(String(result.messages?.[0]?.content)).not.toContain(
+      "<ledger-updates>"
+    );
+  });
+
   it("builds the ledger update example from the declared context dimensions", async () => {
     const state = createMockState({
       _messages: [
