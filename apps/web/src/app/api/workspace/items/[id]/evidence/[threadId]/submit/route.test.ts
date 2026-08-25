@@ -18,6 +18,7 @@ const harness = vi.hoisted(() => {
     evidenceTimestampSlug: vi.fn(),
     openEvidencePullRequest: vi.fn(),
     findExistingEvidencePullRequest: vi.fn(),
+    commitPrivateMethodEvidence: vi.fn(),
     FormValidationError,
     WorkspaceItemNotFoundError,
     WorkspaceThreadOwnershipError,
@@ -39,6 +40,9 @@ vi.mock("@/lib/workspace/evidence", () => ({
 vi.mock("@/lib/workspace/evidence-github", () => ({
   openEvidencePullRequest: harness.openEvidencePullRequest,
   findExistingEvidencePullRequest: harness.findExistingEvidencePullRequest,
+}));
+vi.mock("@/lib/workspace/research-repository/private-method-writeback", () => ({
+  commitPrivateMethodEvidence: harness.commitPrivateMethodEvidence,
 }));
 vi.mock("@/lib/workspace/store", () => ({
   claimEvidenceSubmission: harness.claimEvidenceSubmission,
@@ -78,6 +82,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       .mockReset()
       .mockReturnValue("2026-08-18T12-34-56Z");
     harness.openEvidencePullRequest.mockReset();
+    harness.commitPrivateMethodEvidence.mockReset();
     harness.findExistingEvidencePullRequest
       .mockReset()
       .mockResolvedValue(undefined);
@@ -106,7 +111,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     harness.openEvidencePullRequest.mockResolvedValue({
       status: "filed",
       number: 12,
-      url: "https://github.com/evaluchat/research/pull/12",
+      url: "https://github.com/openrigor/research/pull/12",
     });
 
     const response = await POST(
@@ -147,5 +152,59 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "Validation failed" });
     expect(harness.openEvidencePullRequest).not.toHaveBeenCalled();
+  });
+
+  it("commits adopted Method evidence directly to its private repository", async () => {
+    const privateRepository = {
+      repositoryItemId: "wi_repo",
+      repositoryId: 101,
+      commitSha: "a".repeat(40),
+    };
+    harness.verifyUserAuthenticated.mockResolvedValue({
+      user: { id: "user-1" },
+    });
+    harness.getEvidenceSnapshot.mockResolvedValue({
+      item: { methodSource: { privateRepository } },
+      snapshot: { methodId: "test-method" },
+      reference: { status: "draft" },
+    });
+    harness.validateEvidenceSubmission.mockReturnValue({
+      values: { narrative: "Account" },
+      stage: "documented-experience",
+    });
+    harness.assembleEvidenceMarkdown.mockReturnValue("private markdown");
+    harness.evidenceFilePath.mockReturnValue(
+      "methods/test-method/evidence/file.en.md"
+    );
+    harness.commitPrivateMethodEvidence.mockResolvedValue({
+      commitSha: "b".repeat(40),
+    });
+
+    const response = await POST(
+      request({ narrative: "Account" }),
+      context("wi_1", "thread-1")
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      status: "filed",
+      private: true,
+      commitSha: "b".repeat(40),
+      filePath: "methods/test-method/evidence/file.en.md",
+    });
+    expect(harness.commitPrivateMethodEvidence).toHaveBeenCalledWith({
+      userId: "user-1",
+      provenance: privateRepository,
+      methodId: "test-method",
+      filePath: "methods/test-method/evidence/file.en.md",
+      markdown: "private markdown",
+    });
+    expect(harness.openEvidencePullRequest).not.toHaveBeenCalled();
+    expect(harness.updateEvidenceThreadReference).toHaveBeenCalledWith(
+      "user-1",
+      "wi_1",
+      "thread-1",
+      expect.objectContaining({ status: "filed" })
+    );
   });
 });

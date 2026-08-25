@@ -56,5 +56,5 @@ export function ledgerPublishRequestBody(input: {
 
 export function publicationAccessError(reason?: string): string | undefined {
   if (reason !== "missing_write_access") return undefined;
-  return "Your connected GitHub account needs collaborator write access to evaluchat/research. No branch or pull request was created.";
+  return "Your connected GitHub account needs collaborator write access to openrigor/research. No branch or pull request was created.";
 }

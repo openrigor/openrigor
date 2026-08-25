@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserProvider, useUserContext } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
 import { DOCS_URL } from "@/components/auth/login/login-branding";
 import { SettingsBreadcrumb } from "@/components/workspace/settings-breadcrumb";
 import { ByokSettingsCard } from "@/components/workspace/byok-settings-card";
+import { PrivateResearchRepositoriesCard } from "@/components/settings/private-research-repositories-card";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -87,6 +89,9 @@ function SettingsForm() {
   return (
     <main className="min-h-screen bg-slate-50">
       <WorkspaceSiteHeader workspaceLabel="Settings" maxWidthClass="max-w-3xl">
+        <Link href="/workspace/settings" className={workspaceNavGhostClass}>
+          Settings
+        </Link>
         <a
           href={DOCS_URL}
           target="_blank"
@@ -132,6 +137,7 @@ function SettingsForm() {
               </form>
             </CardContent>
           </Card>
+          <PrivateResearchRepositoriesCard />
           <ByokSettingsCard />
         </div>
       </section>

@@ -7,15 +7,15 @@ checkout. It runs **headless against the LIVE dev deployment** by default.
 
 The suite uses real Supabase UI login. Credentials must be **exported in the
 shell** (the skill convention) — never read from `.env.local`. They are shared
-with the dev Supabase used by `dev.evaluchat.org`.
+with the dev Supabase used by `dev.openrigor.org`.
 
 ```bash
-export E2E_BASE_URL=https://dev.evaluchat.org
+export E2E_BASE_URL=https://dev.openrigor.org
 export TEST_USER_EMAIL=...    # a user on the dev Supabase
 export TEST_USER_PASSWORD=...
 ```
 
-`E2E_BASE_URL` overrides the config default (`https://dev.evaluchat.org`).
+`E2E_BASE_URL` overrides the config default (`https://dev.openrigor.org`).
 
 ## Run
 
@@ -36,7 +36,7 @@ playwright test ...` command directly with the vars exported.
 ## Layout
 
 ```text
-playwright.config.ts           # testDir ./apps/web/e2e, baseURL default dev.evaluchat.org
+playwright.config.ts           # testDir ./apps/web/e2e, baseURL default dev.openrigor.org
 apps/web/e2e/evidence-ledger.spec.ts   # Wave A Evidence Ledger coverage
 apps/web/e2e/workspace-home.spec.ts    # lean /workspace home smoke (issue #96)
 apps/web/e2e/helpers/auth.ts           # real login, /workspace routing, sign-out

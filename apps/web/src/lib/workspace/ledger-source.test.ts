@@ -203,6 +203,9 @@ field_values:
 
 # p-invalid-dim
 `;
+const SNAPSHOT_PATH =
+  "methods/ledger-demo-method/evidence/ledgers/ledger_3ed220f3-b53f-41da-9b28-8ef8ae0596e3.en.md";
+const SNAPSHOT = packet("p-snapshot", "", "1.0.0");
 
 const COMMIT_SHA = "deadbeef0123456789abcdef0123456789abcdef";
 
@@ -217,9 +220,13 @@ const FILES: Record<string, string> = {
   "methods/ledger-demo-method/evidence/p-unavailable.en.md": UNAVAILABLE,
   "methods/ledger-demo-method/evidence/p-excluded.en.md": EXCLUDED,
   "methods/ledger-demo-method/evidence/p-invalid-dim.en.md": INVALID_DIM,
+  [SNAPSHOT_PATH]: SNAPSHOT,
 };
 
-const DIRS: Record<string, { name: string; path: string }[]> = {
+const DIRS: Record<
+  string,
+  { name: string; path: string; type?: "file" | "dir" }[]
+> = {
   "methods/ledger-demo-method/evidence-templates": [
     {
       name: "evidence-template.en.md",
@@ -248,6 +255,17 @@ const DIRS: Record<string, { name: string; path: string }[]> = {
       name: "p-invalid-dim.en.md",
       path: "methods/ledger-demo-method/evidence/p-invalid-dim.en.md",
     },
+    {
+      name: "ledgers",
+      path: "methods/ledger-demo-method/evidence/ledgers",
+      type: "dir",
+    },
+  ],
+  "methods/ledger-demo-method/evidence/ledgers": [
+    {
+      name: "ledger_3ed220f3-b53f-41da-9b28-8ef8ae0596e3.en.md",
+      path: SNAPSHOT_PATH,
+    },
   ],
 };
 
@@ -268,7 +286,7 @@ function response(body: unknown): Response {
 }
 
 beforeEach(() => {
-  process.env.VALERY_GITHUB_TOKEN = "test-token";
+  process.env.RIGEL_GITHUB_TOKEN = "test-token";
   resetLedgerSourceMemo();
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input);
@@ -280,10 +298,10 @@ beforeEach(() => {
     if (DIRS[path]) {
       return response(
         DIRS[path].map((entry) => ({
-          type: "file",
+          type: entry.type ?? "file",
           name: entry.name,
           path: entry.path,
-          size: FILES[entry.path].length,
+          size: entry.type === "dir" ? 0 : FILES[entry.path].length,
         }))
       );
     }
@@ -293,7 +311,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.VALERY_GITHUB_TOKEN;
+  delete process.env.RIGEL_GITHUB_TOKEN;
 });
 
 describe("loadLedgerSource", () => {
@@ -377,6 +395,16 @@ describe("loadLedgerSource", () => {
   });
 
   it("counts only accepted packets", async () => {
+    expect(await countAcceptedEvidence("ledger-demo-method")).toBe(4);
+  });
+
+  it("skips published snapshots under evidence/ledgers/", async () => {
+    const source = await loadLedgerSource("ledger-demo-method", "1.0.0");
+    const paths = source.contributions.map((c) => c.path);
+    expect(paths).not.toContain(SNAPSHOT_PATH);
+    expect(paths).toContain(
+      "methods/ledger-demo-method/evidence/p-known.en.md"
+    );
     expect(await countAcceptedEvidence("ledger-demo-method")).toBe(4);
   });
 });

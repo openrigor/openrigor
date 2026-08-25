@@ -412,7 +412,7 @@ export function ClassManagement({
             <DialogTitle>Delete class</DialogTitle>
             <DialogDescription>
               Delete &ldquo;{deleteTarget?.name}&rdquo;? Students will not be
-              removed from evaluchat, only from this class roster.
+              removed from OpenRigor, only from this class roster.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

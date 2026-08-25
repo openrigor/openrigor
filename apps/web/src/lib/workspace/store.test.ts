@@ -85,12 +85,21 @@ const harness = vi.hoisted(() => {
     state,
     hooks,
     client,
-    Client: vi.fn(() => client),
+    Client: vi.fn(function ClientMock() {
+      return client;
+    }),
     findUserByEmail: vi.fn(
       async (_email?: string): Promise<{ id: string; email: string } | null> =>
         null
     ),
     inviteWorkspaceParticipant: vi.fn(async () => undefined),
+    readGithubResearchCredentials: vi.fn(),
+    createGithubRepositoryBranch: vi.fn(),
+    getGithubInstallationRepository: vi.fn(),
+    getGithubRepositoryBranchHead: vi.fn(),
+    probeMethodHostInitialization: vi.fn(),
+    discoverPrivateMethods: vi.fn(),
+    previewSealSnapshot: vi.fn(),
   };
 });
 
@@ -105,16 +114,44 @@ vi.mock("@/lib/teaching/invitation-helpers", () => ({
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
   },
 }));
+vi.mock("./research-repository/credentials", () => ({
+  readGithubResearchCredentials: harness.readGithubResearchCredentials,
+}));
+vi.mock("./research-repository/github-app", () => ({
+  createGithubRepositoryBranch: harness.createGithubRepositoryBranch,
+  getGithubInstallationRepository: harness.getGithubInstallationRepository,
+  getGithubRepositoryBranchHead: harness.getGithubRepositoryBranchHead,
+}));
+vi.mock("./research-repository/git-adapter", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./research-repository/git-adapter")>();
+  return {
+    ...actual,
+    probeMethodHostInitialization: harness.probeMethodHostInitialization,
+    discoverPrivateMethods: harness.discoverPrivateMethods,
+  };
+});
+vi.mock("./research-repository/seals", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./research-repository/seals")>();
+  return { ...actual, previewSealSnapshot: harness.previewSealSnapshot };
+});
 
 import {
+  createResearchRepositoryItem,
+  createPrivateMethodWorkspaceItem,
+  createPrivateLedgerWorkspaceItem,
+  createLedgerSnapshotItem,
   createWorkspaceItem,
   createMethodWorkspaceItem,
   deleteWorkspaceItem,
   ensureDefaultWorkspaceItem,
   getMethodParticipantReview,
+  getResearchRepositoryStatus,
   getMethodRun,
   getWorkspaceItem,
   listWorkspaceItems,
+  listSelectedPrivateMethods,
   pendingInviteNamespace,
   inviteLockId,
   resolveMethodTrackingAccess,
@@ -123,6 +160,10 @@ import {
   WorkspaceLockTimeoutError,
   WorkspaceThreadOwnershipError,
   reconcileWorkspaceItemThread,
+  refreshResearchRepositoryBindings,
+  ResearchRepositoryBindingError,
+  updateResearchRepositoryBindingHead,
+  updateResearchRepositoryMethodSelection,
   workspaceLockAcquireTimeoutMs,
   workspaceLockRetryDelayMs,
   workspaceLockTtlMs,
@@ -179,6 +220,31 @@ describe("workspace item lifecycle", () => {
     expect(harness.state.manifest.items[item!.id]).toBeUndefined();
     expect(harness.state.manifest.defaultItemId).toBeUndefined();
     expect(harness.state.manifest.initialized).toBe(true);
+  });
+
+  it("skips retained unusable research repositories when selecting a default item", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const created = await ensureDefaultWorkspaceItem("user-1");
+    expect(created).toBeDefined();
+
+    harness.state.manifest = {
+      ...harness.state.manifest,
+      defaultItemId: undefined,
+      items: {
+        "broken-repo": {
+          id: "broken-repo",
+          kind: "research_repository",
+          binding: { repositoryId: 101 },
+        },
+        ...harness.state.manifest.items,
+      },
+    };
+
+    const item = await ensureDefaultWorkspaceItem("user-1");
+    expect(item?.id).toBe(created!.id);
+    expect(harness.state.manifest.defaultItemId).toBe(created!.id);
+    expect(spy.mock.calls.flat().join(" ")).toContain("broken-repo");
+    spy.mockRestore();
   });
 
   it("does not recreate the original item after explicit deletion", async () => {
@@ -270,7 +336,7 @@ describe("workspace item lifecycle", () => {
       version: expect.any(String),
       title: expect.stringMatching(/AI-assisted essay/i),
       description: expect.any(String),
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     });
     expect(item.profileId).toBe("canonical-constrained-dialogue");
     expect(item.run).toBeUndefined();
@@ -283,7 +349,7 @@ describe("workspace item lifecycle", () => {
     stored.items[item.id].methodSource = {
       id: "ai-assisted-essay",
       version: item.methodSource.version,
-      url: "https://research.evaluchat.org/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/ai-assisted-essay.html",
     };
     harness.state.manifest = stored;
 
@@ -293,7 +359,7 @@ describe("workspace item lifecycle", () => {
     if (draft?.kind !== "method") return;
     expect(draft.methodSource.title).toMatch(/AI-assisted essay/i);
     expect(draft.methodSource.url).toBe(
-      "https://research.evaluchat.org/methods/ai-assisted-essay.html"
+      "https://research.openrigor.org/methods/ai-assisted-essay.html"
     );
   });
 
@@ -314,6 +380,847 @@ describe("workspace item lifecycle", () => {
     const lockId = inviteLockId("cronjevh+test1708@gmail.com");
     expect(lockId).not.toMatch(/[.@+]/);
     expect(lockId).toBe("invite_cronjevh_test1708_gmail_com");
+  });
+});
+
+const repositorySha = "a".repeat(40);
+const workspaceBranchSha = "b".repeat(40);
+
+function connectedGithubCredentials(repositoryIds = [101]) {
+  return {
+    tokens: { accessToken: "ghu_access" },
+    installationId: 99,
+    repositoryIds,
+    displayMetadata: {
+      githubUserId: 7,
+      login: "octocat",
+      repositories: [{ id: 101, nameWithOwner: "octocat/private" }],
+    },
+  };
+}
+
+function repositoryWorkspaceItem(layoutVersion = "1.0") {
+  const now = "2026-08-22T10:00:00.000Z";
+  return {
+    id: "wi_repository",
+    ownerId: "user-1",
+    kind: "research_repository" as const,
+    status: "active" as const,
+    createdAt: now,
+    updatedAt: now,
+    binding: {
+      provider: "github" as const,
+      repositoryId: 101,
+      installationId: 99,
+      branch: "openrigor/workspace" as const,
+      layoutVersion,
+      headCommitSha: repositorySha,
+      boundAt: now,
+      initialized: true,
+    },
+    selectedMethodIds: [],
+  };
+}
+
+describe("research repository workspace items", () => {
+  beforeEach(() => {
+    harness.state.items.clear();
+    harness.state.threads.clear();
+    harness.readGithubResearchCredentials.mockReset();
+    harness.createGithubRepositoryBranch.mockReset();
+    harness.getGithubInstallationRepository.mockReset();
+    harness.getGithubRepositoryBranchHead.mockReset();
+    harness.probeMethodHostInitialization.mockReset();
+    harness.discoverPrivateMethods.mockReset();
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials()
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 101,
+      name: "private",
+      nameWithOwner: "octocat/private",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: true,
+    });
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [],
+    });
+    workspaceLockRetryDelayMs.value = defaultLockRetryDelayMs;
+    workspaceLockAcquireTimeoutMs.value = defaultLockAcquireTimeoutMs;
+    workspaceLockTtlMs.value = defaultLockTtlMs;
+  });
+
+  it("binds a private repository from the user's installation", async () => {
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(item).toMatchObject({
+      ownerId: "user-1",
+      kind: "research_repository",
+      status: "active",
+      binding: {
+        provider: "github",
+        repositoryId: 101,
+        installationId: 99,
+        branch: "openrigor/workspace",
+        layoutVersion: "1.0",
+        headCommitSha: workspaceBranchSha,
+        initialized: true,
+      },
+    });
+    expect(item.binding.boundAt).toBe(item.createdAt);
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "openrigor/workspace"
+    );
+    expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      workspaceBranchSha
+    );
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("persists the initialization failure reason without rejecting the binding", async () => {
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(item.binding).toMatchObject({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("re-checks bound repositories after credential refresh", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      refreshedHead
+    );
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      headCommitSha: refreshedHead,
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    });
+  });
+
+  it("clears a stored initialization failure reason after a successful re-probe", async () => {
+    const item = repositoryWorkspaceItem();
+    item.binding.initialized = false;
+    Object.assign(item.binding, {
+      initializationFailureReason: "methods_index_missing",
+    });
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: true,
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      headCommitSha: refreshedHead,
+      initialized: true,
+    });
+    expect(
+      harness.state.manifest.items[item.id].binding.initializationFailureReason
+    ).toBeUndefined();
+  });
+
+  it("creates a missing managed branch from the default head before binding", async () => {
+    harness.getGithubRepositoryBranchHead
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockResolvedValueOnce(repositorySha)
+      .mockResolvedValueOnce(workspaceBranchSha);
+
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
+      1,
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "openrigor/workspace"
+    );
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
+      2,
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "main"
+    );
+    expect(harness.createGithubRepositoryBranch).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      "openrigor/workspace",
+      repositorySha
+    );
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
+      3,
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "openrigor/workspace"
+    );
+    expect(item.binding.headCommitSha).toBe(workspaceBranchSha);
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it.each([409, 422])(
+    "binds after a %i managed branch creation race",
+    async (status) => {
+      const rereadSha = "c".repeat(40);
+      harness.getGithubRepositoryBranchHead
+        .mockRejectedValueOnce(
+          Object.assign(new Error("Not found"), { status: 404 })
+        )
+        .mockResolvedValueOnce(repositorySha)
+        .mockResolvedValueOnce(rereadSha);
+      harness.createGithubRepositoryBranch.mockRejectedValue(
+        Object.assign(new Error("Branch already exists"), { status })
+      );
+
+      const item = await createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      });
+
+      expect(item.binding.headCommitSha).toBe(rereadSha);
+      expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledTimes(3);
+      expect(harness.state.manifest.items[item.id]).toEqual(item);
+    }
+  );
+
+  it.each([409, 422])(
+    "rethrows the original %i creation error when the branch reread fails",
+    async (status) => {
+      const creationError = Object.assign(new Error("Branch creation failed"), {
+        status,
+      });
+      const rereadError = Object.assign(new Error("GitHub unavailable"), {
+        status: 503,
+      });
+      harness.getGithubRepositoryBranchHead
+        .mockRejectedValueOnce(
+          Object.assign(new Error("Not found"), { status: 404 })
+        )
+        .mockResolvedValueOnce(repositorySha)
+        .mockRejectedValueOnce(rereadError);
+      harness.createGithubRepositoryBranch.mockRejectedValue(creationError);
+
+      await expect(
+        createResearchRepositoryItem("user-1", {
+          repositoryId: 101,
+          installationId: 99,
+        })
+      ).rejects.toBe(creationError);
+      expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledTimes(3);
+      expect(harness.state.manifest).toBeUndefined();
+    }
+  );
+
+  it("does not bind when managed branch resolution fails unexpectedly", async () => {
+    const failure = Object.assign(new Error("GitHub unavailable"), {
+      status: 503,
+    });
+    harness.getGithubRepositoryBranchHead.mockRejectedValue(failure);
+
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toBe(failure);
+    expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.state.manifest).toBeUndefined();
+  });
+
+  it("rejects a public repository", async () => {
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 101,
+      name: "public",
+      nameWithOwner: "octocat/public",
+      owner: "octocat",
+      private: false,
+      defaultBranch: "main",
+    });
+
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toMatchObject({ code: "repository_public" });
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+    expect(harness.state.manifest).toBeUndefined();
+  });
+
+  it("rejects a repository outside the user's installation", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([])
+    );
+
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toMatchObject({ code: "repository_unavailable" });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+  });
+
+  it("rejects an installation the user does not own", async () => {
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 100,
+      })
+    ).rejects.toMatchObject({ code: "installation_unavailable" });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+  });
+
+  it("allows only one item to bind a repository", async () => {
+    await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toBeInstanceOf(ResearchRepositoryBindingError);
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledTimes(1);
+    expect(Object.keys(harness.state.manifest.items)).toHaveLength(1);
+  });
+
+  it("normalises stored repository items even while the flag is off", async () => {
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    vi.stubEnv("GITHUB_RESEARCH_WORKSPACES_ENABLED", "false");
+
+    await expect(listWorkspaceItems("user-1")).resolves.toEqual([item]);
+    vi.unstubAllEnvs();
+  });
+
+  it("reports a ready repository from the managed branch head", async () => {
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      workspaceId: "wi_repository",
+      repositoryId: 101,
+      state: "ready",
+      layoutVersion: "1.0",
+      headCommitSha: workspaceBranchSha,
+    });
+  });
+
+  it("updates only the repository binding head during reconciliation", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const reconciledHead = "c".repeat(40);
+
+    const updated = await updateResearchRepositoryBindingHead(
+      "user-1",
+      item.id,
+      reconciledHead
+    );
+
+    expect(updated.binding.headCommitSha).toBe(reconciledHead);
+    expect(harness.state.manifest.items[item.id]).toEqual(updated);
+    expect(JSON.stringify(harness.state.manifest)).not.toContain("content");
+  });
+
+  it("persists a normalized private Method selection", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+
+    const updated = await updateResearchRepositoryMethodSelection(
+      "user-1",
+      item.id,
+      ["method-b", "method-a", "method-b"]
+    );
+
+    expect(updated.selectedMethodIds).toEqual(["method-a", "method-b"]);
+    expect(harness.state.manifest.items[item.id]).toEqual(updated);
+  });
+
+  it("lists only selected conforming private Methods at the current head", async () => {
+    const item = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          description: "Private description",
+          profiles: [],
+        },
+        { id: "not-selected", profiles: [] },
+      ],
+    });
+
+    await expect(listSelectedPrivateMethods("user-1")).resolves.toEqual([
+      {
+        id: "private-method",
+        title: "Private Method",
+        description: "Private description",
+        repositoryItemId: item.id,
+        repositoryId: 101,
+        commitSha: workspaceBranchSha,
+      },
+    ]);
+  });
+
+  it("adopts a selected private Method pinned to the adopt-time commit", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          description: "Owner-authored Method",
+          version: "owner-draft",
+          profiles: [],
+        },
+      ],
+    });
+
+    const item = await createPrivateMethodWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+
+    expect(item.templateSnapshot.templateId).toBe("evaluchat-assignment-brief");
+    expect(item.methodSource).toEqual({
+      id: "private-method",
+      version: "owner-draft",
+      title: "Private Method",
+      description: "Owner-authored Method",
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: 101,
+        commitSha: workspaceBranchSha,
+      },
+    });
+    expect(item.profileId).toBe("canonical-constrained-dialogue");
+    expect(item.profiles).toEqual([
+      {
+        id: "canonical-constrained-dialogue",
+        label: "Default apparatus profile",
+      },
+    ]);
+
+    harness.getGithubRepositoryBranchHead.mockResolvedValue("f".repeat(40));
+    const listed = await listWorkspaceItems("user-1");
+    const pinned = listed.find((candidate) => candidate.id === item.id);
+    expect(pinned?.kind).toBe("method");
+    if (pinned?.kind === "method") {
+      expect(pinned.methodSource.privateRepository?.commitSha).toBe(
+        workspaceBranchSha
+      );
+    }
+  });
+
+  it("accepts a private Method without version metadata using its commit SHA", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [{ id: "private-method", profiles: [] }],
+    });
+
+    const item = await createPrivateMethodWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+
+    expect(item.methodSource.version).toBe(workspaceBranchSha);
+    expect(item.methodSource.privateRepository?.commitSha).toBe(
+      workspaceBranchSha
+    );
+  });
+
+  it("creates private ledger snapshots from the repository scan", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          profiles: [],
+          evidenceTemplateMarkdown: "",
+        },
+      ],
+    });
+    const snapshotData = {
+      ledgerId: "11111111-1111-4111-8111-111111111111",
+      methodId: "private-method",
+      methodVersion: workspaceBranchSha,
+      templateId: "repository-artifacts",
+      templateVersion: "1.0",
+      filters: [],
+      manifest: {
+        methods: [],
+        filters: [],
+        contributions: [
+          {
+            id: "evidence.private-method.one",
+            path: "methods/private-method/evidence/one.en.md",
+            sourceHash: "d".repeat(64),
+            methodId: "private-method",
+            methodVersion: workspaceBranchSha,
+            templateVersion: "1.0",
+            dimensionValues: {},
+            scopeValues: {},
+            bucket: "Included" as const,
+          },
+        ],
+      },
+      inputFingerprint: "e".repeat(64),
+      renderHash: "",
+      buckets: {
+        Included: 1,
+        "Outside declared scope": 0,
+        Unknown: 0,
+        Unavailable: 0,
+        "Resolver exclusion": 0,
+      },
+      predicate: "all private Method inputs",
+      generatedAt: "2026-08-24T12:00:00.000Z",
+      resolverVersion: "repository-seal/1",
+      sourceCommit: workspaceBranchSha,
+    };
+    harness.previewSealSnapshot.mockResolvedValue({
+      ...snapshotData,
+      schemaVersion: "1",
+      snapshotId: snapshotData.ledgerId,
+      sealedFromCommit: workspaceBranchSha,
+      reviewerLogin: "researcher",
+      reviewedAt: snapshotData.generatedAt,
+      method: {
+        id: "private-method",
+        version: workspaceBranchSha,
+      },
+      inputs: [],
+      configurationHash: snapshotData.inputFingerprint,
+      renderHash: "f".repeat(64),
+      ledgerPath: `methods/private-method/evidence/ledgers/${snapshotData.ledgerId}.en.md`,
+      sealPath: `methods/private-method/evidence/ledgers/${snapshotData.ledgerId}.seal.yml`,
+      ledgerMarkdown: "# Evidence Ledger\n",
+      manifestYaml: "schema_version: '1'\n",
+      inputArtifactIds: [],
+      snapshotData,
+    });
+
+    const ledger = await createPrivateLedgerWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+    const result = await createLedgerSnapshotItem("user-1", ledger.id);
+
+    expect(ledger.source.privateRepository).toEqual({
+      repositoryItemId: repositoryItem.id,
+      repositoryId: 101,
+      commitSha: workspaceBranchSha,
+    });
+    expect(result.idempotent).toBe(false);
+    expect(result.item.snapshot).toMatchObject({
+      ledgerId: snapshotData.ledgerId,
+      methodId: "private-method",
+      sourceCommit: workspaceBranchSha,
+      inputFingerprint: snapshotData.inputFingerprint,
+    });
+    expect(result.item.source.privateRepository).toEqual(
+      ledger.source.privateRepository
+    );
+    expect(harness.previewSealSnapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      { methodId: "private-method" }
+    );
+  });
+
+  it("projects a deleted repository as unavailable", async () => {
+    harness.getGithubInstallationRepository.mockRejectedValue(
+      Object.assign(new Error("Not Found"), { status: 404 })
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "repository_deleted",
+    });
+  });
+
+  it("blocks a repository that became public", async () => {
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 101,
+      name: "private",
+      nameWithOwner: "octocat/private",
+      owner: "octocat",
+      private: false,
+      defaultBranch: "main",
+    });
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "read_only",
+      reason: "repository_public",
+      readonlyReason: "repository_public",
+    });
+  });
+
+  it("blocks a repository when the managed branch was deleted", async () => {
+    harness.getGithubRepositoryBranchHead.mockRejectedValue(
+      Object.assign(new Error("Not found"), { status: 404 })
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "branch_deleted",
+    });
+  });
+
+  it("retains an unusable research repository record across writes", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    harness.state.manifest = {
+      ...harness.state.manifest,
+      items: {
+        ...harness.state.manifest.items,
+        [item.id]: {
+          id: item.id,
+          kind: "research_repository",
+          binding: { repositoryId: 101 },
+        },
+      },
+    };
+
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "other",
+      nameWithOwner: "octocat/other",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    await createResearchRepositoryItem("user-1", {
+      repositoryId: 102,
+      installationId: 99,
+    });
+
+    expect(harness.state.manifest.items[item.id]).toMatchObject({
+      id: item.id,
+      kind: "research_repository",
+      unusable: true,
+      binding: { repositoryId: 101 },
+    });
+    expect(spy.mock.calls.flat().join(" ")).toContain(item.id);
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toBeInstanceOf(ResearchRepositoryBindingError);
+    spy.mockRestore();
+  });
+
+  it("retains unknown research repository fields across a write/read cycle", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    const stored = harness.state.manifest.items[item.id];
+    harness.state.manifest = {
+      ...harness.state.manifest,
+      defaultItemId: undefined,
+      items: {
+        ...harness.state.manifest.items,
+        [item.id]: {
+          ...stored,
+          futureField: "schema-v2",
+          binding: {
+            ...stored.binding,
+            futureBindingField: "keep-me",
+          },
+        },
+      },
+    };
+
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "other",
+      nameWithOwner: "octocat/other",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    await createResearchRepositoryItem("user-1", {
+      repositoryId: 102,
+      installationId: 99,
+    });
+
+    expect(harness.state.manifest.items[item.id]).toMatchObject({
+      id: item.id,
+      kind: "research_repository",
+      unusable: true,
+      futureField: "schema-v2",
+      binding: {
+        repositoryId: 101,
+        installationId: 99,
+        branch: "openrigor/workspace",
+        headCommitSha: stored.binding.headCommitSha,
+        futureBindingField: "keep-me",
+      },
+    });
+    expect(spy.mock.calls.flat().join(" ")).toContain(item.id);
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toBeInstanceOf(ResearchRepositoryBindingError);
+
+    const selected = await ensureDefaultWorkspaceItem("user-1");
+    expect(selected?.id).not.toBe(item.id);
+    expect(
+      selected && "unusable" in selected && selected.unusable === true
+    ).toBe(false);
+    spy.mockRestore();
+  });
+
+  it("projects a GitHub outage as unavailable instead of permission lost", async () => {
+    harness.getGithubInstallationRepository.mockRejectedValue(
+      Object.assign(new Error("Bad Gateway"), { status: 502 })
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "github_unavailable",
+    });
+  });
+
+  it("projects a network failure as unavailable instead of permission lost", async () => {
+    harness.getGithubRepositoryBranchHead.mockRejectedValue(
+      new Error("fetch failed")
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "github_unavailable",
+    });
+  });
+
+  it("opens an unsupported layout read-only", async () => {
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem("1.1"))
+    ).resolves.toMatchObject({
+      state: "read_only",
+      reason: "unsupported_layout_minor",
+      layoutVersion: "1.1",
+      headCommitSha: workspaceBranchSha,
+    });
   });
 });
 
@@ -521,7 +1428,7 @@ describe("method run launch", () => {
     ) as any;
     expect(participantItem.assignment.title).toBe("Great Expectations");
     expect(participantItem.methodSource.url).toBe(
-      "https://research.evaluchat.org/methods/ai-assisted-essay.html"
+      "https://research.openrigor.org/methods/ai-assisted-essay.html"
     );
     expect(participantItem.runId).toBe(result.item.run.id);
     expect(participantItem.operatorItemId).toBe(item.id);
@@ -667,7 +1574,7 @@ describe("method run launch", () => {
     expect(claimed[0].methodSource).toMatchObject({
       id: "ai-assisted-essay",
       title: expect.stringMatching(/AI-assisted essay/i),
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     });
 
     const operator = await getWorkspaceItem("user-1", item.id);

@@ -5,17 +5,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { BRAND_PANEL_COLOR } from "@/components/auth/login/login-branding";
-import type { WorkspaceItem } from "@/lib/workspace/types";
+import {
+  isPrivateWorkspaceItem,
+  type WorkspaceItem,
+} from "@/lib/workspace/types";
 import { workspaceItemTitle } from "@/lib/workspace/display";
-import { publicMethodPageUrl } from "@/lib/workspace/method-links";
+import { methodSourcePageUrl } from "@/lib/workspace/method-links";
 
 function methodSpecHref(item: WorkspaceItem): string | undefined {
   if (item.kind !== "method" && item.kind !== "method_participant") {
     return undefined;
   }
-  return publicMethodPageUrl(item.methodSource.id);
+  return methodSourcePageUrl(item.methodSource);
 }
 
 export function WorkspaceItemBanner({
@@ -60,14 +64,14 @@ export function WorkspaceItemBanner({
       <div className="relative mx-auto flex max-w-[1600px] items-center gap-4 px-4 py-2">
         <div className="flex shrink-0 items-center gap-2">
           <Image
-            src="/evaluchat.png"
-            alt="evaluchat"
+            src="/openrigor.png"
+            alt="OpenRigor"
             width={28}
             height={28}
             className="h-7 w-7 object-contain"
           />
           <span className="text-xl font-semibold tracking-tight">
-            evaluchat
+            OpenRigor
           </span>
         </div>
         <div className="flex min-w-0 flex-1 justify-center">
@@ -83,6 +87,15 @@ export function WorkspaceItemBanner({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {isPrivateWorkspaceItem(item) && (
+            <Badge
+              variant="secondary"
+              className="border border-white/25 bg-white/15 text-white hover:bg-white/15"
+              data-testid="private-workspace-badge"
+            >
+              Private
+            </Badge>
+          )}
           {methodHref && (
             <a
               href={methodHref}

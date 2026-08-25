@@ -5,7 +5,12 @@ import type {
   LedgerScopeFilter,
   LedgerSnapshotData,
 } from "@opencanvas/shared";
+import {
+  RepositoryStatusSchema,
+  type RepositoryStatus,
+} from "@opencanvas/shared/research-repository";
 import { LANGGRAPH_API_URL } from "@/constants";
+import { githubErrorStatus } from "./research-repository/github-error-status";
 import {
   FormValidationError,
   resolveFormMarkdown,
@@ -15,6 +20,7 @@ import {
 import type {
   FormValue,
   LedgerSnapshotWorkspaceItem,
+  LedgerSource,
   LedgerWorkspaceItem,
   MethodRunParticipant,
 } from "./types";
@@ -29,8 +35,11 @@ import {
   MethodSource,
   MethodWorkspaceItem,
   PendingMethodInvite,
+  UnusableResearchRepositoryWorkspaceItem,
+  UsableWorkspaceItem,
   WorkspaceItem,
   WorkspaceManifest,
+  isUsableResearchRepository,
 } from "./types";
 import {
   EvidenceLedgerResolutionError,
@@ -55,6 +64,7 @@ import {
   buildEvidenceSnapshotFromMarker,
   EvidenceRunNotConcludedError,
   type EvidenceSnapshot,
+  privateEvidenceTemplateSnapshot,
 } from "./evidence";
 import {
   BUILTIN_APPARATUS_IDS,
@@ -68,11 +78,35 @@ import {
   inviteWorkspaceParticipant,
   sleep,
 } from "@/lib/teaching/invitation-helpers";
+import { readGithubResearchCredentials } from "./research-repository/credentials";
+import {
+  createGithubRepositoryBranch,
+  getGithubInstallationRepository,
+  getGithubRepositoryBranchHead,
+} from "./research-repository/github-app";
+import {
+  discoverPrivateMethods,
+  probeMethodHostInitialization,
+} from "./research-repository/git-adapter";
+import {
+  ResearchRepositoryWorkspaceItemSchema,
+  type PrivateMethodCatalogEntry,
+  type PrivateMethodDefinition,
+  type ResearchRepositoryWorkspaceItem,
+} from "./research-repository/method-host-types";
+import {
+  previewSealSnapshot,
+  type RepositorySealAccess,
+  type SealSnapshotPreview,
+} from "./research-repository/seals";
 
 const MANIFEST_KEY = "manifest";
 const LOCK_KEY = "lock";
 /** Store SDK TTL is in minutes (see @langchain/langgraph-sdk StoreClient.putItem). */
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
+export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
+export const RESEARCH_REPOSITORY_LAYOUT_VERSION = "1.0" as const;
+const PRIVATE_METHOD_DEFAULT_TEMPLATE_ID = "evaluchat-assignment-brief";
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */
 export const workspaceLockTtlMs = { value: 60_000 };
@@ -165,6 +199,23 @@ export class LedgerConfigValidationError extends Error {
   }
 }
 
+export type ResearchRepositoryBindingErrorCode =
+  | "credentials_missing"
+  | "installation_unavailable"
+  | "repository_unavailable"
+  | "repository_public"
+  | "repository_already_bound";
+
+export class ResearchRepositoryBindingError extends Error {
+  constructor(
+    public readonly code: ResearchRepositoryBindingErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "ResearchRepositoryBindingError";
+  }
+}
+
 export function parseCatalogTemplateRef(ref: string): {
   id: string;
   version?: string;
@@ -185,11 +236,42 @@ function namespace(userId: string): string[] {
   return ["workspace_items", userId];
 }
 
+function retainUnusableResearchRepository(
+  value: unknown
+): UnusableResearchRepositoryWorkspaceItem | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const id = typeof raw.id === "string" ? raw.id : undefined;
+  if (!id) return undefined;
+  console.error("[workspace] retained unusable research_repository item", id);
+  return {
+    ...raw,
+    id,
+    kind: "research_repository",
+    unusable: true,
+    updatedAt:
+      typeof raw.updatedAt === "string"
+        ? raw.updatedAt
+        : "1970-01-01T00:00:00.000Z",
+    createdAt:
+      typeof raw.createdAt === "string"
+        ? raw.createdAt
+        : typeof raw.updatedAt === "string"
+          ? raw.updatedAt
+          : "1970-01-01T00:00:00.000Z",
+  } as UnusableResearchRepositoryWorkspaceItem;
+}
+
 function normaliseWorkspaceItem(value: unknown): WorkspaceItem | undefined {
   if (!value || typeof value !== "object") return undefined;
   const item = value as WorkspaceItem & {
     templateSnapshot?: Record<string, unknown>;
   };
+  if (item.kind === "research_repository") {
+    const parsed = ResearchRepositoryWorkspaceItemSchema.safeParse(value);
+    if (parsed.success) return parsed.data;
+    return retainUnusableResearchRepository(value);
+  }
   if (
     item.kind === "markdown_template" &&
     item.templateSnapshot &&
@@ -414,18 +496,37 @@ function createItem(userId: string, templateId: string): WorkspaceItem {
   };
 }
 
+function isSelectableDefaultItem(
+  item: WorkspaceItem | undefined
+): item is UsableWorkspaceItem {
+  return item !== undefined && !("unusable" in item && item.unusable === true);
+}
+
 export async function ensureDefaultWorkspaceItem(
   userId: string
 ): Promise<WorkspaceItem | undefined> {
   return withUserLock(userId, async () => {
     const manifest = await readManifest(userId);
-    const existing = manifest.defaultItemId
+    const pointed = manifest.defaultItemId
       ? manifest.items[manifest.defaultItemId]
-      : Object.values(manifest.items).sort((a, b) =>
-          a.createdAt.localeCompare(b.createdAt)
-        )[0];
+      : undefined;
+    if (pointed && !isSelectableDefaultItem(pointed)) {
+      console.error(
+        "[workspace] skipping unusable default workspace item",
+        pointed.id
+      );
+    }
+    const existing = isSelectableDefaultItem(pointed)
+      ? pointed
+      : Object.values(manifest.items)
+          .filter(isSelectableDefaultItem)
+          .sort((a, b) =>
+            (a.createdAt ?? a.updatedAt).localeCompare(
+              b.createdAt ?? b.updatedAt
+            )
+          )[0];
     if (existing) {
-      if (!manifest.defaultItemId || !manifest.initialized) {
+      if (manifest.defaultItemId !== existing.id || !manifest.initialized) {
         manifest.defaultItemId = existing.id;
         manifest.initialized = true;
         await writeManifest(userId, manifest);
@@ -445,6 +546,7 @@ export async function ensureDefaultWorkspaceItem(
 }
 
 function enrichMethodSource(source: MethodSource): MethodSource {
+  if (source.privateRepository) return source;
   const url = publicMethodPageUrl(source.id);
   if (source.title && source.description && source.url === url) return source;
   const spec = getApparatusSpecification(source.id);
@@ -505,6 +607,349 @@ export async function createWorkspaceItem(
   });
 }
 
+export async function createResearchRepositoryItem(
+  userId: string,
+  input: { repositoryId: number; installationId: number }
+): Promise<ResearchRepositoryWorkspaceItem> {
+  const credentials = await readGithubResearchCredentials(userId);
+  if (!credentials) {
+    throw new ResearchRepositoryBindingError(
+      "credentials_missing",
+      "Connect GitHub before binding a research repository"
+    );
+  }
+  if (credentials.installationId !== input.installationId) {
+    throw new ResearchRepositoryBindingError(
+      "installation_unavailable",
+      "The GitHub installation is not available to this user"
+    );
+  }
+  if (!credentials.repositoryIds.includes(input.repositoryId)) {
+    throw new ResearchRepositoryBindingError(
+      "repository_unavailable",
+      "The repository is not available to this GitHub installation"
+    );
+  }
+
+  const repository = await getGithubInstallationRepository(
+    input.installationId,
+    input.repositoryId
+  );
+  if (!repository.private) {
+    throw new ResearchRepositoryBindingError(
+      "repository_public",
+      "Research repositories must be private"
+    );
+  }
+  return withUserLock(userId, async () => {
+    const manifest = await readManifest(userId);
+    const duplicate = Object.values(manifest.items).some(
+      (item) =>
+        item.kind === "research_repository" &&
+        item.binding?.repositoryId === input.repositoryId
+    );
+    if (duplicate) {
+      throw new ResearchRepositoryBindingError(
+        "repository_already_bound",
+        "This repository is already bound to a workspace item"
+      );
+    }
+
+    let headCommitSha: string;
+    try {
+      headCommitSha = await getGithubRepositoryBranchHead(
+        input.installationId,
+        repository,
+        RESEARCH_REPOSITORY_BRANCH
+      );
+    } catch (error) {
+      if (githubErrorStatus(error) !== 404) {
+        throw error;
+      }
+      const defaultBranchHead = await getGithubRepositoryBranchHead(
+        input.installationId,
+        repository,
+        repository.defaultBranch
+      );
+      let recoveredHeadCommitSha: string | undefined;
+      try {
+        await createGithubRepositoryBranch(
+          input.installationId,
+          repository,
+          RESEARCH_REPOSITORY_BRANCH,
+          defaultBranchHead
+        );
+      } catch (creationError) {
+        const status = githubErrorStatus(creationError);
+        if (status !== 409 && status !== 422) {
+          throw creationError;
+        }
+        try {
+          recoveredHeadCommitSha = await getGithubRepositoryBranchHead(
+            input.installationId,
+            repository,
+            RESEARCH_REPOSITORY_BRANCH
+          );
+        } catch {
+          throw creationError;
+        }
+      }
+      headCommitSha =
+        recoveredHeadCommitSha ??
+        (await getGithubRepositoryBranchHead(
+          input.installationId,
+          repository,
+          RESEARCH_REPOSITORY_BRANCH
+        ));
+    }
+
+    const now = new Date().toISOString();
+    const initialization = await probeMethodHostInitialization(
+      input.installationId,
+      repository,
+      headCommitSha
+    );
+    const item = ResearchRepositoryWorkspaceItemSchema.parse({
+      id: `wi_${randomUUID()}`,
+      ownerId: userId,
+      kind: "research_repository",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+      binding: {
+        provider: "github",
+        repositoryId: input.repositoryId,
+        installationId: input.installationId,
+        branch: RESEARCH_REPOSITORY_BRANCH,
+        layoutVersion: RESEARCH_REPOSITORY_LAYOUT_VERSION,
+        headCommitSha,
+        boundAt: now,
+        ...initialization,
+      },
+    });
+    manifest.initialized = true;
+    manifest.items[item.id] = item;
+    await writeManifest(userId, manifest);
+    return item;
+  });
+}
+
+/** Re-probe every still-authorized Method host after GitHub reconnects. */
+export async function refreshResearchRepositoryBindings(
+  userId: string
+): Promise<void> {
+  const credentials = await readGithubResearchCredentials(userId);
+  if (!credentials?.installationId) return;
+
+  const manifest = await readManifest(userId);
+  const bindings = Object.values(manifest.items).filter(
+    (item): item is ResearchRepositoryWorkspaceItem =>
+      isUsableResearchRepository(item) &&
+      item.ownerId === userId &&
+      item.binding.installationId === credentials.installationId &&
+      credentials.repositoryIds.includes(item.binding.repositoryId)
+  );
+  const refreshed = (
+    await Promise.all(
+      bindings.map(async (item) => {
+        try {
+          const repository = await getGithubInstallationRepository(
+            item.binding.installationId,
+            item.binding.repositoryId
+          );
+          if (!repository.private) return undefined;
+          const headCommitSha = await getGithubRepositoryBranchHead(
+            item.binding.installationId,
+            repository,
+            item.binding.branch
+          );
+          const initialization = await probeMethodHostInitialization(
+            item.binding.installationId,
+            repository,
+            headCommitSha
+          );
+          return { itemId: item.id, headCommitSha, initialization };
+        } catch (error) {
+          console.error(
+            "[workspace] Method-host refresh failed",
+            item.id,
+            error instanceof Error ? error.message : "unknown error"
+          );
+          return undefined;
+        }
+      })
+    )
+  ).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  if (refreshed.length === 0) return;
+
+  await withUserLock(userId, async () => {
+    const currentManifest = await readManifest(userId);
+    const now = new Date().toISOString();
+    for (const entry of refreshed) {
+      const item = currentManifest.items[entry.itemId];
+      if (
+        !item ||
+        !isUsableResearchRepository(item) ||
+        item.ownerId !== userId ||
+        item.binding.installationId !== credentials.installationId
+      ) {
+        continue;
+      }
+      currentManifest.items[item.id] =
+        ResearchRepositoryWorkspaceItemSchema.parse({
+          ...item,
+          updatedAt: now,
+          binding: {
+            ...item.binding,
+            headCommitSha: entry.headCommitSha,
+            ...entry.initialization,
+            initializationFailureReason:
+              entry.initialization.initializationFailureReason,
+          },
+        });
+    }
+    await writeManifest(userId, currentManifest);
+  });
+}
+
+function githubFailureStatus(
+  item: ResearchRepositoryWorkspaceItem,
+  error: unknown,
+  missingReason: "repository_deleted" | "branch_deleted"
+): RepositoryStatus {
+  const status = githubErrorStatus(error);
+  const message = error instanceof Error ? error.message : "";
+  const transient =
+    (typeof status === "number" && status >= 500) || status === undefined;
+  const failure =
+    status === 404
+      ? { state: "blocked" as const, reason: missingReason }
+      : status === 401
+        ? {
+            state: "read_only" as const,
+            reason: "authorization_required" as const,
+          }
+        : /suspend/i.test(message)
+          ? {
+              state: "blocked" as const,
+              reason: "installation_suspended" as const,
+            }
+          : transient
+            ? {
+                state: "blocked" as const,
+                reason: "github_unavailable" as const,
+              }
+            : {
+                state: "blocked" as const,
+                reason: "permission_lost" as const,
+              };
+  return RepositoryStatusSchema.parse({
+    workspaceId: item.id,
+    repositoryId: item.binding.repositoryId,
+    ...failure,
+    checkedAt: new Date().toISOString(),
+  });
+}
+
+export async function getResearchRepositoryStatus(
+  userId: string,
+  item: ResearchRepositoryWorkspaceItem
+): Promise<RepositoryStatus> {
+  let credentials;
+  try {
+    credentials = await readGithubResearchCredentials(userId);
+  } catch {
+    return RepositoryStatusSchema.parse({
+      workspaceId: item.id,
+      repositoryId: item.binding.repositoryId,
+      state: "blocked",
+      reason: "credential_corrupt",
+      checkedAt: new Date().toISOString(),
+    });
+  }
+  if (
+    !credentials ||
+    credentials.installationId !== item.binding.installationId
+  ) {
+    return RepositoryStatusSchema.parse({
+      workspaceId: item.id,
+      repositoryId: item.binding.repositoryId,
+      state: "disconnected",
+      reason: "disconnected",
+      checkedAt: new Date().toISOString(),
+    });
+  }
+  if (!credentials.repositoryIds.includes(item.binding.repositoryId)) {
+    return RepositoryStatusSchema.parse({
+      workspaceId: item.id,
+      repositoryId: item.binding.repositoryId,
+      state: "blocked",
+      reason: "permission_lost",
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  let repository;
+  try {
+    repository = await getGithubInstallationRepository(
+      item.binding.installationId,
+      item.binding.repositoryId
+    );
+  } catch (error) {
+    return githubFailureStatus(item, error, "repository_deleted");
+  }
+  if (!repository.private) {
+    return RepositoryStatusSchema.parse({
+      workspaceId: item.id,
+      repositoryId: item.binding.repositoryId,
+      state: "read_only",
+      reason: "repository_public",
+      readonlyReason: "repository_public",
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  let headCommitSha;
+  try {
+    headCommitSha = await getGithubRepositoryBranchHead(
+      item.binding.installationId,
+      repository,
+      item.binding.branch
+    );
+  } catch (error) {
+    return githubFailureStatus(item, error, "branch_deleted");
+  }
+
+  const [major, minor] = item.binding.layoutVersion
+    .split(".")
+    .map((part) => Number(part));
+  const [supportedMajor, supportedMinor] =
+    RESEARCH_REPOSITORY_LAYOUT_VERSION.split(".").map((part) => Number(part));
+  if (major !== supportedMajor || minor !== supportedMinor) {
+    return RepositoryStatusSchema.parse({
+      workspaceId: item.id,
+      repositoryId: item.binding.repositoryId,
+      state: "read_only",
+      reason:
+        major === supportedMajor
+          ? "unsupported_layout_minor"
+          : "unsupported_layout_major",
+      layoutVersion: item.binding.layoutVersion,
+      headCommitSha,
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  return RepositoryStatusSchema.parse({
+    workspaceId: item.id,
+    repositoryId: item.binding.repositoryId,
+    state: "ready",
+    layoutVersion: item.binding.layoutVersion,
+    headCommitSha,
+    checkedAt: new Date().toISOString(),
+  });
+}
+
 export async function createMethodWorkspaceItem(
   userId: string,
   methodId: string
@@ -557,6 +1002,374 @@ export async function createMethodWorkspaceItem(
     manifest.initialized = true;
     manifest.items[item.id] = item;
     await writeManifest(userId, manifest);
+    return item;
+  });
+}
+
+async function resolvePrivateMethodHost(
+  userId: string,
+  repositoryItem: ResearchRepositoryWorkspaceItem
+) {
+  const credentials = await readGithubResearchCredentials(userId);
+  if (
+    !credentials ||
+    credentials.installationId !== repositoryItem.binding.installationId ||
+    !credentials.repositoryIds.includes(repositoryItem.binding.repositoryId)
+  ) {
+    throw new UnsupportedMethodError();
+  }
+  const repository = await getGithubInstallationRepository(
+    repositoryItem.binding.installationId,
+    repositoryItem.binding.repositoryId
+  );
+  if (!repository.private) throw new UnsupportedMethodError();
+  const commitSha = await getGithubRepositoryBranchHead(
+    repositoryItem.binding.installationId,
+    repository,
+    repositoryItem.binding.branch
+  );
+  const discovery = await discoverPrivateMethods(
+    repositoryItem.binding.installationId,
+    repository,
+    commitSha
+  );
+  return { commitSha, credentials, repository, discovery };
+}
+
+/** Selected, currently conforming private Methods for the Create catalog. */
+export async function listSelectedPrivateMethods(
+  userId: string
+): Promise<PrivateMethodCatalogEntry[]> {
+  const manifest = await readManifest(userId);
+  const repositoryItems = Object.values(manifest.items).filter(
+    (item): item is ResearchRepositoryWorkspaceItem =>
+      isUsableResearchRepository(item) &&
+      item.ownerId === userId &&
+      item.status === "active" &&
+      item.selectedMethodIds.length > 0
+  );
+  const results = await Promise.all(
+    repositoryItems.map(async (item) => {
+      try {
+        const { commitSha, discovery } = await resolvePrivateMethodHost(
+          userId,
+          item
+        );
+        const selected = new Set(item.selectedMethodIds);
+        return discovery.methods
+          .filter((method) => selected.has(method.id))
+          .map(({ id, title, description }) => ({
+            id,
+            title,
+            description,
+            repositoryItemId: item.id,
+            repositoryId: item.binding.repositoryId,
+            commitSha,
+          }));
+      } catch (error) {
+        console.error(
+          "[workspace] failed to list selected private Methods",
+          item.id,
+          error instanceof Error ? error.name : "unknown error"
+        );
+        return [];
+      }
+    })
+  );
+  return results
+    .flat()
+    .sort((left, right) =>
+      `${left.title ?? left.id}:${left.repositoryItemId}`.localeCompare(
+        `${right.title ?? right.id}:${right.repositoryItemId}`
+      )
+    );
+}
+
+function privateMethodTemplate(definition: PrivateMethodDefinition) {
+  const requestedTemplateId = definition.runBriefTemplate
+    ? parseCatalogTemplateRef(definition.runBriefTemplate).id
+    : PRIVATE_METHOD_DEFAULT_TEMPLATE_ID;
+  for (const templateId of [
+    requestedTemplateId,
+    PRIVATE_METHOD_DEFAULT_TEMPLATE_ID,
+  ]) {
+    try {
+      const snapshot = snapshotFromTemplate(templateId);
+      if (snapshot.kind === "form") return { templateId, snapshot };
+    } catch {
+      // Private metadata is data. An unknown template uses the platform default.
+    }
+  }
+  throw new UnsupportedMethodError();
+}
+
+export async function createPrivateMethodWorkspaceItem(
+  userId: string,
+  repositoryItemId: string,
+  methodId: string
+): Promise<MethodWorkspaceItem> {
+  const manifest = await readManifest(userId);
+  const repositoryItem = manifest.items[repositoryItemId];
+  if (
+    !repositoryItem ||
+    !isUsableResearchRepository(repositoryItem) ||
+    repositoryItem.ownerId !== userId ||
+    repositoryItem.status !== "active" ||
+    !repositoryItem.selectedMethodIds.includes(methodId)
+  ) {
+    throw new UnsupportedMethodError();
+  }
+
+  const { commitSha, discovery } = await resolvePrivateMethodHost(
+    userId,
+    repositoryItem
+  );
+  const definition = discovery.methods.find((method) => method.id === methodId);
+  if (!definition) throw new UnsupportedMethodError();
+  const { templateId, snapshot } = privateMethodTemplate(definition);
+  const fallbackProfile = {
+    id: DEFAULT_METHOD_PROFILE_ID,
+    label: "Default apparatus profile",
+  };
+  const profiles =
+    definition.profiles.length > 0 ? definition.profiles : [fallbackProfile];
+  const now = new Date().toISOString();
+  const item: MethodWorkspaceItem = {
+    id: `wi_${randomUUID()}`,
+    ownerId: userId,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    source: {
+      catalogRevision: snapshot.catalogRevision,
+      templateId,
+      templateVersion: snapshot.templateVersion,
+      sourcePath: snapshot.sourcePath,
+    },
+    kind: "method",
+    templateSnapshot: snapshot.templateSnapshot,
+    methodSource: {
+      id: definition.id,
+      version: definition.version || commitSha,
+      title: definition.title,
+      description: definition.description,
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: repositoryItem.binding.repositoryId,
+        commitSha,
+      },
+    },
+    profileId: profiles[0]?.id ?? DEFAULT_METHOD_PROFILE_ID,
+    profiles,
+    privateEvidenceTemplate: privateEvidenceTemplateSnapshot(
+      definition.evidenceTemplateMarkdown,
+      definition.id,
+      commitSha
+    ),
+  };
+
+  return withUserLock(userId, async () => {
+    const currentManifest = await readManifest(userId);
+    const currentRepositoryItem = currentManifest.items[repositoryItemId];
+    if (
+      !currentRepositoryItem ||
+      !isUsableResearchRepository(currentRepositoryItem) ||
+      currentRepositoryItem.ownerId !== userId ||
+      !currentRepositoryItem.selectedMethodIds.includes(methodId)
+    ) {
+      throw new UnsupportedMethodError();
+    }
+    currentManifest.initialized = true;
+    currentManifest.items[item.id] = item;
+    await writeManifest(userId, currentManifest);
+    return item;
+  });
+}
+
+function ledgerConfigFromSeal(preview: SealSnapshotPreview): LedgerConfig {
+  return {
+    methodId: preview.snapshotData.methodId,
+    methodVersion: preview.snapshotData.methodVersion,
+    templateId: preview.snapshotData.templateId,
+    templateVersion: preview.snapshotData.templateVersion,
+    filters: [],
+  };
+}
+
+function ledgerResolutionFromSeal(
+  preview: SealSnapshotPreview
+): EvidenceLedgerResolution {
+  const manifest = preview.snapshotData.manifest as {
+    contributions?: EvidenceLedgerResolution["contributions"];
+  };
+  const contributions = Array.isArray(manifest.contributions)
+    ? manifest.contributions
+    : [];
+  return {
+    methods: [],
+    contributions,
+    acceptedEvidence: contributions,
+    scope: {
+      filters: [],
+      baselineCount: preview.snapshotData.buckets.Included,
+      bucketCounts: preview.snapshotData.buckets,
+    },
+    manifest: {
+      methods: [],
+      filters: [],
+      contributions,
+    },
+    manifestHash: preview.configurationHash,
+  };
+}
+
+async function privateLedgerSealPreview(
+  userId: string,
+  source: LedgerSource,
+  options: {
+    snapshotId?: string;
+    reviewedAt?: string;
+    expectedHeadCommitSha?: string;
+  } = {}
+): Promise<SealSnapshotPreview> {
+  const provenance = source.privateRepository;
+  if (!provenance) {
+    throw new LedgerConfigValidationError(
+      "Private ledger provenance is unavailable"
+    );
+  }
+  const manifest = await readManifest(userId);
+  const repositoryItem = manifest.items[provenance.repositoryItemId];
+  if (
+    !repositoryItem ||
+    !isUsableResearchRepository(repositoryItem) ||
+    repositoryItem.ownerId !== userId ||
+    repositoryItem.binding.repositoryId !== provenance.repositoryId
+  ) {
+    throw new WorkspaceItemNotFoundError();
+  }
+  const credentials = await readGithubResearchCredentials(userId);
+  if (
+    !credentials ||
+    credentials.installationId !== repositoryItem.binding.installationId ||
+    !credentials.repositoryIds.includes(repositoryItem.binding.repositoryId)
+  ) {
+    throw new LedgerConfigValidationError(
+      "Private Method repository is disconnected"
+    );
+  }
+  const repository = await getGithubInstallationRepository(
+    repositoryItem.binding.installationId,
+    repositoryItem.binding.repositoryId
+  );
+  if (!repository.private) {
+    throw new LedgerConfigValidationError(
+      "Private Method repository is no longer private"
+    );
+  }
+  const access: RepositorySealAccess = {
+    binding: repositoryItem.binding,
+    credentials,
+    repository,
+  };
+  return previewSealSnapshot(access, {
+    methodId: source.methodId,
+    ...options,
+  });
+}
+
+function loadedLedgerSourceFromSeal(
+  preview: SealSnapshotPreview
+): LoadedLedgerSource {
+  const config = ledgerConfigFromSeal(preview);
+  const template = {
+    id: "evidence-template" as const,
+    version: config.templateVersion,
+    path: `methods/${config.methodId}/evidence-template.en.md`,
+    dimensions: [],
+  };
+  return {
+    method: {
+      id: config.methodId,
+      version: config.methodVersion,
+      path: `methods/${config.methodId}/${config.methodId}.en.md`,
+      evidenceTemplate: template,
+    },
+    template,
+    contributions: ledgerResolutionFromSeal(preview).contributions,
+    sourceCommit: preview.sealedFromCommit,
+  };
+}
+
+export async function createPrivateLedgerWorkspaceItem(
+  userId: string,
+  repositoryItemId: string,
+  methodId: string
+): Promise<LedgerWorkspaceItem> {
+  const manifest = await readManifest(userId);
+  const repositoryItem = manifest.items[repositoryItemId];
+  if (
+    !repositoryItem ||
+    !isUsableResearchRepository(repositoryItem) ||
+    repositoryItem.ownerId !== userId ||
+    !repositoryItem.selectedMethodIds.includes(methodId)
+  ) {
+    throw new LedgerNotReadyError();
+  }
+  const { commitSha, credentials, repository, discovery } =
+    await resolvePrivateMethodHost(userId, repositoryItem);
+  const method = discovery.methods.find(
+    (candidate) => candidate.id === methodId
+  );
+  if (!method) throw new LedgerNotReadyError();
+  const preview = await previewSealSnapshot(
+    {
+      binding: { ...repositoryItem.binding, headCommitSha: commitSha },
+      credentials,
+      repository,
+    },
+    { methodId }
+  );
+  const ledgerConfig = ledgerConfigFromSeal(preview);
+  const now = new Date().toISOString();
+  const item: LedgerWorkspaceItem = {
+    id: `wi_${randomUUID()}`,
+    ownerId: userId,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    kind: "ledger",
+    ledgerConfig,
+    snapshotIds: [],
+    source: {
+      methodId: ledgerConfig.methodId,
+      methodVersion: ledgerConfig.methodVersion,
+      templateId: ledgerConfig.templateId,
+      templateVersion: ledgerConfig.templateVersion,
+      sourceCommit: preview.sealedFromCommit,
+      methodTitle: method.title,
+      baselineAcceptedEvidenceCount: preview.snapshotData.buckets.Included,
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: repositoryItem.binding.repositoryId,
+        commitSha,
+      },
+    },
+  };
+  return withUserLock(userId, async () => {
+    const currentManifest = await readManifest(userId);
+    const currentRepositoryItem = currentManifest.items[repositoryItemId];
+    if (
+      !currentRepositoryItem ||
+      !isUsableResearchRepository(currentRepositoryItem) ||
+      currentRepositoryItem.ownerId !== userId ||
+      !currentRepositoryItem.selectedMethodIds.includes(methodId)
+    ) {
+      throw new LedgerNotReadyError();
+    }
+    currentManifest.initialized = true;
+    currentManifest.items[item.id] = item;
+    await writeManifest(userId, currentManifest);
     return item;
   });
 }
@@ -683,7 +1496,30 @@ async function resolveLedgerConfig(
   config: LedgerConfig;
   source: LoadedLedgerSource;
   resolution: EvidenceLedgerResolution;
+  sealPreview?: SealSnapshotPreview;
 }> {
+  if (item.source.privateRepository) {
+    const config =
+      candidate === undefined
+        ? item.ledgerConfig
+        : parseLedgerConfig(candidate, item.ledgerConfig);
+    if (
+      config.methodId !== item.source.methodId ||
+      config.templateId !== item.source.templateId ||
+      config.filters.length > 0
+    ) {
+      throw new LedgerConfigValidationError(
+        "Private repository seals use their scan-derived configuration"
+      );
+    }
+    const preview = await privateLedgerSealPreview(item.ownerId, item.source);
+    return {
+      config: ledgerConfigFromSeal(preview),
+      source: loadedLedgerSourceFromSeal(preview),
+      resolution: ledgerResolutionFromSeal(preview),
+      sealPreview: preview,
+    };
+  }
   const config =
     candidate === undefined
       ? item.ledgerConfig
@@ -870,7 +1706,7 @@ export async function createLedgerSnapshotItem(
     }
     return ledger;
   });
-  const { config, source, resolution } = await resolveLedgerConfig(
+  const { config, source, resolution, sealPreview } = await resolveLedgerConfig(
     ledger,
     candidate
   );
@@ -893,22 +1729,24 @@ export async function createLedgerSnapshotItem(
 
     const now = new Date().toISOString();
     const predicate = predicateFor(config, source);
-    const snapshotHeader: LedgerSnapshotData = {
-      ledgerId: `ledger_${randomUUID()}`,
-      methodId: config.methodId,
-      methodVersion: config.methodVersion,
-      templateId: config.templateId,
-      templateVersion: config.templateVersion,
-      filters: config.filters,
-      manifest: resolution.manifest,
-      inputFingerprint: fingerprint,
-      renderHash: "",
-      buckets: resolution.scope.bucketCounts,
-      predicate,
-      generatedAt: now,
-      resolverVersion: "1.0.0",
-      sourceCommit: source.sourceCommit,
-    };
+    const snapshotHeader: LedgerSnapshotData = sealPreview
+      ? { ...sealPreview.snapshotData, renderHash: "" }
+      : {
+          ledgerId: `ledger_${randomUUID()}`,
+          methodId: config.methodId,
+          methodVersion: config.methodVersion,
+          templateId: config.templateId,
+          templateVersion: config.templateVersion,
+          filters: config.filters,
+          manifest: resolution.manifest,
+          inputFingerprint: fingerprint,
+          renderHash: "",
+          buckets: resolution.scope.bucketCounts,
+          predicate,
+          generatedAt: now,
+          resolverVersion: "1.0.0",
+          sourceCommit: source.sourceCommit,
+        };
     snapshotHeader.renderHash = ledgerRenderHash(snapshotHeader, config);
     const snapshot: LedgerSnapshotWorkspaceItem = {
       id: `wi_${randomUUID()}`,
@@ -1642,10 +2480,16 @@ export async function deleteWorkspaceItem(
 export async function getWorkspaceItem(
   userId: string,
   itemId: string
-): Promise<WorkspaceItem | undefined> {
+): Promise<UsableWorkspaceItem | undefined> {
   const manifest = await readManifest(userId);
   const item = manifest.items[itemId];
   if (!item || item.ownerId !== userId || item.status !== "active") {
+    return undefined;
+  }
+  if (
+    item.kind === "research_repository" &&
+    !isUsableResearchRepository(item)
+  ) {
     return undefined;
   }
   if (item.kind === "method" && item.run) {
@@ -1653,7 +2497,61 @@ export async function getWorkspaceItem(
       await reconcileMethodRunSubmissions(userId, item)
     );
   }
-  return enrichWorkspaceItem(item);
+  return enrichWorkspaceItem(item as UsableWorkspaceItem);
+}
+
+export async function updateResearchRepositoryBindingHead(
+  userId: string,
+  itemId: string,
+  headCommitSha: string
+): Promise<ResearchRepositoryWorkspaceItem> {
+  return withUserLock(userId, async () => {
+    const manifest = await readManifest(userId);
+    const item = manifest.items[itemId];
+    if (
+      !item ||
+      !isUsableResearchRepository(item) ||
+      item.ownerId !== userId ||
+      item.status !== "active"
+    ) {
+      throw new WorkspaceItemNotFoundError();
+    }
+    const updated = ResearchRepositoryWorkspaceItemSchema.parse({
+      ...item,
+      updatedAt: new Date().toISOString(),
+      binding: { ...item.binding, headCommitSha },
+    });
+    manifest.items[itemId] = updated;
+    await writeManifest(userId, manifest);
+    return updated;
+  });
+}
+
+export async function updateResearchRepositoryMethodSelection(
+  userId: string,
+  itemId: string,
+  selectedMethodIds: readonly string[]
+): Promise<ResearchRepositoryWorkspaceItem> {
+  return withUserLock(userId, async () => {
+    const manifest = await readManifest(userId);
+    const item = manifest.items[itemId];
+    if (
+      !item ||
+      !isUsableResearchRepository(item) ||
+      item.ownerId !== userId ||
+      item.status !== "active"
+    ) {
+      throw new WorkspaceItemNotFoundError();
+    }
+    const updated = ResearchRepositoryWorkspaceItemSchema.parse({
+      ...item,
+      updatedAt: new Date().toISOString(),
+      selectedMethodIds: [...new Set(selectedMethodIds)].sort(),
+    });
+    manifest.items[itemId] = updated;
+    await writeManifest(userId, manifest);
+    return updated;
+  });
 }
 
 /** Read a sealed snapshot owned by the active workspace user. */
@@ -1675,6 +2573,7 @@ export async function updateLedgerSnapshotPublication(
   update: {
     publication?: LedgerSnapshotWorkspaceItem["publication"];
     renderHash?: string;
+    privatePublication?: LedgerSnapshotWorkspaceItem["privatePublication"];
   }
 ): Promise<LedgerSnapshotWorkspaceItem> {
   return withUserLock(userId, async () => {
@@ -1693,6 +2592,9 @@ export async function updateLedgerSnapshotPublication(
       ...(update.publication === undefined
         ? {}
         : { publication: update.publication }),
+      ...(update.privatePublication === undefined
+        ? {}
+        : { privatePublication: update.privatePublication }),
       snapshot:
         update.renderHash === undefined
           ? item.snapshot

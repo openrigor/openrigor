@@ -1,7 +1,7 @@
 /**
  * Real-auth helpers for the @regression Playwright suite in the OSS repo.
  * The suite runs headless against the LIVE dev deployment by default
- * (E2E_BASE_URL=https://dev.evaluchat.org). Creds must be EXPORTED IN THE
+ * (E2E_BASE_URL=https://dev.openrigor.org). Creds must be EXPORTED IN THE
  * SHELL — never read from .env.local. We fail hard when required env is
  * missing; never silent-skip.
  */
@@ -16,7 +16,7 @@ export function baseUrl(): string {
   return (
     process.env.E2E_BASE_URL ||
     test.info().project.use.baseURL ||
-    "https://dev.evaluchat.org"
+    "https://dev.openrigor.org"
   );
 }
 

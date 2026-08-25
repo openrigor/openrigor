@@ -118,8 +118,8 @@ export function AssistantProvider({
     ({
       assistant_id: assistantId,
       graph_id: "agent",
-      name: "evaluchat",
-      description: "evaluchat workspace assistant",
+      name: "OpenRigor",
+      description: "OpenRigor workspace assistant",
       metadata: { workspace: true },
       config: { configurable: {} },
       created_at: new Date().toISOString(),

@@ -287,6 +287,9 @@ export function WorkspaceCanvas() {
   }
 
   const evidenceThreadId = searchParams.get("evidence");
+  if (item.kind === "research_repository") {
+    return null;
+  }
   if (item.kind === "ledger") {
     return <LedgerCanvas item={item} />;
   }

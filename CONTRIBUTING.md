@@ -1,6 +1,6 @@
-# Contributing to Evaluchat
+# Contributing to OpenRigor
 
-Thanks for your interest! Evaluchat is a small, independent open-source
+Thanks for your interest! OpenRigor is a small, independent open-source
 project — a continuation of LangChain Open Canvas. Contributions are welcome.
 
 ## Ground rules
@@ -25,7 +25,7 @@ This project runs on a simple contract for what lives where:
     project's public roadmap, so please search before opening and add a 👍 to
     existing requests instead of duplicating them.
 - **Internal project notes and tech debt are not issues.** They live on the
-  [Evaluchat Board](https://github.com/users/evaluchat/projects/1) as draft
+  [OpenRigor Board](https://github.com/openrigor/openrigor/issues) as draft
   items in Backlog.
 - **The board is the state machine.** Columns: Backlog (accepted, not started)
   → Ready → In progress → In review → Done. Board status and issue state are
@@ -40,7 +40,7 @@ maintainers would rather re-home an item than miss a real report.
 ## Setup
 
 ```bash
-git clone https://github.com/evaluchat/evaluchat.git
+git clone https://github.com/openrigor/openrigor.git
 cd canvas
 yarn install
 ```
@@ -85,6 +85,15 @@ files only. Don't reformat unrelated files — it pollutes the PR.
 - [ ] `yarn build` passes
 - [ ] New/changed behaviour is covered by a test where practical
 - [ ] Description explains what and why, plus how it was tested
+
+## Documentation routing
+
+This repo holds **contributor dev docs only** (`docs/contributing/`, `docs/electron-desktop/`).
+
+- **Product behavior, feature design, and platform security** → [openrigor/knowledge](https://github.com/openrigor/knowledge) (knowledge.openrigor.org)
+- **Research methodology governance** (review protocol, contribution ladder, evidence roles) → [openrigor/research](https://github.com/openrigor/research) (research.openrigor.org)
+
+Do not add ADRs, feature specs, marketing HTML, or orchestration plans under `docs/` in this repository.
 
 ## License
 

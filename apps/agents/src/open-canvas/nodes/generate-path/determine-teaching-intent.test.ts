@@ -109,7 +109,7 @@ describe("determineTeachingIntent", () => {
     const result = await determineTeachingIntent({
       state: {
         _messages: [
-          new HumanMessage("write some tips about evaluchat in the canvas"),
+          new HumanMessage("write some tips about OpenRigor in the canvas"),
         ],
         phase_state: undefined,
         apparatusConfiguration: undefined,
@@ -209,7 +209,7 @@ describe("determineTeachingIntent", () => {
     const result = await determineTeachingIntent({
       state: {
         _messages: [
-          new HumanMessage("write some tips about evaluchat in the canvas"),
+          new HumanMessage("write some tips about OpenRigor in the canvas"),
         ],
         phase_state: undefined,
         apparatusConfiguration: {

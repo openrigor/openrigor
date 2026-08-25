@@ -96,7 +96,7 @@ export const AskOpenCanvas = forwardRef<HTMLDivElement, AskOpenCanvasProps>(
           >
             <Input
               className="w-full transition-all duration-300 focus:ring-0 ease-in-out p-1 focus:outline-none border-0 focus-visible:ring-0"
-              placeholder="Ask evaluchat..."
+              placeholder="Ask OpenRigor..."
               autoFocus
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -121,7 +121,7 @@ export const AskOpenCanvas = forwardRef<HTMLDivElement, AskOpenCanvasProps>(
             onClick={() => setIsInputVisible(true)}
             className="transition-all duration-300 ease-in-out w-full"
           >
-            Ask evaluchat
+            Ask OpenRigor
           </Button>
         )}
       </div>

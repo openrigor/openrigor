@@ -1,8 +1,8 @@
 /** Shared copy for the login brand panel / footer. */
 export const DOCS_URL =
-  "https://knowledge.evaluchat.org/concepts/overview.html";
-export const COPYRIGHT_NOTICE = "© 2026 evaluchat. All rights reserved.";
-export const SUPPORT_EMAIL = "hello@evaluchat.org";
+  "https://knowledge.openrigor.org/concepts/overview.html";
+export const COPYRIGHT_NOTICE = "© 2026 OpenRigor. All rights reserved.";
+export const SUPPORT_EMAIL = "hello@openrigor.org";
 export const PRIVACY_PATH = "/privacy";
 export const TERMS_PATH = "/terms";
 
@@ -13,7 +13,7 @@ export const TERMS_PATH = "/terms";
 export const LOGIN_PRICING_SUMMARY =
   "PUBLIC BETA - Open education research workspace; no billing in this release.";
 
-/** Login panel / docs `.site-header` brand blue (`docs/assets/style.css --brand`). */
+/** Login panel / knowledge site `.site-header` brand blue. */
 export const BRAND_PANEL_COLOR = "#2c3e56";
 
 /**

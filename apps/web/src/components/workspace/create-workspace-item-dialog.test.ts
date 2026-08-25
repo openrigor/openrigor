@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildWorkspaceItemCreateBody } from "./create-workspace-item-dialog";
+import {
+  buildWorkspaceItemCreateBody,
+  catalogResultBadge,
+  catalogResultTitle,
+  workspaceItemCreationKinds,
+} from "./create-workspace-item-dialog";
 
 describe("CreateWorkspaceItemDialog request bodies", () => {
   it("creates a plain method item request body", () => {
@@ -8,9 +13,44 @@ describe("CreateWorkspaceItemDialog request bodies", () => {
     ).toEqual({ kind: "method", methodId: "method-1" });
   });
 
+  it("includes the bound repository reference for a private Method", () => {
+    expect(
+      buildWorkspaceItemCreateBody({
+        id: "method-1",
+        kind: "method",
+        private: true,
+        repositoryItemId: "wi_repository",
+      })
+    ).toEqual({
+      kind: "method",
+      methodId: "method-1",
+      repositoryItemId: "wi_repository",
+    });
+  });
+
+  it("marks private Methods in the Create list", () => {
+    expect(catalogResultTitle({ title: "Owner Method", private: true })).toBe(
+      "Owner Method (Private)"
+    );
+    expect(catalogResultTitle({ title: "Catalog Method" })).toBe(
+      "Catalog Method"
+    );
+    expect(catalogResultBadge({ private: true })).toBe("Private");
+    expect(catalogResultBadge({})).toBeUndefined();
+  });
+
   it("creates an Evidence Ledger item request body", () => {
     expect(
       buildWorkspaceItemCreateBody({ id: "ledger-demo-method", kind: "ledger" })
     ).toEqual({ kind: "ledger", methodId: "ledger-demo-method" });
+  });
+
+  it("never offers private repository bindings as workspace item kinds", () => {
+    expect(workspaceItemCreationKinds()).toEqual([
+      "template",
+      "ledger",
+      "method",
+    ]);
+    expect(workspaceItemCreationKinds()).not.toContain("research_repository");
   });
 });

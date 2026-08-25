@@ -6,6 +6,8 @@ const harness = vi.hoisted(() => ({
   listApparatuses: vi.fn(),
   searchTemplates: vi.fn(),
   listResearchedMethods: vi.fn(),
+  listSelectedPrivateMethods: vi.fn(),
+  githubResearchEnabled: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/verify_user_server", () => ({
@@ -20,6 +22,12 @@ vi.mock("@/lib/workspace/template-catalog", () => ({
 vi.mock("@/lib/workspace/ledger-source", () => ({
   listResearchedMethods: harness.listResearchedMethods,
 }));
+vi.mock("@/lib/workspace/store", () => ({
+  listSelectedPrivateMethods: harness.listSelectedPrivateMethods,
+}));
+vi.mock("@/lib/research-workspaces-enabled.server", () => ({
+  isGithubResearchWorkspacesEnabled: harness.githubResearchEnabled,
+}));
 
 import { GET } from "./route";
 
@@ -29,6 +37,8 @@ describe("GET /api/workspace/catalog", () => {
     harness.listApparatuses.mockReset();
     harness.searchTemplates.mockReset();
     harness.listResearchedMethods.mockReset();
+    harness.listSelectedPrivateMethods.mockReset();
+    harness.githubResearchEnabled.mockReset();
     harness.verifyUserAuthenticated.mockResolvedValue({
       user: { id: "user-1" },
     });
@@ -40,6 +50,85 @@ describe("GET /api/workspace/catalog", () => {
       },
     ]);
     harness.searchTemplates.mockReturnValue([]);
+    harness.githubResearchEnabled.mockReturnValue(false);
+    harness.listSelectedPrivateMethods.mockResolvedValue([]);
+  });
+
+  it("includes every selected private Method with pinned catalog provenance", async () => {
+    harness.githubResearchEnabled.mockReturnValue(true);
+    harness.listSelectedPrivateMethods.mockResolvedValue([
+      {
+        id: "private-method",
+        title: "Private Method",
+        description: "Private description",
+        repositoryItemId: "wi_repository",
+        repositoryId: 101,
+        commitSha: "a".repeat(40),
+      },
+    ]);
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/workspace/catalog?kind=method")
+    );
+
+    expect(await response.json()).toMatchObject({
+      kind: "method",
+      results: [
+        { id: "ai-assisted-essay" },
+        {
+          id: "private-method",
+          title: "Private Method",
+          private: true,
+          repositoryItemId: "wi_repository",
+          commitSha: "a".repeat(40),
+        },
+      ],
+    });
+    expect(harness.listSelectedPrivateMethods).toHaveBeenCalledWith("user-1");
+  });
+
+  it("omits private Methods while the feature flag is off", async () => {
+    harness.githubResearchEnabled.mockReturnValue(false);
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/workspace/catalog?kind=method")
+    );
+
+    const body = await response.json();
+    expect(
+      body.results.some((result: { private?: boolean }) => result.private)
+    ).toBe(false);
+    expect(harness.listSelectedPrivateMethods).not.toHaveBeenCalled();
+  });
+
+  it("marks private Methods in the ledger catalog", async () => {
+    harness.githubResearchEnabled.mockReturnValue(true);
+    harness.listResearchedMethods.mockResolvedValue([]);
+    harness.listSelectedPrivateMethods.mockResolvedValue([
+      {
+        id: "private-method",
+        title: "Private Method",
+        repositoryItemId: "wi_repository",
+        repositoryId: 101,
+        commitSha: "a".repeat(40),
+      },
+    ]);
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/workspace/catalog?kind=ledger")
+    );
+
+    expect(await response.json()).toMatchObject({
+      kind: "ledger",
+      results: [
+        {
+          id: "private-method",
+          private: true,
+          status: "Private repository",
+          repositoryItemId: "wi_repository",
+        },
+      ],
+    });
   });
 
   it("returns selectable methods without an under-construction status", async () => {

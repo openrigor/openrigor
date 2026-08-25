@@ -20,7 +20,7 @@ import {
 import { DOCS_URL } from "@/components/auth/login/login-branding";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
 import { UserMenu } from "./user-menu";
-import { useUserContext } from "@/contexts/UserContext";
+import { UserProvider, useUserContext } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   formatWorkspaceItemDate,
@@ -36,6 +36,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useRouter } from "next/navigation";
 
 function WorkspaceItemTypeIcon({ item }: { item: WorkspaceItem }) {
   const type = workspaceItemType(item);
@@ -82,7 +83,13 @@ export function WorkspaceHome() {
         }
         return response.json() as Promise<{ items?: WorkspaceItem[] }>;
       })
-      .then((body) => setItems(body.items || []))
+      .then((body) =>
+        setItems(
+          (body.items || []).filter(
+            (item) => item.kind !== "research_repository"
+          )
+        )
+      )
       .catch((error) => {
         console.error("Failed to load workspace", error);
         toast({
@@ -92,7 +99,7 @@ export function WorkspaceHome() {
         });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   async function deleteItem() {
     if (!itemToDelete) return;
@@ -231,5 +238,27 @@ export function WorkspaceHome() {
         />
       )}
     </main>
+  );
+}
+
+export function AuthenticatedWorkspaceHome() {
+  const { user, loading } = useUserContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/auth/login");
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+  }
+  return <WorkspaceHome />;
+}
+
+export function WorkspacePageClient() {
+  return (
+    <UserProvider>
+      <AuthenticatedWorkspaceHome />
+    </UserProvider>
   );
 }

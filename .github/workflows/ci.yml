@@ -125,6 +125,18 @@ jobs:
       - name: Build all packages
         run: yarn build
 
+  docs-allowlist:
+    name: Check docs/ allowlist
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Verify docs/ contains only allowed paths
+        run: bash scripts/check-docs-allowlist.sh
+
   template-catalog:
     name: Verify public template catalog snapshot
     permissions:
@@ -137,7 +149,7 @@ jobs:
       - name: Check out public Knowledge templates
         uses: actions/checkout@v6
         with:
-          repository: evaluchat/knowledge
+          repository: openrigor/knowledge
           ref: main
           path: knowledge-source
           persist-credentials: false
@@ -150,7 +162,7 @@ jobs:
           cache: "yarn"
       - name: Install dependencies
         run: yarn install --immutable --mode=skip-build
-      - name: Generate catalog from evaluchat/knowledge@main
+      - name: Generate catalog from openrigor/knowledge@main
         run: yarn generate:templates
         env:
           EVALUCHAT_TEMPLATE_SOURCE_ROOT: ${{ github.workspace }}/knowledge-source/templates

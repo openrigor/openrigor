@@ -64,7 +64,7 @@ describe("workspace item kickers", () => {
       version: "0.1.0",
       title: "AI-assisted essay — constrained dialogic drafting (CAMDLE)",
       description: "Constrained dialogic drafting.",
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     },
     profileId: "canonical-constrained-dialogue",
     profiles: [{ id: "canonical-constrained-dialogue", label: "Canonical" }],

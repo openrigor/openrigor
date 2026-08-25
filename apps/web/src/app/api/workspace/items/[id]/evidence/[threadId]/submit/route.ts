@@ -20,6 +20,13 @@ import {
   WorkspaceItemNotFoundError,
   WorkspaceThreadOwnershipError,
 } from "@/lib/workspace/store";
+import { commitPrivateMethodEvidence } from "@/lib/workspace/research-repository/private-method-writeback";
+import {
+  RepositoryAccessError,
+  repositoryAccessBody,
+  repositoryAccessHttpStatus,
+} from "@/lib/workspace/research-repository/access";
+import { StaleRepositoryError } from "@/lib/workspace/research-repository/git-adapter";
 
 type RouteContext = { params: Promise<{ id: string; threadId: string }> };
 
@@ -73,6 +80,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
       timestampSlug: submissionKey,
     });
     const filePath = evidenceFilePath(loaded.snapshot.methodId, submissionKey);
+    const privateRepository = loaded.item?.methodSource?.privateRepository;
+    if (privateRepository) {
+      const { commitSha } = await commitPrivateMethodEvidence({
+        userId: auth.user.id,
+        provenance: privateRepository,
+        methodId: loaded.snapshot.methodId,
+        filePath,
+        markdown,
+      });
+      await updateEvidenceThreadReference(auth.user.id, id, threadId, {
+        status: "filed",
+        submittedAt: generatedAt,
+      });
+      return NextResponse.json({
+        status: "filed",
+        commitSha,
+        filePath,
+        id: submissionKey,
+        stage: validated.stage,
+        private: true,
+      });
+    }
     const existingPullRequest = await findExistingEvidencePullRequest(
       loaded.snapshot.methodId,
       submissionKey
@@ -128,6 +157,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { error: "Validation failed", issues: error.issues },
         { status: 400 }
+      );
+    }
+    if (error instanceof RepositoryAccessError) {
+      return NextResponse.json(repositoryAccessBody(error), {
+        status: repositoryAccessHttpStatus(error.code),
+      });
+    }
+    if (error instanceof StaleRepositoryError) {
+      return NextResponse.json(
+        {
+          error: "Repository changed; retry the evidence submission",
+          currentHeadCommitSha: error.currentHeadCommitSha,
+        },
+        { status: 409 }
       );
     }
     console.error("[workspace] failed to submit evidence", error);

@@ -12,8 +12,8 @@ export default defineConfig({
     ["line"],
   ],
   use: {
-    // Override per gate: E2E_BASE_URL=https://dev.evaluchat.org | https://evaluchat.org
-    baseURL: process.env.E2E_BASE_URL || "https://dev.evaluchat.org",
+    // Override per gate: E2E_BASE_URL=https://dev.openrigor.org | https://openrigor.org
+    baseURL: process.env.E2E_BASE_URL || "https://dev.openrigor.org",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

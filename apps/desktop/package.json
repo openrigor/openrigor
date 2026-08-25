@@ -1,10 +1,10 @@
 {
   "name": "@opencanvas/desktop",
   "version": "0.1.0",
-  "description": "Evaluchat desktop Workspace (AI-off MVP)",
-  "author": "Evaluchat <noreply@users.noreply.github.com>",
-  "homepage": "https://github.com/evaluchat/evaluchat",
-  "repository": "https://github.com/evaluchat/evaluchat",
+  "description": "OpenRigor desktop Workspace (AI-off MVP)",
+  "author": "OpenRigor <noreply@users.noreply.github.com>",
+  "homepage": "https://github.com/openrigor/openrigor",
+  "repository": "https://github.com/openrigor/openrigor",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {

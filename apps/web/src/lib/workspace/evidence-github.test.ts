@@ -22,19 +22,19 @@ function response(body: unknown, status = 200): Response {
 
 describe("openEvidencePullRequest", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS = "1";
     process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS = "0";
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
     delete process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS;
     delete process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS;
   });
 
-  it("creates the branch and file, waits for lint, and merges a documented experience", async () => {
+  it("creates the branch and file, waits for lint, and files a DRAFT pull request", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response({ object: { sha: "base-sha" } }))
@@ -43,37 +43,36 @@ describe("openEvidencePullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 42,
-          html_url: "https://github.com/evaluchat/research/pull/42",
+          html_url: "https://github.com/openrigor/research/pull/42",
           head: { sha: "head-sha" },
         })
       )
       .mockResolvedValueOnce(
         response({ check_runs: [{ name: "okf-lint", conclusion: "success" }] })
-      )
-      .mockResolvedValueOnce(response({ merged: true }));
+      );
 
     const result = await openEvidencePullRequest(input());
 
     expect(result).toMatchObject({
       number: 42,
-      url: "https://github.com/evaluchat/research/pull/42",
+      url: "https://github.com/openrigor/research/pull/42",
       status: "filed",
       lintConclusion: "success",
     });
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       headers: expect.objectContaining({ Authorization: "Bearer test-token" }),
       signal: expect.any(AbortSignal),
     });
     expect(fetchMock.mock.calls[1]?.[0]).toContain("/git/refs");
     expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ method: "PUT" });
-    expect(fetchMock.mock.calls[4]?.[0]).toContain("check-runs");
-    expect(fetchMock.mock.calls[5]?.[0]).toContain("/pulls/42/merge");
     expect(
-      JSON.parse(String(fetchMock.mock.calls[5]?.[1]?.body))
-    ).toMatchObject({
-      sha: "head-sha",
-    });
+      JSON.parse(String(fetchMock.mock.calls[3]?.[1]?.body))
+    ).toMatchObject({ draft: true });
+    expect(fetchMock.mock.calls[4]?.[0]).toContain("check-runs");
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith("/merge"))
+    ).toBe(false);
   });
 
   it("routes higher stages to human review without checking or merging", async () => {
@@ -85,7 +84,7 @@ describe("openEvidencePullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 43,
-          html_url: "https://github.com/evaluchat/research/pull/43",
+          html_url: "https://github.com/openrigor/research/pull/43",
           head: { sha: "head-sha" },
         })
       )
@@ -115,7 +114,7 @@ describe("openEvidencePullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 44,
-          html_url: "https://github.com/evaluchat/research/pull/44",
+          html_url: "https://github.com/openrigor/research/pull/44",
           head: { sha: "head-sha" },
         })
       )
@@ -140,17 +139,16 @@ describe("openEvidencePullRequest", () => {
     const existing = {
       branch: "evidence/ai-assisted-essay/2026-08-18T12-34-56Z",
       number: 90,
-      url: "https://github.com/evaluchat/research/pull/90",
+      url: "https://github.com/openrigor/research/pull/90",
       headSha: "existing-head-sha",
     };
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       // Reuse path: no branch-create, no file-PUT, no PR-create calls.
-      // Only the okf-lint check + merge.
+      // Only the okf-lint check.
       .mockResolvedValueOnce(
         response({ check_runs: [{ name: "okf-lint", conclusion: "success" }] })
-      )
-      .mockResolvedValueOnce(response({ merged: true }));
+      );
 
     const result = await openEvidencePullRequest({
       ...input(),
@@ -159,10 +157,10 @@ describe("openEvidencePullRequest", () => {
 
     expect(result).toMatchObject({
       number: 90,
-      url: "https://github.com/evaluchat/research/pull/90",
+      url: "https://github.com/openrigor/research/pull/90",
       status: "filed",
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     // Must NOT have created a branch/ref, PUT the file, or POSTed a new PR.
     expect(
       fetchMock.mock.calls.some(([url]) => String(url).includes("/git/refs"))
@@ -173,19 +171,16 @@ describe("openEvidencePullRequest", () => {
     expect(
       fetchMock.mock.calls.some(([url]) => String(url).endsWith("/pulls"))
     ).toBe(false);
-    // Merge bound to the reused PR's head SHA.
     expect(
-      JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))
-    ).toMatchObject({
-      sha: "existing-head-sha",
-    });
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith("/merge"))
+    ).toBe(false);
   });
 
   it("uses the existing pull request but routes to human review above documented-experience", async () => {
     const existing = {
       branch: "evidence/ai-assisted-essay/2026-08-18T12-34-56Z",
       number: 91,
-      url: "https://github.com/evaluchat/research/pull/91",
+      url: "https://github.com/openrigor/research/pull/91",
       headSha: "existing-head-sha",
     };
     const fetchMock = vi
@@ -208,14 +203,14 @@ describe("openEvidencePullRequest", () => {
 
 describe("openLedgerPullRequest", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS = "1";
     process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS = "0";
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
     delete process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS;
     delete process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS;
   });
@@ -240,59 +235,44 @@ describe("openLedgerPullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 85,
-          html_url: "https://github.com/evaluchat/research/pull/85",
+          html_url: "https://github.com/openrigor/research/pull/85",
           head: { sha: "ledger-head-sha" },
         })
       );
 
-  it("auto-approves and squash-merges a ledger when every integrity criterion passes", async () => {
+  it("keeps the PR draft when every integrity criterion passes", async () => {
     const fetchMock = createLedgerPullRequest(vi.spyOn(globalThis, "fetch"))
       .mockResolvedValueOnce(
         response({ check_runs: [{ name: "okf-lint", conclusion: "success" }] })
       )
-      .mockResolvedValueOnce(response({ status: "behind" }))
-      .mockResolvedValueOnce(response({}))
-      .mockResolvedValueOnce(response({ id: 17 }))
-      .mockResolvedValueOnce(response({ merged: true }))
-      .mockResolvedValueOnce(
-        response({
-          state: "closed",
-          merged: true,
-          merged_at: "2026-08-20T10:00:00.000Z",
-        })
-      );
+      .mockResolvedValueOnce(response({ status: "behind" }));
 
     const result = await openLedgerPullRequest(ledgerInput());
 
     expect(result).toMatchObject({
       number: 85,
-      status: "merged",
-      mergedAt: "2026-08-20T10:00:00.000Z",
+      status: "draft",
       lintConclusion: "success",
     });
-    expect(fetchMock).toHaveBeenCalledTimes(10);
+    expect(result).not.toHaveProperty("mergedAt");
+    expect(result).not.toHaveProperty("autoMergeError");
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({
       body: expect.stringContaining('"draft":true'),
     });
     expect(fetchMock.mock.calls[5]?.[0]).toContain("/compare/");
-    expect(fetchMock.mock.calls[6]?.[0]).toContain("/pulls/85");
-    expect(fetchMock.mock.calls[6]?.[1]).toMatchObject({ method: "PATCH" });
-    expect(JSON.parse(String(fetchMock.mock.calls[6]?.[1]?.body))).toEqual({
-      draft: false,
-    });
-    expect(fetchMock.mock.calls[7]?.[0]).toContain("/pulls/85/reviews");
-    const review = JSON.parse(String(fetchMock.mock.calls[7]?.[1]?.body));
-    expect(review).toMatchObject({ event: "APPROVE" });
-    expect(review.body).toContain(
-      "Integrity criteria met (render_hash deterministic, source_commit pinned, consent confirmed, okf-lint pass)."
-    );
-    expect(review.body).toContain("Fingerprint: sha256:abcdef0123456789");
-    expect(fetchMock.mock.calls[8]?.[0]).toContain("/pulls/85/merge");
-    expect(fetchMock.mock.calls[8]?.[1]).toMatchObject({ method: "PUT" });
     expect(
-      JSON.parse(String(fetchMock.mock.calls[8]?.[1]?.body))
-    ).toMatchObject({ merge_method: "squash", sha: "ledger-head-sha" });
-    expect(fetchMock.mock.calls[9]?.[0]).toContain("/pulls/85");
+      fetchMock.mock.calls.some(
+        ([url, request]) =>
+          String(url).endsWith("/pulls/85") && request?.method === "PATCH"
+      )
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/reviews"))
+    ).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith("/merge"))
+    ).toBe(false);
   });
 
   it.each([
@@ -358,65 +338,37 @@ describe("openLedgerPullRequest", () => {
   });
 
   it.each([401, 422])(
-    "keeps the PR draft and surfaces an automatic merge rejection (%i)",
-    async (status) => {
+    "keeps the PR draft without a merge attempt (%i)",
+    async () => {
       const fetchMock = createLedgerPullRequest(vi.spyOn(globalThis, "fetch"))
         .mockResolvedValueOnce(
           response({
             check_runs: [{ name: "okf-lint", conclusion: "success" }],
           })
         )
-        .mockResolvedValueOnce(response({ status: "behind" }))
-        .mockResolvedValueOnce(response({}))
-        .mockResolvedValueOnce(response({ id: 17 }))
-        .mockResolvedValueOnce(
-          response({ message: "ruleset blocked merge" }, status)
-        )
-        .mockResolvedValueOnce(response({ state: "open", merged: false }));
+        .mockResolvedValueOnce(response({ status: "behind" }));
 
       const result = await openLedgerPullRequest(ledgerInput());
 
       expect(result).toMatchObject({
         status: "draft",
-        autoMergeError: `GitHub API ${status}: ruleset blocked merge`,
+        lintConclusion: "success",
       });
+      expect(result).not.toHaveProperty("autoMergeError");
       expect(
         fetchMock.mock.calls.some(([url]) => String(url).includes("/reviews"))
-      ).toBe(true);
+      ).toBe(false);
       expect(
         fetchMock.mock.calls.some(([url]) => String(url).endsWith("/merge"))
-      ).toBe(true);
+      ).toBe(false);
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, request]) =>
+            String(url).endsWith("/pulls/85") && request?.method === "PATCH"
+        )
+      ).toBe(false);
     }
   );
-
-  it("returns merged when the merge request throws after GitHub completes it", async () => {
-    const fetchMock = createLedgerPullRequest(vi.spyOn(globalThis, "fetch"))
-      .mockResolvedValueOnce(
-        response({ check_runs: [{ name: "okf-lint", conclusion: "success" }] })
-      )
-      .mockResolvedValueOnce(response({ status: "behind" }))
-      .mockResolvedValueOnce(response({}))
-      .mockResolvedValueOnce(response({ id: 17 }))
-      .mockRejectedValueOnce(new Error("merge request timed out"))
-      .mockResolvedValueOnce(
-        response({
-          state: "closed",
-          merged: true,
-          merged_at: "2026-08-20T11:00:00.000Z",
-        })
-      );
-
-    const result = await openLedgerPullRequest(ledgerInput());
-
-    expect(result).toMatchObject({
-      number: 85,
-      status: "merged",
-      mergedAt: "2026-08-20T11:00:00.000Z",
-    });
-    expect(result.autoMergeError).toBeUndefined();
-    expect(fetchMock.mock.calls[8]?.[0]).toContain("/pulls/85/merge");
-    expect(fetchMock.mock.calls[9]?.[0]).toContain("/pulls/85");
-  });
 });
 
 describe("ledgerBranch", () => {

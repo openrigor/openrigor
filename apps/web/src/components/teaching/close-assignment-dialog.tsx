@@ -117,7 +117,7 @@ export function CloseAssignmentDialog({
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="closeout-usefulness">
-              How useful was evaluchat for this assignment? (1–5) *
+              How useful was OpenRigor for this assignment? (1–5) *
             </Label>
             <select
               id="closeout-usefulness"

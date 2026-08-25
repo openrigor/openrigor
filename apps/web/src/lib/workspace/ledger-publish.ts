@@ -55,7 +55,7 @@ export function renderLedgerMarkdown(
     `input_fingerprint: ${yamlScalar(snapshot.inputFingerprint)}`,
     `render_hash: ${yamlScalar(renderHash)}`,
     `resolver_version: ${yamlScalar(snapshot.resolverVersion)}`,
-    `generated: { by: ${yamlScalar(`evaluchat-ledger-service/${snapshot.resolverVersion}`)}, at: ${yamlScalar(snapshot.generatedAt)} }`,
+    `generated: { by: ${yamlScalar(`openrigor-ledger-service/${snapshot.resolverVersion}`)}, at: ${yamlScalar(snapshot.generatedAt)} }`,
     "---",
     "",
     body,

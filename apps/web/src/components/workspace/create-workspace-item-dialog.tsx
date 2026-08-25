@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { WorkspaceItem } from "@/lib/workspace/types";
@@ -27,18 +28,49 @@ export type CatalogResult = {
   methodVersion?: string;
   evidenceTemplate?: { id: string; version: string };
   acceptedEvidenceCount?: number;
+  private?: boolean;
+  repositoryItemId?: string;
+  commitSha?: string;
 };
 
+export function workspaceItemCreationKinds() {
+  return ["template", "ledger", "method"] as const;
+}
+
 export function buildWorkspaceItemCreateBody(
-  result: Pick<CatalogResult, "id" | "kind">
+  result: Pick<CatalogResult, "id" | "kind" | "private" | "repositoryItemId">
 ): Record<string, unknown> {
   if (result.kind === "method") {
-    return { kind: "method", methodId: result.id };
+    return {
+      kind: "method",
+      methodId: result.id,
+      ...(result.private && result.repositoryItemId
+        ? { repositoryItemId: result.repositoryItemId }
+        : {}),
+    };
   }
   if (result.kind === "ledger") {
-    return { kind: "ledger", methodId: result.id };
+    return {
+      kind: "ledger",
+      methodId: result.id,
+      ...(result.private && result.repositoryItemId
+        ? { repositoryItemId: result.repositoryItemId }
+        : {}),
+    };
   }
   return { kind: "template", templateId: result.id };
+}
+
+export function catalogResultTitle(
+  result: Pick<CatalogResult, "title" | "private">
+): string {
+  return `${result.title}${result.private ? " (Private)" : ""}`;
+}
+
+export function catalogResultBadge(
+  result: Pick<CatalogResult, "private">
+): "Private" | undefined {
+  return result.private ? "Private" : undefined;
 }
 
 export function CreateWorkspaceItemDialog({
@@ -93,17 +125,21 @@ export function CreateWorkspaceItemDialog({
   }, [open, kind, query]);
 
   async function create(result: CatalogResult) {
+    return createWithBody(buildWorkspaceItemCreateBody(result));
+  }
+
+  async function createWithBody(requestBody: Record<string, unknown>) {
     setCreating(true);
     try {
       const response = await fetch("/api/workspace/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(buildWorkspaceItemCreateBody(result)),
+        body: JSON.stringify(requestBody),
       });
       if (!response.ok) throw new Error("Could not create workspace item");
-      const body = (await response.json()) as { item: WorkspaceItem };
-      onCreated(body.item);
+      const responseBody = (await response.json()) as { item: WorkspaceItem };
+      onCreated(responseBody.item);
       handleOpenChange(false);
     } catch (error) {
       console.error(error);
@@ -151,7 +187,7 @@ export function CreateWorkspaceItemDialog({
           />
         </div>
         <div className="flex gap-2">
-          {(["template", "ledger", "method"] as const).map((option) => (
+          {workspaceItemCreationKinds().map((option) => (
             <Button
               key={option}
               variant={kind === option ? "default" : "outline"}
@@ -182,14 +218,20 @@ export function CreateWorkspaceItemDialog({
           {!loading &&
             results.map((result) => (
               <button
-                key={result.id}
+                key={`${result.id}:${result.repositoryItemId ?? "catalog"}`}
                 type="button"
                 disabled={result.disabled || creating}
                 onClick={() => void create(result)}
+                aria-label={catalogResultTitle(result)}
                 className="w-full rounded-lg border p-4 text-left transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium">{result.title}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{result.title}</span>
+                    {catalogResultBadge(result) && (
+                      <Badge variant="secondary">Private</Badge>
+                    )}
+                  </span>
                   {result.status && (
                     <span className="text-xs text-muted-foreground">
                       {result.status}

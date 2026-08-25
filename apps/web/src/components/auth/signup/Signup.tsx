@@ -70,13 +70,13 @@ export function Signup() {
         <div className="absolute inset-0 bg-zinc-900" />
         <div className="relative z-20 flex gap-1 items-center text-lg font-medium">
           <NextImage
-            src="/evaluchat.png"
+            src="/openrigor.png"
             width={64}
             height={64}
-            alt="evaluchat Logo"
+            alt="OpenRigor Logo"
             className=""
           />
-          evaluchat
+          OpenRigor
         </div>
       </div>
       <div className="lg:p-8">

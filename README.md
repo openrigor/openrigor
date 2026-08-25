@@ -1,18 +1,18 @@
-# Evaluchat
+# OpenRigor
 
-[![CI](https://github.com/evaluchat/evaluchat/actions/workflows/ci.yml/badge.svg)](https://github.com/evaluchat/evaluchat/actions/workflows/ci.yml)
+[![CI](https://github.com/openrigor/openrigor/actions/workflows/ci.yml/badge.svg)](https://github.com/openrigor/openrigor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Open-source AI writing and education research workspace.** Evaluchat combines
+**Open-source AI writing and education research workspace.** OpenRigor combines
 an authoring workspace with reviewed, reproducible research apparatuses so
 educators, administrators, and researchers can run classroom writing workflows
 and inspect the evidence they produce.
 
-Evaluchat is an independent, open-source continuation of
+OpenRigor is an independent, open-source continuation of
 [LangChain Open Canvas](https://github.com/langchain-ai/open-canvas) (MIT). We're
 grateful for the original project — see [Acknowledgments](#acknowledgments).
 
-Try the public beta at [evaluchat.org](https://evaluchat.org), or run it yourself
+Try the public beta at [openrigor.org](https://openrigor.org), or run it yourself
 (local or self-hosted — see [Setup locally](#setup-locally)).
 
 ## Features
@@ -40,14 +40,15 @@ Try the public beta at [evaluchat.org](https://evaluchat.org), or run it yoursel
 | `apps/web`        | Next.js web app (UI + API routes) — `@opencanvas/web`                           |
 | `apps/agents`     | LangGraph agent graphs (generation, reflection, routing) — `@opencanvas/agents` |
 | `packages/shared` | Shared types and utilities — `@opencanvas/shared`                               |
+| `research-starter/` | Layout-1.0 Private Research Starter (SYNTHETIC default)                       |
 
 ## Setup locally
 
 Prerequisites: **Node 22** and **Yarn 1.22** (corepack: `corepack enable`).
 
 ```bash
-git clone https://github.com/evaluchat/evaluchat.git
-cd evaluchat
+git clone https://github.com/openrigor/openrigor.git
+cd openrigor
 yarn install
 ```
 
@@ -102,27 +103,30 @@ before large changes. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Related surfaces
 
-Evaluchat is one of Evaluchat's open surfaces. The same document workspace
+OpenRigor is one of OpenRigor's open surfaces. The same document workspace
 also powers:
 
-- **Evaluchat Essays** — the built-in education apparatus and assignment workflow
-- **Evaluchat Research** — public GitHub-first research on AI in education and assessment
+- **OpenRigor Essays** — the built-in education apparatus and assignment workflow
+- **OpenRigor Research** — public GitHub-first research on AI in education and assessment
 
 ## Beta scope
 
 Direct signup creates an isolated organisation-admin workspace at `/teacher`.
 Invited teachers manage classes, assignments, and student invitations; invited
-students see only assigned work. Research materials are public and there is no
-separate in-app researcher persona. The canonical Essays profile preserves the
-current four-message drafting escape hatch, with valid gate-off, no-AI, and
-no-tracking profiles available for comparison.
+students see only assigned work. Research materials stay public in the beta.
+v0.8 adds a **dark** GitHub-backed private research workspace (flag off).
+[`research-starter/`](research-starter/) is the SYNTHETIC default for that
+flow — no real participants; do not load identifiable classroom data into it.
+The canonical Essays profile preserves the current four-message drafting
+escape hatch, with valid gate-off, no-AI, and no-tracking profiles available
+for comparison.
 
 Desktop/Electron work is paused. Self-hosting guidance is retained, but a
 turnkey self-host install and database migration are not launch deliverables.
 
 ## Acknowledgments
 
-Evaluchat is derived from and inspired by
+OpenRigor is derived from and inspired by
 [LangChain Open Canvas](https://github.com/langchain-ai/open-canvas), licensed under
 the MIT License. The original copyright notice and license text are preserved in
 [LICENSE-LANGCHAIN](LICENSE-LANGCHAIN). We extend our appreciation to the LangChain

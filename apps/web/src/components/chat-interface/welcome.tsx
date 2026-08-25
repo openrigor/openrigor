@@ -171,8 +171,8 @@ export const ThreadWelcome: FC<ThreadWelcomeProps> = (
       <div className="flex items-center justify-center mt-16 w-full">
         <div className="text-center max-w-3xl w-full">
           <NextImage
-            src="/evaluchat.png"
-            alt="evaluchat Logo"
+            src="/openrigor.png"
+            alt="OpenRigor Logo"
             width={96}
             height={96}
             className="mx-auto"
