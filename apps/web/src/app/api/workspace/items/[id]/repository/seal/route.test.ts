@@ -159,6 +159,11 @@ const succeededOperation = {
   ...landedOperation,
   status: "succeeded",
 };
+const failedWithResultOperation = {
+  ...landedOperation,
+  status: "failed",
+  errorCode: "SEAL_LANDED_STORE_UPDATE_FAILED",
+};
 
 function request(body: unknown) {
   return new Request("http://localhost", {
@@ -311,6 +316,65 @@ describe("POST repository seal", () => {
       },
     });
     expect(harness.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers a landed seal after the store response is dropped", async () => {
+    harness.record.mockRejectedValueOnce(new Error("store response dropped"));
+    harness.claim
+      .mockResolvedValueOnce(pendingOperation)
+      .mockResolvedValueOnce(succeededOperation);
+
+    const first = await POST(
+      request({ action: "seal", preview, declarations: confirmedDeclarations }),
+      context
+    );
+    const retry = await POST(
+      request({ action: "seal", preview, declarations: confirmedDeclarations }),
+      context
+    );
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({
+      operationId: "operation-one",
+      commitSha: resultCommitSha,
+      snapshotId: snapshotOne,
+    });
+    expect(harness.commit).toHaveBeenCalledOnce();
+    expect(harness.fail).toHaveBeenCalledWith(
+      "user-1",
+      runningOperation,
+      "SEAL_LANDED_STORE_UPDATE_FAILED",
+      resultCommitSha
+    );
+  });
+
+  it("does not report a landed seal without recovery proof", async () => {
+    harness.record.mockRejectedValueOnce(new Error("result not persisted"));
+    harness.claim
+      .mockResolvedValueOnce(pendingOperation)
+      .mockResolvedValueOnce(failedWithResultOperation);
+
+    const first = await POST(
+      request({ action: "seal", preview, declarations: confirmedDeclarations }),
+      context
+    );
+    const retry = await POST(
+      request({ action: "seal", preview, declarations: confirmedDeclarations }),
+      context
+    );
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(409);
+    expect(await retry.json()).toEqual({
+      error: "repository_operation_recovery_required",
+      operationId: "operation-one",
+      commitSha: resultCommitSha,
+      snapshotId: snapshotOne,
+      nextAction: "reconcile_repository",
+    });
+    expect(harness.commit).toHaveBeenCalledOnce();
+    expect(harness.updateHead).not.toHaveBeenCalled();
   });
 
   it("creates a new superseding snapshot id", async () => {
@@ -467,15 +531,9 @@ describe("POST repository seal", () => {
   });
 
   it("returns a structured 409 when the repository is deleted after the access check", async () => {
-    harness.repository
-      .mockResolvedValueOnce({
-        owner: "octocat",
-        name: "private",
-        private: true,
-      })
-      .mockRejectedValue(
-        Object.assign(new Error("Not Found"), { status: 404 })
-      );
+    harness.repository.mockRejectedValue(
+      Object.assign(new Error("Not Found"), { status: 404 })
+    );
 
     const response = await POST(
       request({ action: "seal", preview, declarations: confirmedDeclarations }),

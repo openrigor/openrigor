@@ -8,12 +8,14 @@ import {
 } from "@/lib/workspace/store";
 import { readGithubResearchCredentials } from "@/lib/workspace/research-repository/credentials";
 import {
+  getRepositoryBranchHead,
   repositoryCommitProvenance,
   StaleRepositoryError,
   type GithubCommitAuthor,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
   RepositoryAccessError,
+  assertRepositoryPrivate,
   assertRepositoryWriteAccess,
   loadInstallationRepository,
   repositoryAccessBody,
@@ -341,23 +343,6 @@ export async function POST(request: Request, context: RouteContext) {
   let repositoryForCommit:
     | { owner: string; name: string; nameWithOwner?: string }
     | undefined;
-  try {
-    const access = await assertRepositoryWriteAccess({
-      installationId: item.binding.installationId,
-      repositoryId: item.binding.repositoryId,
-      branch: item.binding.branch,
-      expectedHeadSha: item.binding.headCommitSha,
-      files: [
-        sealLedgerPath(proposedSnapshotId),
-        sealManifestPath(proposedSnapshotId),
-      ],
-    });
-    repositoryForCommit = access.repository;
-  } catch (error) {
-    const response = sealError(error);
-    if (response) return response;
-    throw error;
-  }
   const baseCommitSha =
     body.action === "seal"
       ? (body.preview.sealedFromCommit ?? item.binding.headCommitSha)
@@ -375,6 +360,19 @@ export async function POST(request: Request, context: RouteContext) {
       idempotencyKey,
       artifactIds: [proposedSnapshotId],
       baseCommitSha,
+      getCurrentHeadCommitSha: async () => {
+        const repository = await loadInstallationRepository(
+          item.binding.installationId,
+          item.binding.repositoryId
+        );
+        repositoryForCommit = repository;
+        assertRepositoryPrivate(repository);
+        return getRepositoryBranchHead(
+          item.binding.installationId,
+          repository,
+          item.binding.branch
+        );
+      },
     });
   } catch (error) {
     const response = sealError(error);
@@ -387,8 +385,19 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const snapshotId = operation.artifactIds[0] ?? proposedSnapshotId;
-  if (operation.resultCommitSha) {
+  if (operation.status === "succeeded" && operation.resultCommitSha) {
     try {
+      if (!repositoryForCommit && preflightCredentials) {
+        try {
+          repositoryForCommit = await loadInstallationRepository(
+            item.binding.installationId,
+            item.binding.repositoryId
+          );
+        } catch {
+          // The durable commit result remains authoritative if the repository
+          // cannot be loaded just to enrich response provenance.
+        }
+      }
       if (item.binding.headCommitSha !== operation.resultCommitSha) {
         await updateResearchRepositoryBindingHead(
           auth.user.id,
@@ -418,6 +427,18 @@ export async function POST(request: Request, context: RouteContext) {
       );
       return json({ error: "Could not record repository seal" }, 500);
     }
+  }
+  if (operation.status === "failed" && operation.resultCommitSha) {
+    return json(
+      {
+        error: "repository_operation_recovery_required",
+        operationId: operation.operationId,
+        commitSha: operation.resultCommitSha,
+        snapshotId,
+        nextAction: "reconcile_repository",
+      },
+      409
+    );
   }
   if (operation.status === "failed") {
     const errorCode = operation.errorCode ?? "REPOSITORY_OPERATION_FAILED";

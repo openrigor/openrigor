@@ -145,26 +145,6 @@ export async function POST(request: Request, context: RouteContext) {
       preflightCredentials.installationId === item.binding.installationId &&
       preflightCredentials.repositoryIds.includes(item.binding.repositoryId)
   );
-  if (preflightAuthorized) {
-    try {
-      const access = await assertRepositoryWriteAccess({
-        installationId: item.binding.installationId,
-        repositoryId: item.binding.repositoryId,
-        branch: item.binding.branch,
-        expectedHeadSha: item.binding.headCommitSha,
-        files: [artifact.path],
-      });
-      repositoryForCommit = access.repository;
-    } catch (error) {
-      if (error instanceof RepositoryAccessError) {
-        return json(
-          repositoryAccessBody(error),
-          repositoryAccessHttpStatus(error.code)
-        );
-      }
-      throw error;
-    }
-  }
 
   let operation;
   try {
@@ -181,6 +161,7 @@ export async function POST(request: Request, context: RouteContext) {
                 item.binding.installationId,
                 item.binding.repositoryId
               );
+              repositoryForCommit = repository;
               assertRepositoryPrivate(repository);
               return getRepositoryBranchHead(
                 item.binding.installationId,
@@ -220,10 +201,7 @@ export async function POST(request: Request, context: RouteContext) {
     return json({ error: "Could not commit repository artifact" }, 500);
   }
 
-  if (
-    (operation.status === "succeeded" || operation.status === "failed") &&
-    operation.resultCommitSha
-  ) {
+  if (operation.status === "succeeded" && operation.resultCommitSha) {
     try {
       if (item.binding.headCommitSha !== operation.resultCommitSha) {
         await updateResearchRepositoryBindingHead(
@@ -257,6 +235,17 @@ export async function POST(request: Request, context: RouteContext) {
       ),
     });
   }
+  if (operation.status === "failed" && operation.resultCommitSha) {
+    return json(
+      {
+        error: "repository_operation_recovery_required",
+        operationId: operation.operationId,
+        commitSha: operation.resultCommitSha,
+        nextAction: "reconcile_repository",
+      },
+      409
+    );
+  }
   if (operation.status === "failed") {
     const errorCode = operation.errorCode ?? "REPOSITORY_OPERATION_FAILED";
     return json(
@@ -275,6 +264,41 @@ export async function POST(request: Request, context: RouteContext) {
     );
     if (!validation.ok) {
       return json({ error: "INVALID_FRONT_MATTER" }, 422);
+    }
+  }
+
+  if (preflightAuthorized) {
+    try {
+      const access = await assertRepositoryWriteAccess({
+        installationId: item.binding.installationId,
+        repositoryId: item.binding.repositoryId,
+        branch: item.binding.branch,
+        expectedHeadSha: item.binding.headCommitSha,
+        files: [artifact.path],
+      });
+      repositoryForCommit = access.repository;
+    } catch (error) {
+      try {
+        await failRepositoryOperation(
+          auth.user.id,
+          operation,
+          error instanceof RepositoryAccessError
+            ? "STALE_REPOSITORY"
+            : "REPOSITORY_ACCESS_FAILED"
+        );
+      } catch (storeError) {
+        console.error(
+          "[github-research] failed to record repository access failure",
+          repositoryRouteErrorDetails(item.id, storeError)
+        );
+      }
+      if (error instanceof RepositoryAccessError) {
+        return json(
+          repositoryAccessBody(error),
+          repositoryAccessHttpStatus(error.code)
+        );
+      }
+      throw error;
     }
   }
 

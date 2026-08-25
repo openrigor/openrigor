@@ -43,6 +43,15 @@ function operationId(idempotencyKey: string): string {
     .slice(0, 16)}`;
 }
 
+function isLandedOperationFailure(operation: RepositoryOperation): boolean {
+  return (
+    operation.status === "failed" &&
+    Boolean(operation.resultCommitSha) &&
+    (operation.errorCode?.startsWith("COMMIT_LANDED_") === true ||
+      operation.errorCode?.startsWith("SEAL_LANDED_") === true)
+  );
+}
+
 async function writeOperation(
   userId: string,
   operation: RepositoryOperation
@@ -89,6 +98,27 @@ export async function claimRepositoryOperation(
 ): Promise<RepositoryOperation> {
   return withUserLock(userId, async () => {
     const existing = await readOperation(userId, input.idempotencyKey);
+    if (existing && isLandedOperationFailure(existing)) {
+      if (!input.getCurrentHeadCommitSha) return existing;
+
+      const currentHeadCommitSha = await input.getCurrentHeadCommitSha();
+      if (currentHeadCommitSha === existing.resultCommitSha) {
+        const completed = RepositoryOperationSchema.parse({
+          ...existing,
+          status: "succeeded",
+          errorCode: undefined,
+          updatedAt: new Date().toISOString(),
+        });
+        await writeOperation(userId, completed);
+        return completed;
+      }
+
+      // A landed result is never cleared merely because the branch moved. The
+      // result proves that GitHub accepted a commit; retrying would create a
+      // second commit without knowing whether the first one was superseded or
+      // force-pushed. Leave the durable failure for an explicit reconcile.
+      return existing;
+    }
     if (
       existing?.status === "failed" &&
       existing.errorCode === "STALE_REPOSITORY"
@@ -126,6 +156,12 @@ export async function claimRepositoryOperation(
         });
         await writeOperation(userId, completed);
         return completed;
+      }
+      if (existing.resultCommitSha) {
+        // A persisted result is proof that the adapter already landed a
+        // commit. Never clear it and retry the GitHub write when the head is no
+        // longer at that exact result; the safe next action is reconciliation.
+        throw new StaleRepositoryError(currentHeadCommitSha);
       }
       if (
         existing.baseCommitSha &&

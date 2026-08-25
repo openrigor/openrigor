@@ -371,6 +371,8 @@ describe("POST repository artifact commit", () => {
       .mockResolvedValueOnce(undefined);
 
     const first = await POST(request(), context);
+    harness.claimOperation.mockReset();
+    harness.claimOperation.mockResolvedValue(succeededOperation);
     const replay = await POST(request(), context);
 
     expect(first.status).toBe(500);
@@ -387,6 +389,55 @@ describe("POST repository artifact commit", () => {
     );
     expect(harness.updateHead).toHaveBeenCalledTimes(2);
     expect(harness.completeOperation).not.toHaveBeenCalled();
+  });
+
+  it("records a landed SHA before surfacing a dropped store response", async () => {
+    harness.recordResult.mockRejectedValueOnce(
+      new Error("store response dropped")
+    );
+    harness.claimOperation
+      .mockResolvedValueOnce(pendingOperation)
+      .mockResolvedValueOnce(succeededOperation);
+
+    const first = await POST(request(), context);
+    const retry = await POST(request(), context);
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({
+      operationId: "operation-one",
+      commitSha: resultCommitSha,
+    });
+    expect(harness.commitArtifacts).toHaveBeenCalledOnce();
+    expect(harness.failOperation).toHaveBeenCalledWith(
+      "user-1",
+      runningOperation,
+      "COMMIT_LANDED_RESULT_RECORD_FAILED",
+      resultCommitSha
+    );
+  });
+
+  it("does not retry after a pre-commit timeout", async () => {
+    harness.commitArtifacts.mockRejectedValueOnce(new Error("adapter timeout"));
+    harness.claimOperation
+      .mockResolvedValueOnce(pendingOperation)
+      .mockResolvedValueOnce({
+        ...runningOperation,
+        status: "failed",
+        errorCode: "COMMIT_FAILED",
+      });
+
+    const first = await POST(request(), context);
+    const retry = await POST(request(), context);
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(500);
+    expect(harness.commitArtifacts).toHaveBeenCalledOnce();
+    expect(harness.failOperation).toHaveBeenCalledWith(
+      "user-1",
+      runningOperation,
+      "COMMIT_FAILED"
+    );
   });
 
   it("replays a succeeded operation without requiring live credentials", async () => {
@@ -499,7 +550,7 @@ describe("POST repository artifact commit", () => {
     expect(await response.json()).toMatchObject({
       error: "REPOSITORY_READ_ONLY",
     });
-    expect(harness.claimOperation).not.toHaveBeenCalled();
+    expect(harness.claimOperation).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
@@ -512,7 +563,7 @@ describe("POST repository artifact commit", () => {
       error: "REPOSITORY_CHANGED",
       files: ["index.md"],
     });
-    expect(harness.claimOperation).not.toHaveBeenCalled();
+    expect(harness.claimOperation).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
