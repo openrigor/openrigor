@@ -14,6 +14,9 @@ import type {
   ResearchRepositoryBinding,
 } from "@opencanvas/shared/research-repository";
 import {
+  REPOSITORY_AUTHORIZATION_COPY,
+  REPOSITORY_DISCONNECTED_COPY,
+  REPOSITORY_PERMISSION_COPY,
   RESEARCH_REPOSITORY_TRUST_COPY,
   REPOSITORY_PUBLIC_COPY,
   REPOSITORY_UNAVAILABLE_COPY,
@@ -154,6 +157,89 @@ describe("RepositoryPanel", () => {
     );
 
     expect(await screen.findByText(REPOSITORY_PUBLIC_COPY)).toBeTruthy();
+  });
+
+  it("shows a reauthorization banner without treating the binding head as authoritative", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: "workspace-one",
+              repositoryId: binding.repositoryId,
+              state: "read_only",
+              reason: "authorization_required",
+              checkedAt: "2026-08-23T00:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse(
+          { error: "Research repository is disconnected" },
+          409
+        );
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      createElement(RepositoryPanel, {
+        item: { id: "workspace-one", binding },
+      })
+    );
+
+    expect(await screen.findByText(REPOSITORY_AUTHORIZATION_COPY)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Re-authorize GitHub" })
+    ).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/workspace/items/workspace-one/repository",
+      { credentials: "include", cache: "no-store" }
+    );
+  });
+
+  it("keeps disconnected and permission-lost banners distinct", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: {
+          workspaceId: "workspace-one",
+          repositoryId: binding.repositoryId,
+          state: "disconnected",
+          reason: "disconnected",
+          checkedAt: "2026-08-23T00:00:00.000Z",
+        },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const view = render(
+      createElement(RepositoryPanel, {
+        item: { id: "workspace-one", binding },
+      })
+    );
+    expect(await screen.findByText(REPOSITORY_DISCONNECTED_COPY)).toBeTruthy();
+    view.unmount();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          status: {
+            workspaceId: "workspace-one",
+            repositoryId: binding.repositoryId,
+            state: "blocked",
+            reason: "permission_lost",
+            checkedAt: "2026-08-23T00:00:00.000Z",
+          },
+        })
+      )
+    );
+    render(
+      createElement(RepositoryPanel, {
+        item: { id: "workspace-one", binding },
+      })
+    );
+    expect(await screen.findByText(REPOSITORY_PERMISSION_COPY)).toBeTruthy();
   });
 
   it("reconciles the binding and refreshes the artifact tree", async () => {

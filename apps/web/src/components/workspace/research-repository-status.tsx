@@ -26,6 +26,12 @@ export function shouldShowRepositoryConnect(
   );
 }
 
+function repositoryConnectLabel(status: RepositoryStatus | undefined): string {
+  return status?.reason === "authorization_required"
+    ? "Re-authorize GitHub"
+    : "Reconnect GitHub";
+}
+
 function statusLabel(status: RepositoryStatus): string {
   return status.reason
     ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
@@ -47,6 +53,7 @@ export function ResearchRepositoryStatus({
     Promise.all([
       fetch(`/api/workspace/items/${encodeURIComponent(item.id)}/repository`, {
         credentials: "include",
+        cache: "no-store",
       }),
       fetch("/api/workspace/github/repositories", {
         credentials: "include",
@@ -116,7 +123,9 @@ export function ResearchRepositoryStatus({
       </span>
       {shouldShowRepositoryConnect(status) && (
         <Button asChild variant="outline" size="sm" className="h-7">
-          <a href="/api/workspace/github/authorize">Connect GitHub</a>
+          <a href="/api/workspace/github/authorize">
+            {repositoryConnectLabel(status)}
+          </a>
         </Button>
       )}
     </div>

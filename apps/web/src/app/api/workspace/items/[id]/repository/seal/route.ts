@@ -321,6 +321,23 @@ export async function POST(request: Request, context: RouteContext) {
 
   const proposedSnapshotId =
     body.action === "seal" ? body.preview.snapshotId : randomUUID();
+  let preflightCredentials;
+  try {
+    preflightCredentials = await readGithubResearchCredentials(auth.user.id);
+  } catch (error) {
+    console.error(
+      "[github-research] failed to read repository credentials",
+      repositoryRouteErrorDetails(item.id, error)
+    );
+    return json({ error: "Could not authorize research repository" }, 500);
+  }
+  if (
+    !preflightCredentials ||
+    preflightCredentials.installationId !== item.binding.installationId ||
+    !preflightCredentials.repositoryIds.includes(item.binding.repositoryId)
+  ) {
+    return json({ error: "Research repository is disconnected" }, 409);
+  }
   let repositoryForCommit:
     | { owner: string; name: string; nameWithOwner?: string }
     | undefined;

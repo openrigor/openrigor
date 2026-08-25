@@ -405,6 +405,15 @@ describe("POST repository artifact commit", () => {
 
   it("rejects a new commit when the repository is disconnected", async () => {
     harness.readCredentials.mockResolvedValue(null);
+    harness.claimOperation.mockImplementation(
+      async (
+        _userId: string,
+        input: { getCurrentHeadCommitSha?: () => Promise<string> }
+      ) => {
+        await input.getCurrentHeadCommitSha?.();
+        return pendingOperation;
+      }
+    );
 
     const response = await POST(request(), context);
 
@@ -413,6 +422,8 @@ describe("POST repository artifact commit", () => {
       error: "Research repository is disconnected",
     });
     expect(harness.claimOperation).toHaveBeenCalledOnce();
+    expect(harness.getRepository).not.toHaveBeenCalled();
+    expect(harness.getHead).not.toHaveBeenCalled();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 

@@ -66,11 +66,14 @@ import {
   consumeGithubOAuthState,
   deleteGithubResearchCredentials,
   CredentialOwnerSearchTruncatedError,
+  findGithubCredentialOwnersByGithubUserId,
   findGithubCredentialOwnersByInstallationId,
   githubResearchCredentialsNamespace,
   MAX_CREDENTIAL_SEARCH_PAGES,
   hashGithubCredentialIdentifier,
+  markGithubAuthorizationRevoked,
   readGithubResearchCredentialRecord,
+  readGithubResearchConnectionStatus,
   readGithubResearchCredentials,
   recordGithubPush,
   releaseGithubWebhookDelivery,
@@ -175,6 +178,52 @@ describe("GitHub research credential Store", () => {
     await expect(
       findGithubCredentialOwnersByInstallationId(99)
     ).resolves.toEqual(["user-1"]);
+    await expect(findGithubCredentialOwnersByGithubUserId(7)).resolves.toEqual([
+      "user-1",
+    ]);
+  });
+
+  it("records repository removal separately from generic permission loss", async () => {
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_access" },
+      installationId: 99,
+      repositoryIds: [101],
+      displayMetadata: { githubUserId: 7 },
+    });
+
+    await updateGithubInstallationRepositories("user-1", [], [101]);
+
+    await expect(readGithubResearchCredentials("user-1")).resolves.toEqual(
+      expect.objectContaining({
+        repositoryIds: [],
+        repositoryStatusReasons: { "101": "repository_deleted" },
+      })
+    );
+  });
+
+  it("preserves authorization-required state after revocation and clears it after reauthorization", async () => {
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_access" },
+      repositoryIds: [],
+      displayMetadata: { githubUserId: 7 },
+    });
+
+    await deleteGithubResearchCredentials("user-1");
+    await markGithubAuthorizationRevoked("user-1");
+
+    await expect(readGithubResearchConnectionStatus("user-1")).resolves.toEqual(
+      { reason: "authorization_required" }
+    );
+
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_new" },
+      repositoryIds: [],
+      displayMetadata: { githubUserId: 7 },
+    });
+
+    await expect(
+      readGithubResearchConnectionStatus("user-1")
+    ).resolves.toBeNull();
   });
 
   it("preserves connection history when credentials are re-authorized", async () => {

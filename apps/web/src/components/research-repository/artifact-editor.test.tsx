@@ -89,6 +89,30 @@ describe("ArtifactEditor", () => {
     );
   });
 
+  it("labels current-session content when the repository is read-only", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(artifactResponse("# Local"))
+    );
+
+    render(
+      createElement(ArtifactEditor, {
+        workspaceItemId: "workspace-one",
+        artifact,
+        readOnly: true,
+      })
+    );
+
+    expect(
+      await screen.findByText(
+        "Current-session local content is not synced / last locally available state."
+      )
+    ).toBeTruthy();
+    expect(
+      await screen.findByRole("textbox", { name: "Edit index.md" })
+    ).toHaveProperty("disabled", true);
+  });
+
   it("commits the edited artifact and confirms success", async () => {
     const nextCommitSha = "d".repeat(40);
     const fetchMock = vi

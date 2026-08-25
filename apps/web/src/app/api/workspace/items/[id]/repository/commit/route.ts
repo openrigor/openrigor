@@ -130,23 +130,40 @@ export async function POST(request: Request, context: RouteContext) {
         nameWithOwner?: string;
       }
     | undefined;
+  let preflightCredentials;
   try {
-    const access = await assertRepositoryWriteAccess({
-      installationId: item.binding.installationId,
-      repositoryId: item.binding.repositoryId,
-      branch: item.binding.branch,
-      expectedHeadSha: item.binding.headCommitSha,
-      files: [artifact.path],
-    });
-    repositoryForCommit = access.repository;
+    preflightCredentials = await readGithubResearchCredentials(auth.user.id);
   } catch (error) {
-    if (error instanceof RepositoryAccessError) {
-      return json(
-        repositoryAccessBody(error),
-        repositoryAccessHttpStatus(error.code)
-      );
+    console.error(
+      "[github-research] failed to read repository credentials",
+      repositoryRouteErrorDetails(item.id, error)
+    );
+    return json({ error: "Could not authorize research repository" }, 500);
+  }
+  const preflightAuthorized = Boolean(
+    preflightCredentials &&
+      preflightCredentials.installationId === item.binding.installationId &&
+      preflightCredentials.repositoryIds.includes(item.binding.repositoryId)
+  );
+  if (preflightAuthorized) {
+    try {
+      const access = await assertRepositoryWriteAccess({
+        installationId: item.binding.installationId,
+        repositoryId: item.binding.repositoryId,
+        branch: item.binding.branch,
+        expectedHeadSha: item.binding.headCommitSha,
+        files: [artifact.path],
+      });
+      repositoryForCommit = access.repository;
+    } catch (error) {
+      if (error instanceof RepositoryAccessError) {
+        return json(
+          repositoryAccessBody(error),
+          repositoryAccessHttpStatus(error.code)
+        );
+      }
+      throw error;
     }
-    throw error;
   }
 
   let operation;
@@ -157,18 +174,22 @@ export async function POST(request: Request, context: RouteContext) {
       idempotencyKey: body.idempotencyKey,
       artifactIds: [artifact.artifactId],
       baseCommitSha: body.baseCommitSha,
-      getCurrentHeadCommitSha: async () => {
-        const repository = await loadInstallationRepository(
-          item.binding.installationId,
-          item.binding.repositoryId
-        );
-        assertRepositoryPrivate(repository);
-        return getRepositoryBranchHead(
-          item.binding.installationId,
-          repository,
-          item.binding.branch
-        );
-      },
+      ...(preflightAuthorized
+        ? {
+            getCurrentHeadCommitSha: async () => {
+              const repository = await loadInstallationRepository(
+                item.binding.installationId,
+                item.binding.repositoryId
+              );
+              assertRepositoryPrivate(repository);
+              return getRepositoryBranchHead(
+                item.binding.installationId,
+                repository,
+                item.binding.branch
+              );
+            },
+          }
+        : {}),
     });
   } catch (error) {
     if (error instanceof RepositoryOperationInProgressError) {

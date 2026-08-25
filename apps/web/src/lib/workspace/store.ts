@@ -78,7 +78,10 @@ import {
   inviteWorkspaceParticipant,
   sleep,
 } from "@/lib/teaching/invitation-helpers";
-import { readGithubResearchCredentials } from "./research-repository/credentials";
+import {
+  readGithubResearchConnectionStatus,
+  readGithubResearchCredentials,
+} from "./research-repository/credentials";
 import {
   createGithubRepositoryBranch,
   getGithubInstallationRepository,
@@ -931,6 +934,17 @@ export async function getResearchRepositoryStatus(
   userId: string,
   item: ResearchRepositoryWorkspaceItem
 ): Promise<RepositoryStatus> {
+  const connectionStatus = await readGithubResearchConnectionStatus(userId);
+  if (connectionStatus?.reason === "authorization_required") {
+    return RepositoryStatusSchema.parse({
+      workspaceId: item.id,
+      repositoryId: item.binding.repositoryId,
+      repositoryFullName: item.binding.repositoryFullName,
+      state: "read_only",
+      reason: "authorization_required",
+      checkedAt: new Date().toISOString(),
+    });
+  }
   let credentials;
   try {
     credentials = await readGithubResearchCredentials(userId);
@@ -958,12 +972,16 @@ export async function getResearchRepositoryStatus(
     });
   }
   if (!credentials.repositoryIds.includes(item.binding.repositoryId)) {
+    const reason =
+      credentials.repositoryStatusReasons?.[
+        String(item.binding.repositoryId)
+      ] ?? "permission_lost";
     return RepositoryStatusSchema.parse({
       workspaceId: item.id,
       repositoryId: item.binding.repositoryId,
       repositoryFullName: item.binding.repositoryFullName,
       state: "blocked",
-      reason: "permission_lost",
+      reason,
       checkedAt: new Date().toISOString(),
     });
   }

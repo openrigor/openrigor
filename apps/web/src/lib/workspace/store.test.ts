@@ -94,6 +94,7 @@ const harness = vi.hoisted(() => {
     ),
     inviteWorkspaceParticipant: vi.fn(async () => undefined),
     readGithubResearchCredentials: vi.fn(),
+    readGithubResearchConnectionStatus: vi.fn(),
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
@@ -116,6 +117,8 @@ vi.mock("@/lib/teaching/invitation-helpers", () => ({
 }));
 vi.mock("./research-repository/credentials", () => ({
   readGithubResearchCredentials: harness.readGithubResearchCredentials,
+  readGithubResearchConnectionStatus:
+    harness.readGithubResearchConnectionStatus,
 }));
 vi.mock("./research-repository/github-app", () => ({
   createGithubRepositoryBranch: harness.createGithubRepositoryBranch,
@@ -475,6 +478,7 @@ describe("research repository workspace items", () => {
     harness.state.items.clear();
     harness.state.threads.clear();
     harness.readGithubResearchCredentials.mockReset();
+    harness.readGithubResearchConnectionStatus.mockReset();
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
@@ -853,6 +857,60 @@ describe("research repository workspace items", () => {
       state: "ready",
       layoutVersion: "1.0",
       headCommitSha: workspaceBranchSha,
+    });
+  });
+
+  it("projects a revoked authorization without calling GitHub", async () => {
+    harness.readGithubResearchConnectionStatus.mockResolvedValue({
+      reason: "authorization_required",
+    });
+    harness.readGithubResearchCredentials.mockResolvedValue(null);
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "read_only",
+      reason: "authorization_required",
+    });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+  });
+
+  it("keeps repository removal distinct from permission loss", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      ...connectedGithubCredentials([]),
+      repositoryStatusReasons: { "101": "repository_deleted" },
+    });
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "repository_deleted",
+    });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([])
+    );
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
+    });
+  });
+
+  it("maps a live GitHub permission failure to permission_lost", async () => {
+    harness.getGithubInstallationRepository.mockRejectedValue(
+      Object.assign(new Error("Forbidden"), { status: 403 })
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
     });
   });
 

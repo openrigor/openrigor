@@ -228,6 +228,24 @@ describe("POST repository seal", () => {
     expect(harness.claim).not.toHaveBeenCalled();
   });
 
+  it("does not call GitHub after authorization is revoked", async () => {
+    harness.credentials.mockResolvedValue(null);
+
+    const response = await POST(
+      request({
+        action: "supersede",
+        supersedes: snapshotOne,
+        declarations: confirmedDeclarations,
+      }),
+      context
+    );
+
+    expect(response.status).toBe(409);
+    expect(harness.repository).not.toHaveBeenCalled();
+    expect(harness.getHead).not.toHaveBeenCalled();
+    expect(harness.commit).not.toHaveBeenCalled();
+  });
+
   it("seals a preview and stores only operation ids and commit pointers", async () => {
     const response = await POST(
       request({ action: "seal", preview, declarations: confirmedDeclarations }),

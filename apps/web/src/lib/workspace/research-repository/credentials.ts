@@ -11,6 +11,7 @@ import type { GithubResearchOAuthTokens } from "./github-app";
 
 export const GITHUB_RESEARCH_CREDENTIALS_ROOT = "github_research_credentials";
 export const GITHUB_RESEARCH_CREDENTIALS_KEY = "credentials";
+const GITHUB_RESEARCH_CONNECTION_STATUS_KEY = "connection_status";
 
 const OAUTH_STATE_TTL_MINUTES = 10;
 const WEBHOOK_DELIVERY_TTL_MINUTES = 7 * 24 * 60;
@@ -38,6 +39,7 @@ export type GithubResearchCredentialRecord = {
   githubUserIdHash: string;
   connectedAt: string;
   updatedAt: string;
+  repositoryStatusReasons?: Record<string, "repository_deleted">;
   lastPush?: {
     repositoryId?: number;
     refHash?: string;
@@ -52,6 +54,11 @@ export type DecryptedGithubResearchCredentials = {
   installationId?: number;
   repositoryIds: number[];
   displayMetadata: Record<string, unknown>;
+  repositoryStatusReasons?: Record<string, "repository_deleted">;
+};
+
+export type GithubResearchConnectionStatus = {
+  reason: "authorization_required";
 };
 
 type StoredOAuthState = {
@@ -159,6 +166,10 @@ function stateKey(stateHash: string): string {
 
 function webhookDeliveryKey(deliveryHash: string): string {
   return `webhook_delivery:${deliveryHash}`;
+}
+
+function connectionStatusKey(): string {
+  return GITHUB_RESEARCH_CONNECTION_STATUS_KEY;
 }
 
 function normaliseRecord(
@@ -282,6 +293,9 @@ export async function storeGithubResearchCredentials(
       ),
       connectedAt: existing?.connectedAt ?? now,
       updatedAt: now,
+      // OAuth callback has already re-checked installation and repository
+      // permissions, so old webhook markers must not block the new grant.
+      repositoryStatusReasons: undefined,
       lastPush: existing?.lastPush,
     };
     await client().store.putItem(
@@ -289,6 +303,10 @@ export async function storeGithubResearchCredentials(
       GITHUB_RESEARCH_CREDENTIALS_KEY,
       record,
       { index: ["installationId", "githubUserIdHash"] }
+    );
+    await client().store.deleteItem(
+      githubResearchCredentialsNamespace(userId),
+      connectionStatusKey()
     );
   });
 }
@@ -366,6 +384,9 @@ export async function readGithubResearchCredentials(
         installationId: record.installationId,
         repositoryIds: record.repositoryIds,
         displayMetadata: metadataRecord,
+        ...(record.repositoryStatusReasons
+          ? { repositoryStatusReasons: record.repositoryStatusReasons }
+          : {}),
       };
     } catch (error) {
       if (error instanceof UnknownGithubResearchEncryptionKeyError) {
@@ -377,6 +398,32 @@ export async function readGithubResearchCredentials(
       }
       throw error;
     }
+  });
+}
+
+export async function readGithubResearchConnectionStatus(
+  userId: string
+): Promise<GithubResearchConnectionStatus | null> {
+  const item = await client().store.getItem(
+    githubResearchCredentialsNamespace(userId),
+    connectionStatusKey()
+  );
+  const value = item?.value as { reason?: unknown } | undefined;
+  return value?.reason === "authorization_required"
+    ? { reason: "authorization_required" }
+    : null;
+}
+
+export async function markGithubAuthorizationRevoked(
+  userId: string
+): Promise<void> {
+  await withUserLock(userId, async () => {
+    await client().store.putItem(
+      githubResearchCredentialsNamespace(userId),
+      connectionStatusKey(),
+      { reason: "authorization_required" },
+      { index: false }
+    );
   });
 }
 
@@ -425,6 +472,38 @@ export async function findGithubCredentialOwnersByInstallationId(
     MAX_CREDENTIAL_SEARCH_PAGES
   );
   throw new CredentialOwnerSearchTruncatedError(installationId);
+}
+
+export async function findGithubCredentialOwnersByGithubUserId(
+  githubUserId: number
+): Promise<string[]> {
+  const expectedHash = hashGithubCredentialIdentifier(String(githubUserId));
+  const items = [];
+  let offset = 0;
+  for (let page = 0; page < MAX_CREDENTIAL_SEARCH_PAGES; page += 1) {
+    const response = await client().store.searchItems(
+      [GITHUB_RESEARCH_CREDENTIALS_ROOT],
+      {
+        filter: { githubUserIdHash: expectedHash },
+        limit: SEARCH_PAGE_SIZE,
+        offset,
+      }
+    );
+    items.push(...response.items);
+    if (response.items.length < SEARCH_PAGE_SIZE) {
+      return items
+        .filter(
+          (item) =>
+            item.key === GITHUB_RESEARCH_CREDENTIALS_KEY &&
+            item.value?.githubUserIdHash === expectedHash &&
+            item.namespace[0] === GITHUB_RESEARCH_CREDENTIALS_ROOT &&
+            typeof item.namespace[1] === "string"
+        )
+        .map((item) => item.namespace[1] as string);
+    }
+    offset += response.items.length;
+  }
+  throw new CredentialOwnerSearchTruncatedError(githubUserId);
 }
 
 export async function claimGithubWebhookDelivery(
@@ -504,6 +583,7 @@ export async function updateGithubInstallation(
     repositoryIds: [...new Set(repositoryIds)].sort(
       (left, right) => left - right
     ),
+    repositoryStatusReasons: undefined,
   }));
 }
 
@@ -512,14 +592,32 @@ export async function updateGithubInstallationRepositories(
   addedRepositoryIds: number[],
   removedRepositoryIds: number[]
 ): Promise<void> {
-  await updateCredentialRecord(userId, (record) => {
+  await withUserLock(userId, async () => {
+    const record = await readGithubResearchCredentialRecord(userId);
+    if (!record) return;
     const repositoryIds = new Set(record.repositoryIds);
     for (const id of addedRepositoryIds) repositoryIds.add(id);
     for (const id of removedRepositoryIds) repositoryIds.delete(id);
-    return {
-      ...record,
-      repositoryIds: [...repositoryIds].sort((left, right) => left - right),
+    const repositoryStatusReasons = {
+      ...(record.repositoryStatusReasons ?? {}),
     };
+    for (const id of addedRepositoryIds) {
+      delete repositoryStatusReasons[String(id)];
+    }
+    for (const id of removedRepositoryIds) {
+      repositoryStatusReasons[String(id)] = "repository_deleted";
+    }
+    await client().store.putItem(
+      githubResearchCredentialsNamespace(userId),
+      GITHUB_RESEARCH_CREDENTIALS_KEY,
+      {
+        ...record,
+        repositoryIds: [...repositoryIds].sort((left, right) => left - right),
+        repositoryStatusReasons,
+        updatedAt: new Date().toISOString(),
+      },
+      { index: ["installationId", "githubUserIdHash"] }
+    );
   });
 }
 

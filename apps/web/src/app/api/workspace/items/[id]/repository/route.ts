@@ -135,10 +135,12 @@ export async function GET(_request: Request, context: RouteContext) {
           error: "REPOSITORY_UNAVAILABLE",
           message: "Repository unavailable (deleted or access removed).",
         },
-        { status: 409 }
+        { status: 409, headers: { "Cache-Control": "no-store" } }
       );
     }
-    return NextResponse.json(body);
+    return NextResponse.json(body, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     console.error("[github-research] failed to check repository", error);
     return NextResponse.json(
