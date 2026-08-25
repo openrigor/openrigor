@@ -97,6 +97,8 @@ describe("PrivateResearchRepositoriesCard", () => {
 
     expect(await screen.findByText("essay-study")).toBeTruthy();
     expect(screen.getByText("owner/essay-study (Private)")).toBeTruthy();
+    expect((await screen.findAllByText("openrigor/workspace")).length).toBe(2);
+    expect((await screen.findAllByText("ready")).length).toBe(2);
     expect(screen.getByText("Initialized")).toBeTruthy();
     expect(screen.getByText("methods index missing")).toBeTruthy();
     expect(screen.queryByText("Methods available in Create")).toBeNull();

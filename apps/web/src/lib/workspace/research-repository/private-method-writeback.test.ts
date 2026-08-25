@@ -7,6 +7,20 @@ const harness = vi.hoisted(() => ({
   loadRepository: vi.fn(),
   getHead: vi.fn(),
   commitArtifacts: vi.fn(),
+  commitProvenance: vi.fn(
+    (
+      repository: { owner: string; name: string; nameWithOwner?: string },
+      branch: string,
+      path: string,
+      revision: string
+    ) => ({
+      repository:
+        repository.nameWithOwner ?? `${repository.owner}/${repository.name}`,
+      branch,
+      path,
+      revision,
+    })
+  ),
 }));
 
 vi.mock("../store", () => ({
@@ -22,6 +36,7 @@ vi.mock("./github-app", () => ({
 vi.mock("./git-adapter", () => ({
   getRepositoryBranchHead: harness.getHead,
   commitArtifactBlobs: harness.commitArtifacts,
+  repositoryCommitProvenance: harness.commitProvenance,
 }));
 
 import {
@@ -70,6 +85,7 @@ describe("private Method repository write-back authorization", () => {
     harness.getWorkspaceItem.mockResolvedValue(repositoryItem);
     harness.readCredentials.mockResolvedValue(credentials);
     harness.loadRepository.mockResolvedValue({
+      id: 101,
       owner: "researcher",
       name: "private-methods",
       private: true,
@@ -108,6 +124,7 @@ describe("private Method repository write-back authorization", () => {
 
   it("rejects a repository that is no longer private", async () => {
     harness.loadRepository.mockResolvedValue({
+      id: 101,
       owner: "researcher",
       name: "private-methods",
       private: false,
@@ -130,11 +147,19 @@ describe("private Method repository write-back authorization", () => {
         filePath,
         markdown: "---\ntype: Evidence\n---\n",
       })
-    ).resolves.toEqual({ commitSha: committedSha });
+    ).resolves.toMatchObject({
+      commitSha: committedSha,
+      provenance: {
+        repository: "researcher/private-methods",
+        branch: "openrigor/workspace",
+        path: filePath,
+        revision: committedSha,
+      },
+    });
 
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "researcher", name: "private-methods", private: true },
+      { id: 101, owner: "researcher", name: "private-methods", private: true },
       "openrigor/workspace",
       expect.objectContaining({
         baseSha: headCommitSha,

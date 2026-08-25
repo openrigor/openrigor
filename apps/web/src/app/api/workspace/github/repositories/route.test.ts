@@ -4,6 +4,7 @@ const harness = vi.hoisted(() => ({
   enabled: vi.fn(),
   verifyUserAuthenticated: vi.fn(),
   readGithubResearchCredentials: vi.fn(),
+  getGithubInstallationRepository: vi.fn(),
   buildGithubResearchTemplateUrl: vi.fn(),
 }));
 
@@ -15,6 +16,9 @@ vi.mock("@/lib/supabase/verify_user_server", () => ({
 }));
 vi.mock("@/lib/workspace/research-repository/credentials", () => ({
   readGithubResearchCredentials: harness.readGithubResearchCredentials,
+}));
+vi.mock("@/lib/workspace/research-repository/github-app", () => ({
+  getGithubInstallationRepository: harness.getGithubInstallationRepository,
 }));
 vi.mock("@/lib/workspace/research-repository/template", () => ({
   buildGithubResearchTemplateUrl: harness.buildGithubResearchTemplateUrl,
@@ -53,12 +57,13 @@ describe("GET /api/workspace/github/repositories", () => {
   it("lists only repositories retained for the installation", async () => {
     harness.readGithubResearchCredentials.mockResolvedValue({
       installationId: 99,
-      repositoryIds: [101],
+      repositoryIds: [101, 303],
       displayMetadata: {
         login: "octocat",
         repositories: [
-          { id: 101, nameWithOwner: "octocat/private" },
-          { id: 202, nameWithOwner: "octocat/removed" },
+          { id: 101, nameWithOwner: "octocat/private", private: true },
+          { id: 202, nameWithOwner: "octocat/removed", private: true },
+          { id: 303, nameWithOwner: "octocat/public", private: false },
         ],
       },
     });
@@ -72,6 +77,34 @@ describe("GET /api/workspace/github/repositories", () => {
     });
     expect(harness.buildGithubResearchTemplateUrl).toHaveBeenCalledWith(
       "octocat"
+    );
+  });
+
+  it("resolves privacy for legacy display entries without a private field", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      installationId: 99,
+      repositoryIds: [101],
+      displayMetadata: {
+        login: "octocat",
+        repositories: [{ id: 101, nameWithOwner: "octocat/private" }],
+      },
+    });
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 101,
+      name: "private",
+      nameWithOwner: "octocat/private",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+
+    expect(await (await GET()).json()).toMatchObject({
+      connected: true,
+      repositories: [{ id: 101, nameWithOwner: "octocat/private" }],
+    });
+    expect(harness.getGithubInstallationRepository).toHaveBeenCalledWith(
+      99,
+      101
     );
   });
 });

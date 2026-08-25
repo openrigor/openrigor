@@ -94,6 +94,7 @@ const harness = vi.hoisted(() => {
     ),
     inviteWorkspaceParticipant: vi.fn(async () => undefined),
     readGithubResearchCredentials: vi.fn(),
+    readGithubResearchConnectionStatus: vi.fn(),
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
@@ -116,6 +117,8 @@ vi.mock("@/lib/teaching/invitation-helpers", () => ({
 }));
 vi.mock("./research-repository/credentials", () => ({
   readGithubResearchCredentials: harness.readGithubResearchCredentials,
+  readGithubResearchConnectionStatus:
+    harness.readGithubResearchConnectionStatus,
 }));
 vi.mock("./research-repository/github-app", () => ({
   createGithubRepositoryBranch: harness.createGithubRepositoryBranch,
@@ -162,6 +165,7 @@ import {
   reconcileWorkspaceItemThread,
   refreshResearchRepositoryBindings,
   ResearchRepositoryBindingError,
+  replaceResearchRepositoryBinding,
   updateResearchRepositoryBindingHead,
   updateResearchRepositoryMethodSelection,
   workspaceLockAcquireTimeoutMs,
@@ -474,6 +478,7 @@ describe("research repository workspace items", () => {
     harness.state.items.clear();
     harness.state.threads.clear();
     harness.readGithubResearchCredentials.mockReset();
+    harness.readGithubResearchConnectionStatus.mockReset();
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
@@ -780,6 +785,91 @@ describe("research repository workspace items", () => {
     expect(Object.keys(harness.state.manifest.items)).toHaveLength(1);
   });
 
+  it("replaces one item's binding atomically after the new repository is ready", async () => {
+    const original = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    const originalManifest = structuredClone(harness.state.manifest);
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "replacement",
+      nameWithOwner: "octocat/replacement",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    harness.getGithubRepositoryBranchHead.mockResolvedValue("d".repeat(40));
+
+    const replaced = await replaceResearchRepositoryBinding(
+      "user-1",
+      original.id,
+      { repositoryId: 102, installationId: 99 }
+    );
+
+    expect(replaced.id).toBe(original.id);
+    expect(replaced.binding).toMatchObject({
+      repositoryId: 102,
+      repositoryFullName: "octocat/replacement",
+      headCommitSha: "d".repeat(40),
+    });
+    expect(replaced.selectedMethodIds).toEqual([]);
+    expect(harness.state.manifest.items[original.id]).toEqual(replaced);
+    expect(Object.keys(harness.state.manifest.items)).toEqual([original.id]);
+
+    harness.probeMethodHostInitialization.mockRejectedValueOnce(
+      new Error("probe failed")
+    );
+    await expect(
+      replaceResearchRepositoryBinding("user-1", original.id, {
+        repositoryId: 102,
+        installationId: 99,
+      })
+    ).rejects.toThrow("probe failed");
+    expect(harness.state.manifest).toEqual(
+      expect.objectContaining({ items: { [original.id]: replaced } })
+    );
+    expect(harness.state.manifest).not.toEqual(originalManifest);
+  });
+
+  it("checks replacement duplicates before creating the replacement branch", async () => {
+    const original = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "other",
+      nameWithOwner: "octocat/other",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    await createResearchRepositoryItem("user-1", {
+      repositoryId: 102,
+      installationId: 99,
+    });
+    harness.getGithubRepositoryBranchHead.mockReset();
+    harness.createGithubRepositoryBranch.mockReset();
+    harness.probeMethodHostInitialization.mockReset();
+
+    await expect(
+      replaceResearchRepositoryBinding("user-1", original.id, {
+        repositoryId: 102,
+        installationId: 99,
+      })
+    ).rejects.toMatchObject({ code: "repository_already_bound" });
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+    expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).not.toHaveBeenCalled();
+  });
+
   it("normalises stored repository items even while the flag is off", async () => {
     const item = await createResearchRepositoryItem("user-1", {
       repositoryId: 101,
@@ -802,6 +892,74 @@ describe("research repository workspace items", () => {
       state: "ready",
       layoutVersion: "1.0",
       headCommitSha: workspaceBranchSha,
+    });
+  });
+
+  it("projects a revoked authorization without calling GitHub", async () => {
+    harness.readGithubResearchConnectionStatus.mockResolvedValue({
+      reason: "authorization_required",
+    });
+    harness.readGithubResearchCredentials.mockResolvedValue(null);
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "read_only",
+      reason: "authorization_required",
+    });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+  });
+
+  it("keeps repository removal distinct from permission loss", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      ...connectedGithubCredentials([]),
+      repositoryStatusReasons: { "101": "repository_deleted" },
+    });
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "repository_deleted",
+    });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([])
+    );
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
+    });
+  });
+
+  it("falls back to permission_lost for an invalid persisted status reason", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      ...connectedGithubCredentials([]),
+      repositoryStatusReasons: { "101": "not-a-status-reason" },
+    });
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
+    });
+  });
+
+  it("maps a live GitHub permission failure to permission_lost", async () => {
+    harness.getGithubInstallationRepository.mockRejectedValue(
+      Object.assign(new Error("Forbidden"), { status: 403 })
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
     });
   });
 

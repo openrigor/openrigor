@@ -336,6 +336,15 @@ export function ArtifactEditor({
           This artifact version is not supported by this workspace
         </p>
       )}
+      {readOnly && (
+        <p
+          role="note"
+          className="mb-3 rounded border border-slate-200 bg-slate-50 p-2 text-sm text-slate-700"
+        >
+          Current-session local content is not synced / last locally available
+          state.
+        </p>
+      )}
 
       {loading ? (
         <div className="flex min-h-72 items-center justify-center rounded border border-slate-300 bg-slate-50 text-sm text-slate-500">

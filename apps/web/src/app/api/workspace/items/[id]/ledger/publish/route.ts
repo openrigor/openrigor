@@ -138,7 +138,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         });
       }
       validateLedgerPublicationDeclarations(preview.snapshotData, body.values);
-      const { commitSha, snapshotId } = await commitSealSnapshot(
+      const { commitSha, snapshotId, provenance } = await commitSealSnapshot(
         access,
         preview,
         repositoryCommitAuthor(access)
@@ -162,6 +162,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         snapshotId,
         filePath: preview.ledgerPath,
         private: true,
+        provenance,
       });
     }
 

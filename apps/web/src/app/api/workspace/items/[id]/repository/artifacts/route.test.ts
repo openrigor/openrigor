@@ -58,6 +58,7 @@ describe("GET repository artifacts", () => {
       repositoryIds: [101],
     });
     harness.getRepository.mockResolvedValue({
+      id: 101,
       owner: "octocat",
       name: "private",
     });
@@ -102,7 +103,7 @@ describe("GET repository artifacts", () => {
     });
     expect(harness.listArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private" },
+      { id: 101, owner: "octocat", name: "private" },
       "openrigor/workspace",
       "1.0"
     );
@@ -131,7 +132,7 @@ describe("GET repository artifacts", () => {
     });
     expect(harness.readArtifact).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private" },
+      { id: 101, owner: "octocat", name: "private" },
       "openrigor/workspace",
       "index.md"
     );
@@ -156,7 +157,7 @@ describe("GET repository artifacts", () => {
     });
     expect(harness.readArtifact).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private" },
+      { id: 101, owner: "octocat", name: "private" },
       "openrigor/workspace",
       "index.md"
     );

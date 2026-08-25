@@ -45,6 +45,18 @@ vi.mock("@/lib/workspace/research-repository/github-app", () => ({
 vi.mock("@/lib/workspace/research-repository/git-adapter", () => ({
   commitArtifactBlobs: harness.commitArtifacts,
   getRepositoryBranchHead: harness.getHead,
+  repositoryCommitProvenance: (
+    repository: { owner: string; name: string; nameWithOwner?: string },
+    branch: string,
+    path: string,
+    revision: string
+  ) => ({
+    repository:
+      repository.nameWithOwner ?? `${repository.owner}/${repository.name}`,
+    branch,
+    path,
+    revision,
+  }),
   StaleRepositoryError: harness.StaleRepositoryError,
 }));
 vi.mock("@/lib/workspace/research-repository/operations", () => ({
@@ -156,6 +168,7 @@ describe("POST repository artifact commit", () => {
       displayMetadata: { githubUserId: 7, login: "researcher" },
     });
     harness.getRepository.mockResolvedValue({
+      id: 101,
       owner: "octocat",
       name: "private",
       private: true,
@@ -204,7 +217,7 @@ describe("POST repository artifact commit", () => {
     expect(response.status).toBe(200);
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private", private: true },
+      { id: 101, owner: "octocat", name: "private", private: true },
       "openrigor/workspace",
       expect.objectContaining({
         files: [
@@ -268,18 +281,26 @@ describe("POST repository artifact commit", () => {
     const first = await POST(request(), context);
     const second = await POST(request(), context);
 
-    expect(await first.json()).toEqual({
+    expect(await first.json()).toMatchObject({
+      operationId: "operation-one",
+      commitSha: resultCommitSha,
+      provenance: {
+        repository: "octocat/private",
+        branch: "openrigor/workspace",
+        path: "index.md",
+        revision: resultCommitSha,
+      },
+    });
+    const secondBody = await second.json();
+    expect(secondBody).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
-    expect(await second.json()).toEqual({
-      operationId: "operation-one",
-      commitSha: resultCommitSha,
-    });
+    expect(secondBody.provenance).toBeUndefined();
     expect(harness.commitArtifacts).toHaveBeenCalledTimes(1);
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
-      { owner: "octocat", name: "private", private: true },
+      { id: 101, owner: "octocat", name: "private", private: true },
       "openrigor/workspace",
       expect.objectContaining({
         authorUser: {
@@ -319,7 +340,7 @@ describe("POST repository artifact commit", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -332,7 +353,7 @@ describe("POST repository artifact commit", () => {
     const response = await POST(request(), context);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -353,11 +374,13 @@ describe("POST repository artifact commit", () => {
       .mockResolvedValueOnce(undefined);
 
     const first = await POST(request(), context);
+    harness.claimOperation.mockReset();
+    harness.claimOperation.mockResolvedValue(succeededOperation);
     const replay = await POST(request(), context);
 
     expect(first.status).toBe(500);
     expect(replay.status).toBe(200);
-    expect(await replay.json()).toEqual({
+    expect(await replay.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -371,6 +394,55 @@ describe("POST repository artifact commit", () => {
     expect(harness.completeOperation).not.toHaveBeenCalled();
   });
 
+  it("records a landed SHA before surfacing a dropped store response", async () => {
+    harness.recordResult.mockRejectedValueOnce(
+      new Error("store response dropped")
+    );
+    harness.claimOperation
+      .mockResolvedValueOnce(pendingOperation)
+      .mockResolvedValueOnce(succeededOperation);
+
+    const first = await POST(request(), context);
+    const retry = await POST(request(), context);
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({
+      operationId: "operation-one",
+      commitSha: resultCommitSha,
+    });
+    expect(harness.commitArtifacts).toHaveBeenCalledOnce();
+    expect(harness.failOperation).toHaveBeenCalledWith(
+      "user-1",
+      runningOperation,
+      "COMMIT_LANDED_RESULT_RECORD_FAILED",
+      resultCommitSha
+    );
+  });
+
+  it("does not retry after a pre-commit timeout", async () => {
+    harness.commitArtifacts.mockRejectedValueOnce(new Error("adapter timeout"));
+    harness.claimOperation
+      .mockResolvedValueOnce(pendingOperation)
+      .mockResolvedValueOnce({
+        ...runningOperation,
+        status: "failed",
+        errorCode: "COMMIT_FAILED",
+      });
+
+    const first = await POST(request(), context);
+    const retry = await POST(request(), context);
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(500);
+    expect(harness.commitArtifacts).toHaveBeenCalledOnce();
+    expect(harness.failOperation).toHaveBeenCalledWith(
+      "user-1",
+      runningOperation,
+      "COMMIT_FAILED"
+    );
+  });
+
   it("replays a succeeded operation without requiring live credentials", async () => {
     harness.claimOperation.mockResolvedValue(succeededOperation);
     harness.readCredentials.mockResolvedValue(null);
@@ -378,7 +450,7 @@ describe("POST repository artifact commit", () => {
     const response = await POST(request(), context);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       operationId: "operation-one",
       commitSha: resultCommitSha,
     });
@@ -387,6 +459,15 @@ describe("POST repository artifact commit", () => {
 
   it("rejects a new commit when the repository is disconnected", async () => {
     harness.readCredentials.mockResolvedValue(null);
+    harness.claimOperation.mockImplementation(
+      async (
+        _userId: string,
+        input: { getCurrentHeadCommitSha?: () => Promise<string> }
+      ) => {
+        await input.getCurrentHeadCommitSha?.();
+        return pendingOperation;
+      }
+    );
 
     const response = await POST(request(), context);
 
@@ -395,6 +476,8 @@ describe("POST repository artifact commit", () => {
       error: "Research repository is disconnected",
     });
     expect(harness.claimOperation).toHaveBeenCalledOnce();
+    expect(harness.getRepository).not.toHaveBeenCalled();
+    expect(harness.getHead).not.toHaveBeenCalled();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
@@ -460,6 +543,7 @@ describe("POST repository artifact commit", () => {
 
   it("rejects writes when the repository became public", async () => {
     harness.getRepository.mockResolvedValue({
+      id: 101,
       owner: "octocat",
       name: "public",
       private: false,
@@ -470,7 +554,7 @@ describe("POST repository artifact commit", () => {
     expect(await response.json()).toMatchObject({
       error: "REPOSITORY_READ_ONLY",
     });
-    expect(harness.claimOperation).not.toHaveBeenCalled();
+    expect(harness.claimOperation).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
@@ -483,13 +567,14 @@ describe("POST repository artifact commit", () => {
       error: "REPOSITORY_CHANGED",
       files: ["index.md"],
     });
-    expect(harness.claimOperation).not.toHaveBeenCalled();
+    expect(harness.claimOperation).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
   it("returns a structured 409 when the repository is deleted after the access check", async () => {
     harness.getRepository
       .mockResolvedValueOnce({
+        id: 101,
         owner: "octocat",
         name: "private",
         private: true,

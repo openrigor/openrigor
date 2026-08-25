@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import {
+  SHARED_MODEL_NOTICE_PATH,
+  SHARED_MODEL_NOTICE_VERSION,
+} from "@/lib/privacy/shared-model-notice";
 import type { ByokShareMode } from "@opencanvas/shared/byok/types";
 
 export type ByokTestResult = { ok: boolean; message: string };
@@ -294,6 +299,16 @@ export function ByokSettingsCardView({
             Your key is encrypted on the server and only used for your own AI
             interactions in OpenRigor unless you opt into sharing below. Create
             a dedicated API key with a sensible usage limit.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Read the versioned{" "}
+            <Link
+              href={SHARED_MODEL_NOTICE_PATH}
+              className="underline underline-offset-2"
+            >
+              shared-model privacy notice
+            </Link>{" "}
+            (version {SHARED_MODEL_NOTICE_VERSION}) before using a shared model.
           </p>
           <div className="space-y-2" data-testid="byok-share-control">
             <Label>Share with assignment participants</Label>

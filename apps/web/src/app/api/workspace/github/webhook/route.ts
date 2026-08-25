@@ -4,9 +4,11 @@ import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-ena
 import {
   claimGithubWebhookDelivery,
   deleteGithubResearchCredentials,
+  findGithubCredentialOwnersByGithubUserId,
   findGithubCredentialOwnersByInstallationId,
   recordGithubPush,
   releaseGithubWebhookDelivery,
+  revokeGithubAuthorization,
   updateGithubInstallation,
   updateGithubInstallationRepositories,
 } from "@/lib/workspace/research-repository/credentials";
@@ -16,12 +18,14 @@ export const dynamic = "force-dynamic";
 const HANDLED_EVENTS = new Set([
   "installation",
   "installation_repositories",
+  "github_app_authorization",
   "push",
 ]);
 
 type WebhookPayload = {
   action?: unknown;
   installation?: { id?: unknown };
+  sender?: { id?: unknown };
   repositories?: unknown;
   repositories_added?: unknown;
   repositories_removed?: unknown;
@@ -49,13 +53,27 @@ function installationId(payload: WebhookPayload): number | undefined {
     : undefined;
 }
 
+function githubUserId(payload: WebhookPayload): number | undefined {
+  const value = payload.sender?.id;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
 async function handleDelivery(
   userId: string,
   event: string,
   payload: WebhookPayload,
-  id: number
+  id?: number
 ): Promise<void> {
+  if (event === "github_app_authorization") {
+    if (payload.action === "revoked") {
+      await revokeGithubAuthorization(userId);
+    }
+    return;
+  }
   if (event === "installation") {
+    if (id === undefined) return;
     if (payload.action === "deleted") {
       await deleteGithubResearchCredentials(userId);
       return;
@@ -70,6 +88,7 @@ async function handleDelivery(
     return;
   }
   if (event === "installation_repositories") {
+    if (id === undefined) return;
     await updateGithubInstallationRepositories(
       userId,
       repositoryIds(payload.repositories_added),
@@ -154,14 +173,43 @@ export async function POST(request: NextRequest) {
   }
   const payload = parsedPayload as WebhookPayload;
   const id = installationId(payload);
-  if (id === undefined) {
+  if (
+    id === undefined &&
+    !(
+      event === "github_app_authorization" &&
+      githubUserId(payload) !== undefined
+    )
+  ) {
     return NextResponse.json({ accepted: true, ignored: true });
   }
 
   try {
-    const owners = await findGithubCredentialOwnersByInstallationId(id);
+    const owners = new Set<string>();
+    if (event === "github_app_authorization") {
+      const userId = githubUserId(payload);
+      if (userId !== undefined) {
+        for (const owner of await findGithubCredentialOwnersByGithubUserId(
+          userId
+        )) {
+          owners.add(owner);
+        }
+      } else if (id !== undefined) {
+        for (const owner of await findGithubCredentialOwnersByInstallationId(
+          id
+        )) {
+          owners.add(owner);
+        }
+      }
+    } else if (id !== undefined) {
+      for (const owner of await findGithubCredentialOwnersByInstallationId(
+        id
+      )) {
+        owners.add(owner);
+      }
+    }
+    const ownerList = [...owners];
     let handled = false;
-    for (const userId of owners) {
+    for (const userId of ownerList) {
       if (!(await claimGithubWebhookDelivery(userId, deliveryId))) continue;
       handled = true;
       try {
@@ -173,8 +221,8 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({
       accepted: true,
-      ignored: owners.length === 0,
-      duplicate: owners.length > 0 && !handled,
+      ignored: ownerList.length === 0,
+      duplicate: ownerList.length > 0 && !handled,
     });
   } catch (error) {
     console.error(

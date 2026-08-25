@@ -82,7 +82,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const filePath = evidenceFilePath(loaded.snapshot.methodId, submissionKey);
     const privateRepository = loaded.item?.methodSource?.privateRepository;
     if (privateRepository) {
-      const { commitSha } = await commitPrivateMethodEvidence({
+      const { commitSha, provenance } = await commitPrivateMethodEvidence({
         userId: auth.user.id,
         provenance: privateRepository,
         methodId: loaded.snapshot.methodId,
@@ -100,6 +100,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         id: submissionKey,
         stage: validated.stage,
         private: true,
+        provenance,
       });
     }
     const existingPullRequest = await findExistingEvidencePullRequest(

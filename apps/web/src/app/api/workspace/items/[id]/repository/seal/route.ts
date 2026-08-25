@@ -8,11 +8,15 @@ import {
 } from "@/lib/workspace/store";
 import { readGithubResearchCredentials } from "@/lib/workspace/research-repository/credentials";
 import {
+  getRepositoryBranchHead,
+  repositoryCommitProvenance,
   StaleRepositoryError,
   type GithubCommitAuthor,
+  type GithubRepositoryCoordinates,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
   RepositoryAccessError,
+  assertRepositoryPrivate,
   assertRepositoryWriteAccess,
   loadInstallationRepository,
   repositoryAccessBody,
@@ -320,22 +324,24 @@ export async function POST(request: Request, context: RouteContext) {
 
   const proposedSnapshotId =
     body.action === "seal" ? body.preview.snapshotId : randomUUID();
+  let preflightCredentials;
   try {
-    await assertRepositoryWriteAccess({
-      installationId: item.binding.installationId,
-      repositoryId: item.binding.repositoryId,
-      branch: item.binding.branch,
-      expectedHeadSha: item.binding.headCommitSha,
-      files: [
-        sealLedgerPath(proposedSnapshotId),
-        sealManifestPath(proposedSnapshotId),
-      ],
-    });
+    preflightCredentials = await readGithubResearchCredentials(auth.user.id);
   } catch (error) {
-    const response = sealError(error);
-    if (response) return response;
-    throw error;
+    console.error(
+      "[github-research] failed to read repository credentials",
+      repositoryRouteErrorDetails(item.id, error)
+    );
+    return json({ error: "Could not authorize research repository" }, 500);
   }
+  if (
+    !preflightCredentials ||
+    preflightCredentials.installationId !== item.binding.installationId ||
+    !preflightCredentials.repositoryIds.includes(item.binding.repositoryId)
+  ) {
+    return json({ error: "Research repository is disconnected" }, 409);
+  }
+  let repositoryForCommit: GithubRepositoryCoordinates | undefined;
   const baseCommitSha =
     body.action === "seal"
       ? (body.preview.sealedFromCommit ?? item.binding.headCommitSha)
@@ -353,6 +359,19 @@ export async function POST(request: Request, context: RouteContext) {
       idempotencyKey,
       artifactIds: [proposedSnapshotId],
       baseCommitSha,
+      getCurrentHeadCommitSha: async () => {
+        const repository = await loadInstallationRepository(
+          item.binding.installationId,
+          item.binding.repositoryId
+        );
+        repositoryForCommit = repository;
+        assertRepositoryPrivate(repository);
+        return getRepositoryBranchHead(
+          item.binding.installationId,
+          repository,
+          item.binding.branch
+        );
+      },
     });
   } catch (error) {
     const response = sealError(error);
@@ -365,7 +384,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const snapshotId = operation.artifactIds[0] ?? proposedSnapshotId;
-  if (operation.resultCommitSha) {
+  if (operation.status === "succeeded" && operation.resultCommitSha) {
     try {
       if (item.binding.headCommitSha !== operation.resultCommitSha) {
         await updateResearchRepositoryBindingHead(
@@ -378,6 +397,9 @@ export async function POST(request: Request, context: RouteContext) {
         operationId: operation.operationId,
         commitSha: operation.resultCommitSha,
         snapshotId,
+        ...(operation.resultProvenance
+          ? { provenance: operation.resultProvenance }
+          : {}),
       });
     } catch (error) {
       console.error(
@@ -386,6 +408,18 @@ export async function POST(request: Request, context: RouteContext) {
       );
       return json({ error: "Could not record repository seal" }, 500);
     }
+  }
+  if (operation.status === "failed" && operation.resultCommitSha) {
+    return json(
+      {
+        error: "repository_operation_recovery_required",
+        operationId: operation.operationId,
+        commitSha: operation.resultCommitSha,
+        snapshotId,
+        nextAction: "reconcile_repository",
+      },
+      409
+    );
   }
   if (operation.status === "failed") {
     const errorCode = operation.errorCode ?? "REPOSITORY_OPERATION_FAILED";
@@ -446,6 +480,7 @@ export async function POST(request: Request, context: RouteContext) {
       expectedHeadSha: item.binding.headCommitSha,
       files: [sealLedgerPath(snapshotId), sealManifestPath(snapshotId)],
     });
+    repositoryForCommit = repository;
     access = { binding: item.binding, credentials, repository };
   } catch (error) {
     try {
@@ -467,6 +502,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   let commitSha: string;
+  let commitProvenance: ReturnType<typeof repositoryCommitProvenance>;
   try {
     if (body.action === "seal") {
       const preview = await previewSealSnapshot(access, {
@@ -481,7 +517,7 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
       assertSealDeclarations(preview, body.declarations);
-      ({ commitSha } = await commitSealSnapshot(
+      ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,
         authorFor(access)
@@ -493,7 +529,7 @@ export async function POST(request: Request, context: RouteContext) {
         expectedHeadCommitSha: operation.baseCommitSha,
       });
       assertSealDeclarations(preview, body.declarations);
-      ({ commitSha } = await commitSealSnapshot(
+      ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,
         authorFor(access)
@@ -528,7 +564,8 @@ export async function POST(request: Request, context: RouteContext) {
     operation = await recordRepositoryOperationResult(
       auth.user.id,
       operation,
-      commitSha
+      commitSha,
+      commitProvenance
     );
     await updateResearchRepositoryBindingHead(auth.user.id, item.id, commitSha);
     const completed = await completeRepositoryOperation(
@@ -536,7 +573,12 @@ export async function POST(request: Request, context: RouteContext) {
       operation,
       commitSha
     );
-    return json({ operationId: completed.operationId, commitSha, snapshotId });
+    return json({
+      operationId: completed.operationId,
+      commitSha,
+      snapshotId,
+      provenance: commitProvenance,
+    });
   } catch (error) {
     try {
       await failRepositoryOperation(

@@ -94,11 +94,19 @@ describe("repository operation Store", () => {
   it("replays a succeeded idempotency key with the original result", async () => {
     const pending = await claimRepositoryOperation("user-1", claim);
     const running = await startRepositoryOperation("user-1", pending);
+    const resultProvenance = {
+      repository: "octocat/private",
+      branch: "openrigor/workspace",
+      path: "ledger/seals/snapshot.seal.yml",
+      revision: resultCommitSha,
+    };
     const landed = await recordRepositoryOperationResult(
       "user-1",
       running,
-      resultCommitSha
+      resultCommitSha,
+      resultProvenance
     );
+    expect(landed.resultProvenance).toEqual(resultProvenance);
     const completed = await completeRepositoryOperation(
       "user-1",
       landed,
@@ -155,7 +163,96 @@ describe("repository operation Store", () => {
     expect(storedOperation().status).toBe("succeeded");
   });
 
-  it("replays a failed operation with its landed commit result", async () => {
+  it("completes a failed landed operation when the branch is at its result", async () => {
+    const pending = await claimRepositoryOperation("user-1", claim);
+    const running = await startRepositoryOperation("user-1", pending);
+    const landed = await recordRepositoryOperationResult(
+      "user-1",
+      running,
+      resultCommitSha
+    );
+    const failed = await failRepositoryOperation(
+      "user-1",
+      landed,
+      "COMMIT_LANDED_HEAD_UPDATE_FAILED",
+      resultCommitSha
+    );
+    replaceStoredOperation(expire(failed));
+
+    const reclaimed = await claimRepositoryOperation("user-1", {
+      ...claim,
+      getCurrentHeadCommitSha: vi.fn().mockResolvedValue(resultCommitSha),
+    });
+
+    expect(reclaimed.status).toBe("succeeded");
+    expect(reclaimed.operationId).toBe(failed.operationId);
+    expect(failed).toMatchObject({ status: "failed", resultCommitSha });
+    expect(storedOperation()).toMatchObject({
+      status: "succeeded",
+      resultCommitSha,
+    });
+  });
+
+  it("keeps a landed result durable when the store response is dropped", async () => {
+    const pending = await claimRepositoryOperation("user-1", claim);
+    const running = await startRepositoryOperation("user-1", pending);
+    harness.store.putItem.mockImplementationOnce(
+      async (namespace: string[], itemKey: string, value: unknown) => {
+        harness.items.set(
+          `${namespace.join("/")}:${itemKey}`,
+          structuredClone(value)
+        );
+        throw new Error("store response dropped");
+      }
+    );
+
+    await expect(
+      recordRepositoryOperationResult("user-1", running, resultCommitSha)
+    ).rejects.toThrow("store response dropped");
+
+    const failed = await failRepositoryOperation(
+      "user-1",
+      running,
+      "COMMIT_LANDED_RESULT_RECORD_FAILED",
+      resultCommitSha
+    );
+    const recovered = await claimRepositoryOperation("user-1", {
+      ...claim,
+      getCurrentHeadCommitSha: vi.fn().mockResolvedValue(resultCommitSha),
+    });
+
+    expect(failed).toMatchObject({
+      status: "failed",
+      resultCommitSha,
+    });
+    expect(recovered).toMatchObject({
+      status: "succeeded",
+      resultCommitSha,
+    });
+  });
+
+  it("requires recovery when a landed result was never persisted", async () => {
+    const pending = await claimRepositoryOperation("user-1", claim);
+    const running = await startRepositoryOperation("user-1", pending);
+    harness.store.putItem.mockImplementationOnce(async () => {
+      throw new Error("store unavailable before persist");
+    });
+
+    await expect(
+      recordRepositoryOperationResult("user-1", running, resultCommitSha)
+    ).rejects.toThrow("store unavailable before persist");
+    replaceStoredOperation(expire(running));
+
+    await expect(
+      claimRepositoryOperation("user-1", {
+        ...claim,
+        getCurrentHeadCommitSha: vi.fn().mockResolvedValue(resultCommitSha),
+      })
+    ).rejects.toBeInstanceOf(StaleRepositoryError);
+    expect(harness.items.size).toBe(0);
+  });
+
+  it("does not retry a landed operation after the branch moves", async () => {
     const pending = await claimRepositoryOperation("user-1", claim);
     const running = await startRepositoryOperation("user-1", pending);
     const landed = await recordRepositoryOperationResult(
@@ -170,11 +267,16 @@ describe("repository operation Store", () => {
       resultCommitSha
     );
 
-    await expect(claimRepositoryOperation("user-1", claim)).resolves.toEqual(
-      failed
-    );
-    expect(failed).toMatchObject({ status: "failed", resultCommitSha });
-    expect(harness.items.size).toBe(1);
+    await expect(
+      claimRepositoryOperation("user-1", {
+        ...claim,
+        getCurrentHeadCommitSha: vi.fn().mockResolvedValue("c".repeat(40)),
+      })
+    ).resolves.toEqual(failed);
+    expect(storedOperation()).toMatchObject({
+      status: "failed",
+      resultCommitSha,
+    });
   });
 
   it("reclaims a stale operation when the branch is still at its base", async () => {

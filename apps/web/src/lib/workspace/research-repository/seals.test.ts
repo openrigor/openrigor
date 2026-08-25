@@ -123,7 +123,7 @@ const access = {
     repositoryIds: [101],
     displayMetadata: { githubUserId: 7, login: "researcher" },
   },
-  repository: { owner: "octocat", name: "private" },
+  repository: { id: 101, owner: "octocat", name: "private" },
 };
 
 function oldManifest(snapshotId = snapshotOne, at = reviewedAt) {
@@ -253,9 +253,15 @@ describe("repository ledger seals", () => {
       email: "7+researcher@users.noreply.github.com",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       commitSha: resultCommitSha,
       snapshotId: snapshotOne,
+      provenance: {
+        repository: "octocat/private",
+        branch: "openrigor/workspace",
+        path: preview.ledgerPath,
+        revision: resultCommitSha,
+      },
     });
     expect(harness.commitArtifacts).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
