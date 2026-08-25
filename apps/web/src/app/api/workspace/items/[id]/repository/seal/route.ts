@@ -12,6 +12,7 @@ import {
   repositoryCommitProvenance,
   StaleRepositoryError,
   type GithubCommitAuthor,
+  type GithubRepositoryCoordinates,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
   RepositoryAccessError,
@@ -340,9 +341,7 @@ export async function POST(request: Request, context: RouteContext) {
   ) {
     return json({ error: "Research repository is disconnected" }, 409);
   }
-  let repositoryForCommit:
-    | { owner: string; name: string; nameWithOwner?: string }
-    | undefined;
+  let repositoryForCommit: GithubRepositoryCoordinates | undefined;
   const baseCommitSha =
     body.action === "seal"
       ? (body.preview.sealedFromCommit ?? item.binding.headCommitSha)
@@ -387,17 +386,6 @@ export async function POST(request: Request, context: RouteContext) {
   const snapshotId = operation.artifactIds[0] ?? proposedSnapshotId;
   if (operation.status === "succeeded" && operation.resultCommitSha) {
     try {
-      if (!repositoryForCommit && preflightCredentials) {
-        try {
-          repositoryForCommit = await loadInstallationRepository(
-            item.binding.installationId,
-            item.binding.repositoryId
-          );
-        } catch {
-          // The durable commit result remains authoritative if the repository
-          // cannot be loaded just to enrich response provenance.
-        }
-      }
       if (item.binding.headCommitSha !== operation.resultCommitSha) {
         await updateResearchRepositoryBindingHead(
           auth.user.id,
@@ -409,16 +397,9 @@ export async function POST(request: Request, context: RouteContext) {
         operationId: operation.operationId,
         commitSha: operation.resultCommitSha,
         snapshotId,
-        provenance: repositoryCommitProvenance(
-          repositoryForCommit ?? {
-            owner: "github",
-            name: String(item.binding.repositoryId),
-            nameWithOwner: item.binding.repositoryFullName,
-          },
-          item.binding.branch,
-          sealManifestPath(snapshotId),
-          operation.resultCommitSha
-        ),
+        ...(operation.resultProvenance
+          ? { provenance: operation.resultProvenance }
+          : {}),
       });
     } catch (error) {
       console.error(
@@ -583,7 +564,8 @@ export async function POST(request: Request, context: RouteContext) {
     operation = await recordRepositoryOperationResult(
       auth.user.id,
       operation,
-      commitSha
+      commitSha,
+      commitProvenance
     );
     await updateResearchRepositoryBindingHead(auth.user.id, item.id, commitSha);
     const completed = await completeRepositoryOperation(

@@ -383,9 +383,7 @@ export async function getGithubInstallationRepository(
 /** Resolve the current head of one branch without retaining an App token. */
 export async function getGithubRepositoryBranchHead(
   installationId: number,
-  repository: Pick<GithubInstallationRepository, "owner" | "name"> & {
-    id?: number;
-  },
+  repository: Pick<GithubInstallationRepository, "id" | "owner" | "name">,
   branch: string
 ): Promise<string> {
   const octokit = createGithubInstallationOctokit(
@@ -411,9 +409,7 @@ export async function getGithubRepositoryBranchHead(
 /** Create a repository branch with installation-scoped App credentials. */
 export async function createGithubRepositoryBranch(
   installationId: number,
-  repository: Pick<GithubInstallationRepository, "owner" | "name"> & {
-    id?: number;
-  },
+  repository: Pick<GithubInstallationRepository, "id" | "owner" | "name">,
   branch: string,
   sha: string
 ): Promise<void> {

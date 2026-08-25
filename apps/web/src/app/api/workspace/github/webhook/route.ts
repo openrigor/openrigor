@@ -6,9 +6,9 @@ import {
   deleteGithubResearchCredentials,
   findGithubCredentialOwnersByGithubUserId,
   findGithubCredentialOwnersByInstallationId,
-  markGithubAuthorizationRevoked,
   recordGithubPush,
   releaseGithubWebhookDelivery,
+  revokeGithubAuthorization,
   updateGithubInstallation,
   updateGithubInstallationRepositories,
 } from "@/lib/workspace/research-repository/credentials";
@@ -68,8 +68,7 @@ async function handleDelivery(
 ): Promise<void> {
   if (event === "github_app_authorization") {
     if (payload.action === "revoked") {
-      await deleteGithubResearchCredentials(userId);
-      await markGithubAuthorizationRevoked(userId);
+      await revokeGithubAuthorization(userId);
     }
     return;
   }

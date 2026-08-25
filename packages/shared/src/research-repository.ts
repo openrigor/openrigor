@@ -249,7 +249,8 @@ export type RepositoryCommitProvenance = z.infer<
 
 /**
  * Retained operation metadata. The strict schema deliberately has no artifact
- * body, repository path, commit message, token, or raw webhook field.
+ * body, commit message, token, or raw webhook field. Result provenance is a
+ * pointer-only record needed to replay the response consistently.
  */
 export const RepositoryOperationSchema = z
   .object({
@@ -261,6 +262,7 @@ export const RepositoryOperationSchema = z
     artifactIds: z.array(IdentifierSchema).max(1000),
     baseCommitSha: CommitShaSchema.optional(),
     resultCommitSha: CommitShaSchema.optional(),
+    resultProvenance: RepositoryCommitProvenanceSchema.optional(),
     publicationId: OpaqueIdSchema.optional(),
     errorCode: z
       .string()

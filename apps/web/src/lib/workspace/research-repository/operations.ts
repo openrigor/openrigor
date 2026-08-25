@@ -3,6 +3,7 @@ import { Client } from "@langchain/langgraph-sdk";
 import {
   RepositoryOperationSchema,
   type RepositoryOperation,
+  type RepositoryCommitProvenance,
 } from "@opencanvas/shared/research-repository";
 import { LANGGRAPH_API_URL } from "@/constants";
 import { withUserLock } from "./credentials";
@@ -227,7 +228,8 @@ export async function startRepositoryOperation(
 export async function recordRepositoryOperationResult(
   userId: string,
   operation: RepositoryOperation,
-  resultCommitSha: string
+  resultCommitSha: string,
+  resultProvenance?: RepositoryCommitProvenance
 ): Promise<RepositoryOperation> {
   return withUserLock(userId, async () => {
     const current = await readOperation(userId, operation.idempotencyKey);
@@ -240,6 +242,7 @@ export async function recordRepositoryOperationResult(
     const landed = RepositoryOperationSchema.parse({
       ...current,
       resultCommitSha,
+      resultProvenance,
       updatedAt: new Date().toISOString(),
     });
     await writeOperation(userId, landed);
