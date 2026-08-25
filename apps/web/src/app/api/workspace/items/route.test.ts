@@ -11,6 +11,8 @@ const harness = vi.hoisted(() => ({
   enabled: vi.fn(),
   verifyUserAuthenticated: vi.fn(),
   createResearchRepositoryItem: vi.fn(),
+  createPrivateMethodWorkspaceItem: vi.fn(),
+  createPrivateLedgerWorkspaceItem: vi.fn(),
   createWorkspaceItem: vi.fn(),
   createMethodWorkspaceItem: vi.fn(),
   createLedgerWorkspaceItem: vi.fn(),
@@ -30,6 +32,8 @@ vi.mock("@/lib/workspace/store", () => ({
   LedgerNotReadyError: harness.LedgerNotReadyError,
   ResearchRepositoryBindingError: harness.ResearchRepositoryBindingError,
   createResearchRepositoryItem: harness.createResearchRepositoryItem,
+  createPrivateMethodWorkspaceItem: harness.createPrivateMethodWorkspaceItem,
+  createPrivateLedgerWorkspaceItem: harness.createPrivateLedgerWorkspaceItem,
   createWorkspaceItem: harness.createWorkspaceItem,
   createMethodWorkspaceItem: harness.createMethodWorkspaceItem,
   createLedgerWorkspaceItem: harness.createLedgerWorkspaceItem,
@@ -60,6 +64,8 @@ describe("POST /api/workspace/items", () => {
     harness.verifyUserAuthenticated.mockReset();
     harness.createWorkspaceItem.mockReset();
     harness.createResearchRepositoryItem.mockReset();
+    harness.createPrivateMethodWorkspaceItem.mockReset();
+    harness.createPrivateLedgerWorkspaceItem.mockReset();
     harness.createMethodWorkspaceItem.mockReset();
     harness.createLedgerWorkspaceItem.mockReset();
     harness.enabled.mockReset();
@@ -96,6 +102,83 @@ describe("POST /api/workspace/items", () => {
       "user-1",
       "ledger-demo-method"
     );
+  });
+
+  it("adopts a private Method through its owned repository item", async () => {
+    harness.createPrivateMethodWorkspaceItem.mockResolvedValue({
+      id: "wi_private_method",
+      kind: "method",
+    });
+
+    const response = await POST(
+      request({
+        kind: "method",
+        methodId: "private-method",
+        repositoryItemId: "wi_repository",
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(harness.createPrivateMethodWorkspaceItem).toHaveBeenCalledWith(
+      "user-1",
+      "wi_repository",
+      "private-method"
+    );
+    expect(harness.createMethodWorkspaceItem).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for private Method adoption while the feature flag is off", async () => {
+    harness.enabled.mockReturnValue(false);
+
+    const response = await POST(
+      request({
+        kind: "method",
+        methodId: "private-method",
+        repositoryItemId: "wi_repository",
+      })
+    );
+
+    expect(response.status).toBe(404);
+    expect(harness.createPrivateMethodWorkspaceItem).not.toHaveBeenCalled();
+  });
+
+  it("creates a private Ledger through its owned repository item", async () => {
+    harness.createPrivateLedgerWorkspaceItem.mockResolvedValue({
+      id: "wi_private_ledger",
+      kind: "ledger",
+    });
+
+    const response = await POST(
+      request({
+        kind: "ledger",
+        methodId: "private-method",
+        repositoryItemId: "wi_repository",
+      })
+    );
+
+    expect(response.status).toBe(201);
+    expect(harness.createPrivateLedgerWorkspaceItem).toHaveBeenCalledWith(
+      "user-1",
+      "wi_repository",
+      "private-method"
+    );
+    expect(harness.createLedgerWorkspaceItem).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a private Ledger while the feature flag is off", async () => {
+    harness.enabled.mockReturnValue(false);
+
+    const response = await POST(
+      request({
+        kind: "ledger",
+        methodId: "private-method",
+        repositoryItemId: "wi_repository",
+      })
+    );
+
+    expect(response.status).toBe(404);
+    expect(harness.createPrivateLedgerWorkspaceItem).not.toHaveBeenCalled();
+    expect(harness.createLedgerWorkspaceItem).not.toHaveBeenCalled();
   });
 
   it("creates a private research repository item", async () => {

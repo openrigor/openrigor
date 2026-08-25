@@ -1,9 +1,9 @@
 {
   "name": "@opencanvas/web",
   "author": "Brace Sproul",
-  "homepage": "https://evaluchat.org",
-  "repository": "https://github.com/evaluchat/evaluchat",
-  "version": "0.7.0",
+  "homepage": "https://openrigor.org",
+  "repository": "https://github.com/openrigor/openrigor",
+  "version": "0.8.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

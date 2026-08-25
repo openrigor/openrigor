@@ -1,5 +1,5 @@
 export const DEFAULT_GITHUB_RESEARCH_STARTER_TEMPLATE =
-  "evaluchat/private-research-starter";
+  "openrigor/private-research-starter";
 
 export function githubResearchStarterTemplate(): string {
   return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ledgerPublishRequestBody,
-  publicationAccessError,
-} from "@/lib/workspace/ledger-publication";
+import { publicationAccessError } from "@/lib/workspace/ledger-publication";
 import type { LedgerSnapshotWorkspaceItem } from "@/lib/workspace/types";
+import {
+  LedgerPublicationDeclarations,
+  ledgerDeclarationRequestValues,
+  useLedgerPublicationDeclarations,
+} from "./ledger-publication-declarations";
 
 type Publication = NonNullable<LedgerSnapshotWorkspaceItem["publication"]>;
 
@@ -31,19 +34,21 @@ export function LedgerPublishDialog({
   onPublished: (publication: Publication) => void;
   rePublish?: boolean;
 }) {
-  const [authorised, setAuthorised] = useState(false);
-  const [anonymised, setAnonymised] = useState(false);
-  const [publicData, setPublicData] = useState(false);
+  const {
+    declarations,
+    setDeclarations,
+    declarationsConfirmed,
+    resetDeclarations,
+  } = useLedgerPublicationDeclarations();
   const [error, setError] = useState<string>();
   const [isPublishing, setIsPublishing] = useState(false);
+  const privateDestination = item.source.privateRepository !== undefined;
 
   useEffect(() => {
     if (!open) return;
-    setAuthorised(false);
-    setAnonymised(false);
-    setPublicData(false);
+    resetDeclarations();
     setError(undefined);
-  }, [open, rePublish]);
+  }, [open, rePublish, resetDeclarations]);
 
   async function publish() {
     setIsPublishing(true);
@@ -55,14 +60,10 @@ export function LedgerPublishDialog({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(
-            ledgerPublishRequestBody({
-              authorised,
-              anonymised,
-              publicData,
-              rePublish,
-            })
-          ),
+          body: JSON.stringify({
+            ...(rePublish ? { rePublish: true } : {}),
+            values: ledgerDeclarationRequestValues(declarations),
+          }),
         }
       );
       const body = (await response.json().catch(() => ({}))) as {
@@ -96,8 +97,6 @@ export function LedgerPublishDialog({
     }
   }
 
-  const declarationsComplete = authorised && anonymised && publicData;
-
   return (
     <Dialog
       open={open}
@@ -111,46 +110,26 @@ export function LedgerPublishDialog({
         data-testid="ledger-publish-dialog"
       >
         <DialogHeader>
-          <DialogTitle>
-            {rePublish ? "Republish sealed Ledger Snapshot" : "Create draft PR"}
+          <DialogTitle className="flex items-center gap-2">
+            {privateDestination
+              ? "Commit private Ledger Snapshot"
+              : rePublish
+                ? "Republish sealed Ledger Snapshot"
+                : "Create draft PR"}
+            {privateDestination && <Badge variant="secondary">Private</Badge>}
           </DialogTitle>
           <DialogDescription>
-            Create one draft PR under your connected GitHub identity. It will
-            not merge automatically.
+            {privateDestination
+              ? "Commit the sealed ledger and manifest to the Method's private repository under your connected GitHub identity."
+              : "Create one draft PR under your connected GitHub identity. It will not merge automatically."}
           </DialogDescription>
         </DialogHeader>
-        <fieldset className="min-w-0 space-y-3 rounded-md border p-3">
-          <legend className="px-1 text-sm font-medium">
-            Public-safety declarations
-          </legend>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={authorised}
-              onChange={(event) => setAuthorised(event.target.checked)}
-              data-testid="ledger-publication-authorisation"
-            />
-            I am authorised to publish this evidence ledger.
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={anonymised}
-              onChange={(event) => setAnonymised(event.target.checked)}
-              data-testid="ledger-anonymisation-status"
-            />
-            It contains no student identifiers or raw student material.
-          </label>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={publicData}
-              onChange={(event) => setPublicData(event.target.checked)}
-              data-testid="ledger-public-data-declaration"
-            />
-            I confirm the rendered file is public data for evaluchat/research.
-          </label>
-        </fieldset>
+        <LedgerPublicationDeclarations
+          values={declarations}
+          onChange={setDeclarations}
+          variant="checkbox"
+          legend="Publication-safety declarations"
+        />
         {error && (
           <p className="text-sm text-destructive" role="alert">
             {error}
@@ -166,10 +145,16 @@ export function LedgerPublishDialog({
           </Button>
           <Button
             onClick={() => void publish()}
-            disabled={!declarationsComplete || isPublishing}
+            disabled={!declarationsConfirmed || isPublishing}
             data-testid="ledger-confirm-publish"
           >
-            {isPublishing ? "Creating draft PR…" : "Create draft PR"}
+            {isPublishing
+              ? privateDestination
+                ? "Committing privately…"
+                : "Creating draft PR…"
+              : privateDestination
+                ? "Commit privately"
+                : "Create draft PR"}
           </Button>
         </DialogFooter>
       </DialogContent>

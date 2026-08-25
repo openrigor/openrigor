@@ -32,7 +32,7 @@ function identity(value: unknown): { id: string; version: string } | undefined {
 export function researchQuestionPath(resource: string): string | undefined {
   const trimmed = resource.trim();
   const github = trimmed.match(
-    /^https:\/\/github\.com\/evaluchat\/research\/(?:blob|tree)\/[^/]+\/(.+)$/i
+    /^https:\/\/github\.com\/openrigor\/research\/(?:blob|tree)\/[^/]+\/(.+)$/i
   );
   const raw = github
     ? github[1]

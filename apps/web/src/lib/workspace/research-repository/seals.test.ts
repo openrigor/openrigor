@@ -21,6 +21,8 @@ import {
   canonicalSealConfigurationJson,
   commitSealSnapshot,
   latestSealSnapshotId,
+  methodSealLedgerPath,
+  methodSealManifestPath,
   parseSealManifest,
   previewSealSnapshot,
   sealLedgerPath,
@@ -110,7 +112,7 @@ const access = {
     provider: "github" as const,
     repositoryId: 101,
     installationId: 99,
-    branch: "evaluchat/workspace" as const,
+    branch: "openrigor/workspace" as const,
     layoutVersion: "1.0",
     headCommitSha,
     boundAt: "2026-08-23T00:00:00.000Z",
@@ -141,6 +143,7 @@ function oldManifest(snapshotId = snapshotOne, at = reviewedAt) {
     ],
     configurationHash: "6".repeat(64),
     renderHash: "5".repeat(64),
+    supersedes: undefined,
   };
 }
 
@@ -204,6 +207,42 @@ describe("repository ledger seals", () => {
     );
   });
 
+  it("preserves the bridge-free panel manifest bytes", async () => {
+    const preview = await previewSealSnapshot(access, {
+      snapshotId: snapshotOne,
+      reviewedAt,
+    });
+
+    expect(preview.manifestYaml).toBe(
+      [
+        "schema_version: '1'",
+        `snapshot_id: ${snapshotOne}`,
+        `sealed_from_commit: ${headCommitSha}`,
+        "reviewer_login: researcher",
+        `reviewed_at: '${reviewedAt}'`,
+        "method:",
+        "  id: synthetic-method",
+        "  version: 1.2.3",
+        "inputs:",
+        "  - path: findings/finding-one.en.md",
+        `    blob_sha: ${"d".repeat(40)}`,
+        "    sha256: 603ef045925f5c6f3964f6db6e8ae9e2244a98475cd6d3b80a5e000d99f4985b",
+        "  - path: methods/synthetic-method/evidence/evidence-one.en.md",
+        `    blob_sha: ${"c".repeat(40)}`,
+        "    sha256: 9d11f9a71c12d6194481f5fa5086b0eff7df05a4a228f022f55bd890009a9d16",
+        "  - path: methods/synthetic-method/evidence/ledgers/draft-ledger.en.md",
+        `    blob_sha: ${"e".repeat(40)}`,
+        "    sha256: 4f9aed09170c36766e38686ace03957731b5d3cfdaaa492b1852642d4f3c4bec",
+        "  - path: methods/synthetic-method/synthetic-method.en.md",
+        `    blob_sha: ${"b".repeat(40)}`,
+        "    sha256: ebad6de31534578a9c6526d5c2a98f67ddf2e73909505d4dbae888b017b33e7b",
+        "configuration_hash: fa0053f65855bc92c5fc4b1bb25bf09a7fcafdb7feeab0c796a9f23ad70d892a",
+        "render_hash: 1f32a0be74627cffff85eb965e22df107c41d2693060631073db2419a8872eec",
+        "",
+      ].join("\n")
+    );
+  });
+
   it("commits the ledger and adjacent manifest atomically and round-trips the schema", async () => {
     const preview = await previewSealSnapshot(access, {
       snapshotId: snapshotOne,
@@ -222,7 +261,7 @@ describe("repository ledger seals", () => {
     expect(harness.commitArtifacts).toHaveBeenCalledWith(
       99,
       access.repository,
-      "evaluchat/workspace",
+      "openrigor/workspace",
       expect.objectContaining({
         baseSha: headCommitSha,
         files: [
@@ -422,7 +461,7 @@ describe("repository ledger seals", () => {
     await expect(latestSealSnapshotId(access)).resolves.toBe(snapshotTwo);
   });
 
-  it("excludes method-scoped seal renders and includes their manifests", async () => {
+  it("keeps method-scoped seal history local to its destination", async () => {
     const methodManifest =
       "methods/synthetic-method/evidence/ledgers/synthetic-snapshot.seal.yml";
     const methodRender =
@@ -468,7 +507,26 @@ describe("repository ledger seals", () => {
     expect(preview.inputArtifactIds).toContain(
       "ledger.synthetic-method.draft-ledger"
     );
-    await expect(latestSealSnapshotId(access)).resolves.toBe(snapshotOne);
+    await expect(latestSealSnapshotId(access)).resolves.toBeUndefined();
+    await expect(
+      latestSealSnapshotId(access, "synthetic-method")
+    ).resolves.toBe(snapshotOne);
+
+    const methodPreview = await previewSealSnapshot(access, {
+      methodId: "synthetic-method",
+      snapshotId: snapshotTwo,
+      reviewedAt,
+    });
+    expect(methodPreview.latestSnapshotId).toBe(snapshotOne);
+    expect(methodPreview.ledgerPath).toBe(
+      methodSealLedgerPath("synthetic-method", snapshotTwo)
+    );
+    expect(methodPreview.sealPath).toBe(
+      methodSealManifestPath("synthetic-method", snapshotTwo)
+    );
+    expect(methodPreview.inputs.map((input) => input.path)).not.toContain(
+      "findings/finding-one.en.md"
+    );
   });
 
   it("validates a superseded seal from manifest content when the filename differs", async () => {
@@ -494,6 +552,7 @@ describe("repository ledger seals", () => {
     });
 
     const preview = await previewSealSnapshot(access, {
+      methodId: "synthetic-method",
       snapshotId: snapshotTwo,
       reviewedAt,
       supersedes: snapshotOne,
@@ -501,7 +560,7 @@ describe("repository ledger seals", () => {
     expect(preview.supersedes).toBe(snapshotOne);
   });
 
-  it("rejects a duplicate snapshot id from method-scoped manifest content", async () => {
+  it("checks duplicate snapshot ids only within the selected destination", async () => {
     const methodManifest =
       "methods/synthetic-method/evidence/ledgers/synthetic-snapshot.seal.yml";
     files.set(methodManifest, {
@@ -525,6 +584,7 @@ describe("repository ledger seals", () => {
 
     await expect(
       previewSealSnapshot(access, {
+        methodId: "synthetic-method",
         snapshotId: snapshotOne,
         reviewedAt,
       })
@@ -538,6 +598,13 @@ describe("repository ledger seals", () => {
         reviewedAt,
       })
     ).resolves.toMatchObject({ snapshotId: snapshotTwo });
+
+    await expect(
+      previewSealSnapshot(access, {
+        snapshotId: snapshotOne,
+        reviewedAt,
+      })
+    ).resolves.toMatchObject({ snapshotId: snapshotOne });
   });
 });
 

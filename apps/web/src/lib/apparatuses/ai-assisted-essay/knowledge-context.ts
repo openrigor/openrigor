@@ -18,24 +18,24 @@ export const ESSAYS_KNOWLEDGE_SOURCES: KnowledgeSource[] = [
     title:
       "Research apparatus — reproducible research in the Workspace (knowledge catalog)",
     resource:
-      "https://github.com/evaluchat/knowledge/blob/main/concepts/research-apparatus.en.md",
+      "https://github.com/openrigor/knowledge/blob/main/concepts/research-apparatus.en.md",
   },
   {
     id: "essays-workflow",
     title: "Essays workflow — proportional drafting unlock (knowledge catalog)",
     resource:
-      "https://github.com/evaluchat/knowledge/blob/main/concepts/essays-workflow.en.md",
+      "https://github.com/openrigor/knowledge/blob/main/concepts/essays-workflow.en.md",
   },
   {
     id: "threshold-calibration",
     title:
       "Threshold calibration — what counts as sufficient dialogic contribution? (research catalog)",
     resource:
-      "https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md",
+      "https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md",
   },
 ];
 
 export const ESSAYS_KNOWLEDGE_SOURCES_TEXT = `Sources:
-- research-apparatus — https://github.com/evaluchat/knowledge/blob/main/concepts/research-apparatus.en.md
-- essays-workflow — https://github.com/evaluchat/knowledge/blob/main/concepts/essays-workflow.en.md
-- threshold-calibration — https://github.com/evaluchat/research/blob/main/theory/threshold-calibration.en.md`;
+- research-apparatus — https://github.com/openrigor/knowledge/blob/main/concepts/research-apparatus.en.md
+- essays-workflow — https://github.com/openrigor/knowledge/blob/main/concepts/essays-workflow.en.md
+- threshold-calibration — https://github.com/openrigor/research/blob/main/theory/threshold-calibration.en.md`;

@@ -31,7 +31,7 @@ export function getEnvEnabledApparatusIds(): string[] {
     return ["ai-assisted-essay"];
   }
 
-  // Evaluchat.org is the education-research beta. Keep the Essays apparatus
+  // OpenRigor.org is the education-research beta. Keep the Essays apparatus
   // on by default; an explicit empty APPARATUSES value remains the escape hatch
   // for a generic canvas deployment.
   if (process.env.NEXT_PUBLIC_TEACHING_PROTOTYPE === undefined) {

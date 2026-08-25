@@ -4,9 +4,9 @@ import { LegalDocumentLayout } from "@/components/legal/legal-document-layout";
 import { PrivacyPolicyContent } from "@/components/legal/privacy-policy-content";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · evaluchat",
+  title: "Privacy Policy · OpenRigor",
   description:
-    "How Evaluchat collects and uses personal data in the public beta.",
+    "How OpenRigor collects and uses personal data in the public beta.",
 };
 
 export default function PrivacyPage() {

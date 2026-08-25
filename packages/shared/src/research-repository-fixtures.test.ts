@@ -59,7 +59,7 @@ describe("research repository layout fixtures", () => {
         `layout_version: "${version.slice(1)}"`
       );
       expect(workspaceManifest).toContain(
-        "managed_branch: evaluchat/workspace"
+        "managed_branch: openrigor/workspace"
       );
     }
   );
@@ -67,7 +67,7 @@ describe("research repository layout fixtures", () => {
   it("documents managed paths and canonical research catalog location", () => {
     const metadata = readMetadata();
 
-    expect(metadata.canonicalContent.repository).toBe("evaluchat/research");
+    expect(metadata.canonicalContent.repository).toBe("openrigor/research");
     expect(metadata.canonicalContent.methodRoot).toBe(
       "methods/synthetic-method"
     );

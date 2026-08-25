@@ -6,7 +6,7 @@
 # sources a local, git-ignored .env if present, so you can keep TEST_USER_*
 # there locally.
 #
-#   export E2E_BASE_URL=https://dev.evaluchat.org
+#   export E2E_BASE_URL=https://dev.openrigor.org
 #   export TEST_USER_EMAIL=... TEST_USER_PASSWORD=...
 #   ./scripts/e2e-run.sh npx playwright test --grep @regression --reporter=list
 set -euo pipefail
@@ -32,7 +32,7 @@ if [ -f .env ]; then
   done < .env
 fi
 
-export E2E_BASE_URL="${E2E_BASE_URL:-https://dev.evaluchat.org}"
+export E2E_BASE_URL="${E2E_BASE_URL:-https://dev.openrigor.org}"
 
 if [ -z "${TEST_USER_EMAIL:-}" ] || [ -z "${TEST_USER_PASSWORD:-}" ]; then
   echo "Missing TEST_USER_EMAIL / TEST_USER_PASSWORD (export them, or add to git-ignored .env)." >&2

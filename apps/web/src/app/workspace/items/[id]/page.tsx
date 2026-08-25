@@ -11,6 +11,7 @@ import {
   useWorkspaceItem,
 } from "@/contexts/WorkspaceItemContext";
 import { WorkspaceCanvas } from "@/components/workspace/workspace-canvas";
+import { legacyRepositoryRedirectPath } from "@/lib/workspace/repository-settings-routes";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUserContext();
@@ -25,20 +26,27 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function WorkspaceItemRoute() {
   const { item, loading } = useWorkspaceItem();
   const router = useRouter();
+  const repositoryRedirect = legacyRepositoryRedirectPath(item);
 
   useEffect(() => {
-    if (!loading && !item) router.replace("/workspace");
-  }, [loading, item, router]);
+    if (loading) return;
+    if (!item) {
+      router.replace("/workspace");
+      return;
+    }
+    if (repositoryRedirect) router.replace(repositoryRedirect);
+  }, [loading, item, repositoryRedirect, router]);
 
-  const content = !item ? null : (
-    <ThreadProvider workspaceItemId={item.id}>
-      <AssistantProvider workspaceMode>
-        <GraphProvider>
-          <WorkspaceCanvas />
-        </GraphProvider>
-      </AssistantProvider>
-    </ThreadProvider>
-  );
+  const content =
+    !item || repositoryRedirect ? null : (
+      <ThreadProvider workspaceItemId={item.id}>
+        <AssistantProvider workspaceMode>
+          <GraphProvider>
+            <WorkspaceCanvas />
+          </GraphProvider>
+        </AssistantProvider>
+      </ThreadProvider>
+    );
 
   return <AuthGate>{content}</AuthGate>;
 }

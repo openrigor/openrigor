@@ -20,7 +20,7 @@ const binding = {
   provider: "github",
   repositoryId: 12001,
   installationId: 22001,
-  branch: "evaluchat/workspace",
+  branch: "openrigor/workspace",
   layoutVersion: "1.0",
   headCommitSha: commitSha,
   boundAt: timestamp,
@@ -434,9 +434,9 @@ describe("research repository contracts", () => {
       sourceSealCommitSha: commitSha,
       bundleHash,
       destinationRepositoryId: 58001,
-      branch: "evaluchat/publication-synthetic",
+      branch: "openrigor/publication-synthetic",
       pullRequestNumber: 120,
-      pullRequestUrl: "https://github.com/evaluchat/research/pull/120",
+      pullRequestUrl: "https://github.com/openrigor/research/pull/120",
       status: "draft",
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -446,13 +446,13 @@ describe("research repository contracts", () => {
       publication
     );
     const invalidUrls = [
-      "https://example.test/evaluchat/research/pull/120",
-      "https://github.com/evaluchat/research/pull/121",
-      "https://github.com/evaluchat/research?x/pull/120",
-      "https://github.com/evaluchat/research/extra/pull/120",
-      "https://github.com/evaluchat/research/pull/120/extra",
-      "https://github.com/evaluchat/research/pull/120?view=files",
-      "https://github.com/evaluchat/research/pull/120#discussion",
+      "https://example.test/openrigor/research/pull/120",
+      "https://github.com/openrigor/research/pull/121",
+      "https://github.com/openrigor/research?x/pull/120",
+      "https://github.com/openrigor/research/extra/pull/120",
+      "https://github.com/openrigor/research/pull/120/extra",
+      "https://github.com/openrigor/research/pull/120?view=files",
+      "https://github.com/openrigor/research/pull/120#discussion",
     ];
 
     for (const pullRequestUrl of invalidUrls) {

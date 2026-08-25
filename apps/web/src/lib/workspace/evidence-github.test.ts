@@ -22,14 +22,14 @@ function response(body: unknown, status = 200): Response {
 
 describe("openEvidencePullRequest", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS = "1";
     process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS = "0";
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
     delete process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS;
     delete process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS;
   });
@@ -43,7 +43,7 @@ describe("openEvidencePullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 42,
-          html_url: "https://github.com/evaluchat/research/pull/42",
+          html_url: "https://github.com/openrigor/research/pull/42",
           head: { sha: "head-sha" },
         })
       )
@@ -55,7 +55,7 @@ describe("openEvidencePullRequest", () => {
 
     expect(result).toMatchObject({
       number: 42,
-      url: "https://github.com/evaluchat/research/pull/42",
+      url: "https://github.com/openrigor/research/pull/42",
       status: "filed",
       lintConclusion: "success",
     });
@@ -84,7 +84,7 @@ describe("openEvidencePullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 43,
-          html_url: "https://github.com/evaluchat/research/pull/43",
+          html_url: "https://github.com/openrigor/research/pull/43",
           head: { sha: "head-sha" },
         })
       )
@@ -114,7 +114,7 @@ describe("openEvidencePullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 44,
-          html_url: "https://github.com/evaluchat/research/pull/44",
+          html_url: "https://github.com/openrigor/research/pull/44",
           head: { sha: "head-sha" },
         })
       )
@@ -139,7 +139,7 @@ describe("openEvidencePullRequest", () => {
     const existing = {
       branch: "evidence/ai-assisted-essay/2026-08-18T12-34-56Z",
       number: 90,
-      url: "https://github.com/evaluchat/research/pull/90",
+      url: "https://github.com/openrigor/research/pull/90",
       headSha: "existing-head-sha",
     };
     const fetchMock = vi
@@ -157,7 +157,7 @@ describe("openEvidencePullRequest", () => {
 
     expect(result).toMatchObject({
       number: 90,
-      url: "https://github.com/evaluchat/research/pull/90",
+      url: "https://github.com/openrigor/research/pull/90",
       status: "filed",
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -180,7 +180,7 @@ describe("openEvidencePullRequest", () => {
     const existing = {
       branch: "evidence/ai-assisted-essay/2026-08-18T12-34-56Z",
       number: 91,
-      url: "https://github.com/evaluchat/research/pull/91",
+      url: "https://github.com/openrigor/research/pull/91",
       headSha: "existing-head-sha",
     };
     const fetchMock = vi
@@ -203,14 +203,14 @@ describe("openEvidencePullRequest", () => {
 
 describe("openLedgerPullRequest", () => {
   beforeEach(() => {
-    process.env.VALERY_GITHUB_TOKEN = "test-token";
+    process.env.RIGEL_GITHUB_TOKEN = "test-token";
     process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS = "1";
     process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS = "0";
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.VALERY_GITHUB_TOKEN;
+    delete process.env.RIGEL_GITHUB_TOKEN;
     delete process.env.EVIDENCE_GITHUB_CHECK_ATTEMPTS;
     delete process.env.EVIDENCE_GITHUB_CHECK_INTERVAL_MS;
   });
@@ -235,7 +235,7 @@ describe("openLedgerPullRequest", () => {
       .mockResolvedValueOnce(
         response({
           number: 85,
-          html_url: "https://github.com/evaluchat/research/pull/85",
+          html_url: "https://github.com/openrigor/research/pull/85",
           head: { sha: "ledger-head-sha" },
         })
       );

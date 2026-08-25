@@ -5,7 +5,7 @@ import type {
   LedgerDimensionValue,
 } from "@/lib/apparatuses/evidence-ledger";
 
-const RESEARCH_BLOB_URL = "https://github.com/evaluchat/research/blob";
+const RESEARCH_BLOB_URL = "https://github.com/openrigor/research/blob";
 
 function escapeDetailsSummary(summary: string): string {
   return summary

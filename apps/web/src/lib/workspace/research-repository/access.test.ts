@@ -77,7 +77,7 @@ describe("repository access guards", () => {
       assertRepositoryWriteAccess({
         installationId: 99,
         repositoryId: 101,
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
         expectedHeadSha: head,
         files: ["index.md"],
       })
@@ -94,7 +94,7 @@ describe("repository access guards", () => {
       assertRepositoryWriteAccess({
         installationId: 99,
         repositoryId: 101,
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
         expectedHeadSha: head,
         files: ["index.md"],
       })

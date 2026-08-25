@@ -55,7 +55,7 @@ const PHASE_ROUTING_RULES: Record<string, string> = {
 - Always replyToGeneralInput.`,
 };
 
-const TEACHING_INTENT_PROMPT = `You route student messages in Evaluchat, an AI writing coach with a chat panel and a canvas document.
+const TEACHING_INTENT_PROMPT = `You route student messages in OpenRigor, an AI writing coach with a chat panel and a canvas document.
 
 Read the full recent conversation — not only the last message. Prior turns establish whether the student wants coaching chat vs canvas edits.
 

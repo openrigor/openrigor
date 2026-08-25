@@ -39,7 +39,7 @@ describe("GET /api/workspace/items/[id]/evidence/[threadId]", () => {
     harness.getEvidenceSnapshot.mockResolvedValue({
       reference: {
         status: "submitted",
-        pullRequestUrl: "https://github.com/evaluchat/research/pull/9",
+        pullRequestUrl: "https://github.com/openrigor/research/pull/9",
         pullRequestNumber: 9,
       },
       snapshot: {

@@ -1,16 +1,16 @@
 import { isAutoMergeEligibleStage, shouldAutoMergeEvidence } from "./evidence";
 
 const GITHUB_API = "https://api.github.com";
-export const RESEARCH_REPOSITORY = "evaluchat/research";
+export const RESEARCH_REPOSITORY = "openrigor/research";
 
 type GithubJson = Record<string, any>;
 
 export function githubHeaders(): HeadersInit {
   // Catalogue publisher app (GITHUB_CATALOGUE_APP_ID / GITHUB_CATALOGUE_PRIVATE_KEY)
   // is a maintainer step: createGithubInstallationOctokit needs an installation
-  // id we do not resolve here. Runtime credential remains VALERY_GITHUB_TOKEN.
-  const token = process.env.VALERY_GITHUB_TOKEN;
-  if (!token) throw new Error("VALERY_GITHUB_TOKEN is not configured");
+  // id we do not resolve here. Runtime credential remains RIGEL_GITHUB_TOKEN.
+  const token = process.env.RIGEL_GITHUB_TOKEN;
+  if (!token) throw new Error("RIGEL_GITHUB_TOKEN is not configured");
   return {
     Accept: "application/vnd.github+json",
     Authorization: `Bearer ${token}`,
@@ -350,7 +350,7 @@ export async function findExistingEvidencePullRequest(
     throw new Error("Existing evidence branch did not return a commit SHA");
   }
   const pulls = await githubRequest(
-    `/repos/${RESEARCH_REPOSITORY}/pulls?head=evaluchat:${encodeURIComponent(branch)}&state=open`,
+    `/repos/${RESEARCH_REPOSITORY}/pulls?head=OpenRigor:${encodeURIComponent(branch)}&state=open`,
     { method: "GET" }
   );
   const matches = Array.isArray(pulls)

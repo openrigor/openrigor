@@ -4,13 +4,13 @@ import { formatWindowTitle, validateDocumentMeta } from "./document-meta";
 describe("formatWindowTitle", () => {
   it("uses Untitled when path is null", () => {
     expect(formatWindowTitle({ dirty: false, path: null })).toBe(
-      "Untitled — Evaluchat"
+      "Untitled — OpenRigor"
     );
   });
 
   it("shows basename and dirty marker", () => {
     expect(formatWindowTitle({ dirty: true, path: "/docs/notes.md" })).toBe(
-      "notes.md* — Evaluchat"
+      "notes.md* — OpenRigor"
     );
   });
 });

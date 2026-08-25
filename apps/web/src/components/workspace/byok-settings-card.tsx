@@ -292,7 +292,7 @@ export function ByokSettingsCardView({
           </div>
           <p className="text-xs text-muted-foreground">
             Your key is encrypted on the server and only used for your own AI
-            interactions in evaluchat unless you opt into sharing below. Create
+            interactions in OpenRigor unless you opt into sharing below. Create
             a dedicated API key with a sensible usage limit.
           </p>
           <div className="space-y-2" data-testid="byok-share-control">

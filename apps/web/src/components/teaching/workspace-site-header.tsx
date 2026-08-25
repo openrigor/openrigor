@@ -15,7 +15,7 @@ export const workspaceNavOutlineClass =
   "border-white/35 bg-transparent text-white hover:bg-white/12 hover:text-white";
 
 /**
- * Top chrome matching knowledge.evaluchat.org `.site-header`: brand panel blue,
+ * Top chrome matching knowledge.openrigor.org `.site-header`: brand panel blue,
  * logo mark + wordmark, light border, subtle atmosphere wash.
  */
 export function WorkspaceSiteHeader({
@@ -50,14 +50,14 @@ export function WorkspaceSiteHeader({
         <div className="flex min-w-0 items-center gap-3">
           <div className="inline-flex shrink-0 items-center gap-[0.55rem]">
             <Image
-              src="/evaluchat.png"
+              src="/openrigor.png"
               alt=""
               width={32}
               height={32}
               className="h-8 w-8 rounded-[7px] shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
             />
             <span className="text-[1.35rem] font-semibold tracking-tight">
-              evaluchat
+              OpenRigor
             </span>
           </div>
           <span className="truncate text-sm font-medium text-white/78">

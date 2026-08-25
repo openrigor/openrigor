@@ -67,13 +67,13 @@ describe("evidence canvas controls", () => {
     const status = renderToStaticMarkup(
       React.createElement(EvidenceStatusDisplay, {
         status: "filed",
-        pullRequestUrl: "https://github.com/evaluchat/research/pull/12",
+        pullRequestUrl: "https://github.com/openrigor/research/pull/12",
         pullRequestNumber: 12,
       })
     );
     expect(status).toContain("filed");
     expect(status).toContain("PR #12");
-    expect(status).toContain("https://github.com/evaluchat/research/pull/12");
+    expect(status).toContain("https://github.com/openrigor/research/pull/12");
   });
 
   it("builds the submit POST with current field values", () => {

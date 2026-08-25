@@ -14,6 +14,11 @@ const harness = vi.hoisted(() => {
     ledgerRenderHash: vi.fn(),
     renderLedgerMarkdown: vi.fn(),
     validateLedgerPublicationDeclarations: vi.fn(),
+    privateMethodRepositoryAccess: vi.fn(),
+    repositoryCommitAuthor: vi.fn(),
+    previewSealSnapshot: vi.fn(),
+    commitSealSnapshot: vi.fn(),
+    updateResearchRepositoryBindingHead: vi.fn(),
     WorkspaceItemNotFoundError,
   };
 });
@@ -24,10 +29,27 @@ vi.mock("@/lib/supabase/verify_user_server", () => ({
 vi.mock("@/lib/workspace/store", () => ({
   getLedgerSnapshotItem: harness.getLedgerSnapshotItem,
   updateLedgerSnapshotPublication: harness.updateLedgerSnapshotPublication,
+  updateResearchRepositoryBindingHead:
+    harness.updateResearchRepositoryBindingHead,
   WorkspaceItemNotFoundError: harness.WorkspaceItemNotFoundError,
 }));
+vi.mock("@/lib/workspace/research-repository/private-method-writeback", () => ({
+  privateMethodRepositoryAccess: harness.privateMethodRepositoryAccess,
+  repositoryCommitAuthor: harness.repositoryCommitAuthor,
+}));
+vi.mock("@/lib/workspace/research-repository/seals", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/lib/workspace/research-repository/seals")
+    >();
+  return {
+    ...actual,
+    previewSealSnapshot: harness.previewSealSnapshot,
+    commitSealSnapshot: harness.commitSealSnapshot,
+  };
+});
 vi.mock("@/lib/workspace/evidence-github", () => ({
-  RESEARCH_REPOSITORY: "evaluchat/research",
+  RESEARCH_REPOSITORY: "openrigor/research",
   getGithubResearchWriteAccess: harness.getGithubResearchWriteAccess,
   getLedgerPullRequestStatus: harness.getLedgerPullRequestStatus,
   openLedgerPullRequest: harness.openLedgerPullRequest,
@@ -57,6 +79,7 @@ const snapshot = {
     buckets: { Included: 2, Unknown: 1 },
   },
   config: { filters: [] },
+  source: {},
 };
 
 const context = (id = "wi_snapshot") => ({ params: Promise.resolve({ id }) });
@@ -93,10 +116,22 @@ describe("ledger publish route", () => {
     );
     harness.openLedgerPullRequest.mockResolvedValue({
       number: 85,
-      url: "https://github.com/evaluchat/research/pull/85",
+      url: "https://github.com/openrigor/research/pull/85",
       branch: "ledger/ledger_demo-abcdef012345",
       status: "draft",
       lintConclusion: "success",
+    });
+    harness.privateMethodRepositoryAccess.mockResolvedValue({
+      repositoryItemId: "wi_repo",
+      access: { binding: {}, credentials: {}, repository: {} },
+    });
+    harness.repositoryCommitAuthor.mockReturnValue({
+      name: "researcher",
+      email: "7+researcher@users.noreply.github.com",
+    });
+    harness.commitSealSnapshot.mockResolvedValue({
+      commitSha: "b".repeat(40),
+      snapshotId: "11111111-1111-4111-8111-111111111111",
     });
     harness.updateLedgerSnapshotPublication.mockImplementation(
       async (_userId, _id, update) => ({
@@ -162,7 +197,7 @@ describe("ledger publish route", () => {
       {
         publication: {
           status: "draft",
-          pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+          pullRequestUrl: "https://github.com/openrigor/research/pull/85",
           pullRequestNumber: 85,
         },
       }
@@ -206,7 +241,7 @@ describe("ledger publish route", () => {
       {
         publication: {
           status: "draft",
-          pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+          pullRequestUrl: "https://github.com/openrigor/research/pull/85",
           pullRequestNumber: 85,
         },
       }
@@ -325,13 +360,123 @@ describe("ledger publish route", () => {
     expect(harness.openLedgerPullRequest).not.toHaveBeenCalled();
   });
 
+  it("commits a private ledger seal pair without opening a public pull request", async () => {
+    const privateRepository = {
+      repositoryItemId: "wi_repo",
+      repositoryId: 101,
+      commitSha: "a".repeat(40),
+    };
+    const privateSnapshot = {
+      ...structuredClone(snapshot),
+      source: { privateRepository },
+      snapshot: {
+        ...structuredClone(snapshot.snapshot),
+        ledgerId: "11111111-1111-4111-8111-111111111111",
+        generatedAt: "2026-08-24T12:00:00.000Z",
+        sourceCommit: "a".repeat(40),
+      },
+    };
+    const preview = {
+      snapshotData: {
+        inputFingerprint: privateSnapshot.snapshot.inputFingerprint,
+      },
+      renderHash: "render",
+      latestSnapshotId: undefined,
+      ledgerPath:
+        "methods/demo-method/evidence/ledgers/11111111-1111-4111-8111-111111111111.en.md",
+    };
+    harness.getLedgerSnapshotItem.mockResolvedValue(privateSnapshot);
+    harness.previewSealSnapshot.mockResolvedValue(preview);
+
+    const response = await POST(request({ values: validValues }), context());
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      private: true,
+      commitSha: "b".repeat(40),
+      snapshotId: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(harness.privateMethodRepositoryAccess).toHaveBeenCalledWith(
+      "user-1",
+      privateRepository
+    );
+    expect(harness.previewSealSnapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        methodId: "demo-method",
+        snapshotId: "11111111-1111-4111-8111-111111111111",
+        reviewedAt: "2026-08-24T12:00:00.000Z",
+        expectedHeadCommitSha: "a".repeat(40),
+      }
+    );
+    expect(harness.validateLedgerPublicationDeclarations).toHaveBeenCalledWith(
+      preview.snapshotData,
+      validValues
+    );
+    expect(harness.commitSealSnapshot).toHaveBeenCalledOnce();
+    expect(harness.openLedgerPullRequest).not.toHaveBeenCalled();
+    expect(harness.updateResearchRepositoryBindingHead).toHaveBeenCalledWith(
+      "user-1",
+      "wi_repo",
+      "b".repeat(40)
+    );
+    expect(harness.updateLedgerSnapshotPublication).toHaveBeenCalledWith(
+      "user-1",
+      "wi_snapshot",
+      expect.objectContaining({
+        publication: expect.objectContaining({ status: "merged" }),
+        privatePublication: {
+          commitSha: "b".repeat(40),
+          snapshotId: "11111111-1111-4111-8111-111111111111",
+        },
+      })
+    );
+  });
+
+  it("validates private ledger declarations before committing", async () => {
+    harness.getLedgerSnapshotItem.mockResolvedValue({
+      ...structuredClone(snapshot),
+      source: {
+        privateRepository: {
+          repositoryItemId: "wi_repo",
+          repositoryId: 101,
+          commitSha: "a".repeat(40),
+        },
+      },
+      snapshot: {
+        ...structuredClone(snapshot.snapshot),
+        ledgerId: "11111111-1111-4111-8111-111111111111",
+        generatedAt: "2026-08-24T12:00:00.000Z",
+        sourceCommit: "a".repeat(40),
+      },
+    });
+    harness.previewSealSnapshot.mockResolvedValue({
+      snapshotData: {
+        inputFingerprint: snapshot.snapshot.inputFingerprint,
+      },
+      renderHash: "render",
+    });
+    harness.validateLedgerPublicationDeclarations.mockImplementation(() => {
+      throw new FormValidationError([
+        { fieldId: "anonymisation_status", message: "Required" },
+      ]);
+    });
+
+    const response = await POST(request({ values: {} }), context());
+
+    expect(response.status).toBe(422);
+    expect(harness.commitSealSnapshot).not.toHaveBeenCalled();
+    expect(harness.updateResearchRepositoryBindingHead).not.toHaveBeenCalled();
+    expect(harness.openLedgerPullRequest).not.toHaveBeenCalled();
+  });
+
   it("only marks a publication merged after GitHub reports a merge", async () => {
     harness.getLedgerSnapshotItem.mockResolvedValue({
       ...structuredClone(snapshot),
       publication: {
         status: "draft",
         pullRequestNumber: 85,
-        pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+        pullRequestUrl: "https://github.com/openrigor/research/pull/85",
       },
     });
     harness.getLedgerPullRequestStatus.mockResolvedValue({

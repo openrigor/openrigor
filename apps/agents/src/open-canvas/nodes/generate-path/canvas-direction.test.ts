@@ -7,7 +7,7 @@ import {
 } from "./canvas-direction.js";
 
 describe("isSelectionEditRequest", () => {
-  it("returns false for questions about highlighted content (regression: evaluchat session)", () => {
+  it("returns false for questions about highlighted content (regression: OpenRigor session)", () => {
     const msg =
       'We moved this section down - which was previously in the introduction - does it work under the head "Strategic dissemination and support structure"?';
     expect(isSelectionEditRequest(msg)).toBe(false);
@@ -59,7 +59,7 @@ describe("isWholeDocumentRewriteRequest", () => {
 
 describe("isCanvasWriteRequest", () => {
   it.each([
-    "write some tips about Evaluchat in the canvas",
+    "write some tips about OpenRigor in the canvas",
     "put that in the canvas",
     "add this section to the document",
     "give me more tips in the canvas",

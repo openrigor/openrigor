@@ -52,7 +52,7 @@ const item = {
   binding: {
     installationId: 99,
     repositoryId: 101,
-    branch: "evaluchat/workspace",
+    branch: "openrigor/workspace",
     layoutVersion: "1.0",
   },
 };
@@ -110,7 +110,7 @@ describe("POST repository reconcile", () => {
     expect(harness.listArtifacts).toHaveBeenCalledWith(
       99,
       { owner: "octocat", name: "private", private: true },
-      "evaluchat/workspace",
+      "openrigor/workspace",
       "1.0"
     );
     expect(harness.claimOperation).toHaveBeenCalledWith(

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
 import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
+import { StaleRepositoryError } from "@/lib/workspace/research-repository/git-adapter";
+import { SealSnapshotError } from "@/lib/workspace/research-repository/seals";
 import {
   createResearchRepositoryItem,
+  createPrivateMethodWorkspaceItem,
+  createPrivateLedgerWorkspaceItem,
   createMethodWorkspaceItem,
   createLedgerWorkspaceItem,
   createWorkspaceItem,
@@ -85,9 +89,18 @@ export async function POST(request: NextRequest) {
       ? parsedBody.templateId
       : undefined;
   const hasMethodId = methodId !== undefined;
+  const repositoryItemId =
+    typeof parsedBody.repositoryItemId === "string" &&
+    parsedBody.repositoryItemId
+      ? parsedBody.repositoryItemId
+      : undefined;
+  const isPrivateMethod = hasMethodId && repositoryItemId !== undefined;
   const isLedger = parsedBody.kind === "ledger";
   const isResearchRepository = parsedBody.kind === "research_repository";
   if (isResearchRepository && !githubResearchEnabled) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (isPrivateMethod && !githubResearchEnabled) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const repositoryId = parsedBody.repositoryId;
@@ -127,10 +140,22 @@ export async function POST(request: NextRequest) {
           installationId: installationId as number,
         })
       : isLedger
-        ? await createLedgerWorkspaceItem(user.id, methodId!)
-        : hasMethodId
-          ? await createMethodWorkspaceItem(user.id, methodId)
-          : await createWorkspaceItem(user.id, templateId!);
+        ? repositoryItemId
+          ? await createPrivateLedgerWorkspaceItem(
+              user.id,
+              repositoryItemId,
+              methodId!
+            )
+          : await createLedgerWorkspaceItem(user.id, methodId!)
+        : hasMethodId && repositoryItemId
+          ? await createPrivateMethodWorkspaceItem(
+              user.id,
+              repositoryItemId,
+              methodId
+            )
+          : hasMethodId
+            ? await createMethodWorkspaceItem(user.id, methodId)
+            : await createWorkspaceItem(user.id, templateId!);
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
     if (error instanceof UnsupportedMethodError) {
@@ -153,6 +178,12 @@ export async function POST(request: NextRequest) {
         { error: error.message, code: error.code },
         { status: 400 }
       );
+    }
+    if (error instanceof SealSnapshotError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    if (error instanceof StaleRepositoryError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
     console.error("[workspace] failed to create item", error);
     return NextResponse.json(

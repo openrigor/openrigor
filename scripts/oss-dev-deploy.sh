@@ -26,7 +26,7 @@ remote_app_dir="${OSS_DEV_REMOTE_APP_DIR:-/opt/evaluchat-oss}"
 remote_catalog_root="${OSS_DEV_REMOTE_CATALOG_ROOT:-/opt/evaluchat-catalog}"
 web_service="${OSS_DEV_WEB_SERVICE:-evaluchat-oss-web.service}"
 agents_service="${OSS_DEV_AGENTS_SERVICE:-evaluchat-oss-agents.service}"
-dev_url="${OSS_DEV_URL:-https://dev.evaluchat.org}"
+dev_url="${OSS_DEV_URL:-https://dev.openrigor.org}"
 agent_url="${OSS_DEV_AGENT_URL:-http://127.0.0.1:54367}"
 web_port="${OSS_DEV_WEB_PORT:-3000}"
 
@@ -296,7 +296,7 @@ deploy() {
   required_command node
   required_command tar
 
-  work_dir="$(mktemp -d "${TMPDIR:-/tmp}/evaluchat-oss-deploy.XXXXXX")"
+  work_dir="$(mktemp -d "${TMPDIR:-/tmp}/openrigor-oss-deploy.XXXXXX")"
   package_file="$work_dir/oss-dev-package.tar.gz"
   catalog_file="$work_dir/template-catalog.json"
   package_name="oss-dev-package-${RANDOM}-${RANDOM}.tar.gz"

@@ -12,7 +12,7 @@ describe("legal page content fingerprints", () => {
     expect(html).toContain("Abraham van Heerden");
     expect(html).toContain("does not collect payment");
     expect(html).toMatch(/train/i);
-    expect(html).toContain("hello@evaluchat.org");
+    expect(html).toContain("hello@openrigor.org");
     expect(html).toMatch(/Cookies/i);
     expect(html).toMatch(/advertising or cross-site tracking/i);
   });
@@ -25,6 +25,6 @@ describe("legal page content fingerprints", () => {
     expect(html).toMatch(/public beta/i);
     expect(html).toContain("/privacy");
     expect(html).toMatch(/train/i);
-    expect(html).toContain("hello@evaluchat.org");
+    expect(html).toContain("hello@openrigor.org");
   });
 });

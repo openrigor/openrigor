@@ -94,7 +94,7 @@ async function listMethodLedgers(methodId: string): Promise<MergedLedger[]> {
   return ledgers;
 }
 
-/** Lists merged Evidence Ledger artifacts on evaluchat/research main. */
+/** Lists merged Evidence Ledger artifacts on openrigor/research main. */
 export async function listMergedLedgers(): Promise<MergedLedger[]> {
   try {
     const entries = await githubContent("methods");

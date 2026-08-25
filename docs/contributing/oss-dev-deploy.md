@@ -1,6 +1,6 @@
 # Public OSS dev deployment
 
-The public development environment is `https://dev.evaluchat.org`, served
+The public development environment is `https://dev.openrigor.org`, served
 from AlphaVPS `/opt/evaluchat-oss`. The repository contains the repeatable
 application deploy command:
 

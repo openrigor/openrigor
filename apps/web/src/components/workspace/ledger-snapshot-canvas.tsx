@@ -584,7 +584,9 @@ export function LedgerSnapshotCanvas({
                 setRePublish(false);
                 setPublishDialogOpen(true);
               },
-              submitLabel: "Create Draft PR",
+              submitLabel: item.source.privateRepository
+                ? "Commit privately"
+                : "Create Draft PR",
               submitTestId: "ledger-publish",
             }
           : {

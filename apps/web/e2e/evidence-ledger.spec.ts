@@ -6,6 +6,7 @@ import {
   setMultiSelectFilter,
   setRangeFilter,
 } from "./helpers/workspace";
+import { sendLedgerChatMessage } from "./helpers/chat";
 
 /**
  * Wave A Evidence Ledger end-to-end coverage against the LIVE dev deployment.
@@ -31,7 +32,7 @@ test.describe("@regression evidence-ledger", () => {
   const METHOD_ID = "ledger-demo-method";
   // Buckets for education_level ∈ [k12] + collection_date 2024-01-01..2024-12-31.
   //
-  //   NOTE: live-verified against dev.evaluchat.org (2026-08-19). The original
+  //   NOTE: live-verified against dev.openrigor.org (2026-08-19). The original
   //   handoff expected 6/2/2/2/2, but the current fixtures resolve p08 (k12,
   //   country=other), p10 (k12, country omitted) as INCLUDED — the filter only
   //   constrains education_level + collection_date, not country_code. Correct
@@ -188,10 +189,11 @@ test.describe("@regression evidence-ledger", () => {
       timeout: TIMEOUTS.pageLoad,
     });
 
-    const chatInput = page.getByTestId("chat-input");
-    await expect(chatInput).toBeVisible({ timeout: TIMEOUTS.pageLoad });
-    await chatInput.fill("Filter the ledger to education_level k12");
-    await chatInput.press("Enter");
+    // Send via the self-verifying helper: Enter right after the kickoff
+    // stream can race assistant-ui's run-state and silently no-op, so the
+    // helper confirms the composer accepted the message (input clears) and
+    // falls back to a Send click when it did not.
+    await sendLedgerChatMessage(page, "Filter the ledger to education_level k12");
 
     const predicate = page
       .locator("[data-testid='ledger-canvas'] p.font-mono")
@@ -283,7 +285,7 @@ test.describe("@regression evidence-ledger", () => {
     // what a sealed snapshot links to (Wave A review fix).
     await summaries.getByText("Evidence", { exact: true }).click();
     const evidenceAnchors = page.locator(
-      "[data-testid='ledger-snapshot-canvas'] a[href*='github.com/evaluchat/research/blob/']"
+      "[data-testid='ledger-snapshot-canvas'] a[href*='github.com/openrigor/research/blob/']"
     );
     await expect(evidenceAnchors.first()).toBeVisible({ timeout: 15_000 });
     const hrefs = await evidenceAnchors.evaluateAll((anchors) =>
@@ -317,7 +319,7 @@ test.describe("@regression evidence-ledger", () => {
             publication: {
               status: "draft",
               pullRequestNumber: 85,
-              pullRequestUrl: "https://github.com/evaluchat/research/pull/85",
+              pullRequestUrl: "https://github.com/openrigor/research/pull/85",
             },
           }),
         });
@@ -332,7 +334,7 @@ test.describe("@regression evidence-ledger", () => {
     await publishDialog.getByTestId("ledger-confirm-publish").click();
     await expect(
       banner.getByRole("link", { name: "Draft PR" })
-    ).toHaveAttribute("href", "https://github.com/evaluchat/research/pull/85");
+    ).toHaveAttribute("href", "https://github.com/openrigor/research/pull/85");
 
     // Snapshot chat can discuss the sealed record without generating a canvas
     // artifact. Wait for its hidden kickoff before checking the next assistant
@@ -342,8 +344,11 @@ test.describe("@regression evidence-ledger", () => {
     );
     await expect(assistantMessages).not.toHaveCount(0, { timeout: 60_000 });
     const assistantMessageCount = await assistantMessages.count();
-    await chatInput.fill("Summarise the evidence and gaps");
-    await chatInput.press("Enter");
+    await sendLedgerChatMessage(
+      page,
+      "Summarise the evidence and gaps",
+      "#ledger-snapshot-chat-panel"
+    );
     await expect
       .poll(() => assistantMessages.count(), { timeout: 60_000 })
       .toBeGreaterThan(assistantMessageCount);

@@ -97,6 +97,9 @@ const harness = vi.hoisted(() => {
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
+    probeMethodHostInitialization: vi.fn(),
+    discoverPrivateMethods: vi.fn(),
+    previewSealSnapshot: vi.fn(),
   };
 });
 
@@ -119,9 +122,26 @@ vi.mock("./research-repository/github-app", () => ({
   getGithubInstallationRepository: harness.getGithubInstallationRepository,
   getGithubRepositoryBranchHead: harness.getGithubRepositoryBranchHead,
 }));
+vi.mock("./research-repository/git-adapter", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./research-repository/git-adapter")>();
+  return {
+    ...actual,
+    probeMethodHostInitialization: harness.probeMethodHostInitialization,
+    discoverPrivateMethods: harness.discoverPrivateMethods,
+  };
+});
+vi.mock("./research-repository/seals", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./research-repository/seals")>();
+  return { ...actual, previewSealSnapshot: harness.previewSealSnapshot };
+});
 
 import {
   createResearchRepositoryItem,
+  createPrivateMethodWorkspaceItem,
+  createPrivateLedgerWorkspaceItem,
+  createLedgerSnapshotItem,
   createWorkspaceItem,
   createMethodWorkspaceItem,
   deleteWorkspaceItem,
@@ -131,6 +151,7 @@ import {
   getMethodRun,
   getWorkspaceItem,
   listWorkspaceItems,
+  listSelectedPrivateMethods,
   pendingInviteNamespace,
   inviteLockId,
   resolveMethodTrackingAccess,
@@ -139,8 +160,10 @@ import {
   WorkspaceLockTimeoutError,
   WorkspaceThreadOwnershipError,
   reconcileWorkspaceItemThread,
+  refreshResearchRepositoryBindings,
   ResearchRepositoryBindingError,
   updateResearchRepositoryBindingHead,
+  updateResearchRepositoryMethodSelection,
   workspaceLockAcquireTimeoutMs,
   workspaceLockRetryDelayMs,
   workspaceLockTtlMs,
@@ -313,7 +336,7 @@ describe("workspace item lifecycle", () => {
       version: expect.any(String),
       title: expect.stringMatching(/AI-assisted essay/i),
       description: expect.any(String),
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     });
     expect(item.profileId).toBe("canonical-constrained-dialogue");
     expect(item.run).toBeUndefined();
@@ -326,7 +349,7 @@ describe("workspace item lifecycle", () => {
     stored.items[item.id].methodSource = {
       id: "ai-assisted-essay",
       version: item.methodSource.version,
-      url: "https://research.evaluchat.org/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/ai-assisted-essay.html",
     };
     harness.state.manifest = stored;
 
@@ -336,7 +359,7 @@ describe("workspace item lifecycle", () => {
     if (draft?.kind !== "method") return;
     expect(draft.methodSource.title).toMatch(/AI-assisted essay/i);
     expect(draft.methodSource.url).toBe(
-      "https://research.evaluchat.org/methods/ai-assisted-essay.html"
+      "https://research.openrigor.org/methods/ai-assisted-essay.html"
     );
   });
 
@@ -389,11 +412,13 @@ function repositoryWorkspaceItem(layoutVersion = "1.0") {
       provider: "github" as const,
       repositoryId: 101,
       installationId: 99,
-      branch: "evaluchat/workspace" as const,
+      branch: "openrigor/workspace" as const,
       layoutVersion,
       headCommitSha: repositorySha,
       boundAt: now,
+      initialized: true,
     },
+    selectedMethodIds: [],
   };
 }
 
@@ -405,6 +430,8 @@ describe("research repository workspace items", () => {
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
+    harness.probeMethodHostInitialization.mockReset();
+    harness.discoverPrivateMethods.mockReset();
     harness.readGithubResearchCredentials.mockResolvedValue(
       connectedGithubCredentials()
     );
@@ -417,6 +444,13 @@ describe("research repository workspace items", () => {
       defaultBranch: "main",
     });
     harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: true,
+    });
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [],
+    });
     workspaceLockRetryDelayMs.value = defaultLockRetryDelayMs;
     workspaceLockAcquireTimeoutMs.value = defaultLockAcquireTimeoutMs;
     workspaceLockTtlMs.value = defaultLockTtlMs;
@@ -436,19 +470,97 @@ describe("research repository workspace items", () => {
         provider: "github",
         repositoryId: 101,
         installationId: 99,
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
         layoutVersion: "1.0",
         headCommitSha: workspaceBranchSha,
+        initialized: true,
       },
     });
     expect(item.binding.boundAt).toBe(item.createdAt);
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledWith(
       99,
       expect.objectContaining({ defaultBranch: "main" }),
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      workspaceBranchSha
+    );
     expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("persists the initialization failure reason without rejecting the binding", async () => {
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(item.binding).toMatchObject({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("re-checks bound repositories after credential refresh", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      refreshedHead
+    );
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      headCommitSha: refreshedHead,
+      initialized: false,
+      initializationFailureReason: "methods_directory_missing",
+    });
+  });
+
+  it("clears a stored initialization failure reason after a successful re-probe", async () => {
+    const item = repositoryWorkspaceItem();
+    item.binding.initialized = false;
+    Object.assign(item.binding, {
+      initializationFailureReason: "methods_index_missing",
+    });
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+    harness.probeMethodHostInitialization.mockResolvedValue({
+      initialized: true,
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      headCommitSha: refreshedHead,
+      initialized: true,
+    });
+    expect(
+      harness.state.manifest.items[item.id].binding.initializationFailureReason
+    ).toBeUndefined();
   });
 
   it("creates a missing managed branch from the default head before binding", async () => {
@@ -468,7 +580,7 @@ describe("research repository workspace items", () => {
       1,
       99,
       expect.objectContaining({ defaultBranch: "main" }),
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
       2,
@@ -479,14 +591,14 @@ describe("research repository workspace items", () => {
     expect(harness.createGithubRepositoryBranch).toHaveBeenCalledWith(
       99,
       expect.objectContaining({ owner: "octocat", name: "private" }),
-      "evaluchat/workspace",
+      "openrigor/workspace",
       repositorySha
     );
     expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
       3,
       99,
       expect.objectContaining({ defaultBranch: "main" }),
-      "evaluchat/workspace"
+      "openrigor/workspace"
     );
     expect(item.binding.headCommitSha).toBe(workspaceBranchSha);
     expect(harness.state.manifest.items[item.id]).toEqual(item);
@@ -665,6 +777,250 @@ describe("research repository workspace items", () => {
     expect(JSON.stringify(harness.state.manifest)).not.toContain("content");
   });
 
+  it("persists a normalized private Method selection", async () => {
+    const item = repositoryWorkspaceItem();
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+
+    const updated = await updateResearchRepositoryMethodSelection(
+      "user-1",
+      item.id,
+      ["method-b", "method-a", "method-b"]
+    );
+
+    expect(updated.selectedMethodIds).toEqual(["method-a", "method-b"]);
+    expect(harness.state.manifest.items[item.id]).toEqual(updated);
+  });
+
+  it("lists only selected conforming private Methods at the current head", async () => {
+    const item = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          description: "Private description",
+          profiles: [],
+        },
+        { id: "not-selected", profiles: [] },
+      ],
+    });
+
+    await expect(listSelectedPrivateMethods("user-1")).resolves.toEqual([
+      {
+        id: "private-method",
+        title: "Private Method",
+        description: "Private description",
+        repositoryItemId: item.id,
+        repositoryId: 101,
+        commitSha: workspaceBranchSha,
+      },
+    ]);
+  });
+
+  it("adopts a selected private Method pinned to the adopt-time commit", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          description: "Owner-authored Method",
+          version: "owner-draft",
+          profiles: [],
+        },
+      ],
+    });
+
+    const item = await createPrivateMethodWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+
+    expect(item.templateSnapshot.templateId).toBe("evaluchat-assignment-brief");
+    expect(item.methodSource).toEqual({
+      id: "private-method",
+      version: "owner-draft",
+      title: "Private Method",
+      description: "Owner-authored Method",
+      privateRepository: {
+        repositoryItemId: repositoryItem.id,
+        repositoryId: 101,
+        commitSha: workspaceBranchSha,
+      },
+    });
+    expect(item.profileId).toBe("canonical-constrained-dialogue");
+    expect(item.profiles).toEqual([
+      {
+        id: "canonical-constrained-dialogue",
+        label: "Default apparatus profile",
+      },
+    ]);
+
+    harness.getGithubRepositoryBranchHead.mockResolvedValue("f".repeat(40));
+    const listed = await listWorkspaceItems("user-1");
+    const pinned = listed.find((candidate) => candidate.id === item.id);
+    expect(pinned?.kind).toBe("method");
+    if (pinned?.kind === "method") {
+      expect(pinned.methodSource.privateRepository?.commitSha).toBe(
+        workspaceBranchSha
+      );
+    }
+  });
+
+  it("accepts a private Method without version metadata using its commit SHA", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [{ id: "private-method", profiles: [] }],
+    });
+
+    const item = await createPrivateMethodWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+
+    expect(item.methodSource.version).toBe(workspaceBranchSha);
+    expect(item.methodSource.privateRepository?.commitSha).toBe(
+      workspaceBranchSha
+    );
+  });
+
+  it("creates private ledger snapshots from the repository scan", async () => {
+    const repositoryItem = {
+      ...repositoryWorkspaceItem(),
+      selectedMethodIds: ["private-method"],
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [repositoryItem.id]: repositoryItem },
+    };
+    harness.discoverPrivateMethods.mockResolvedValue({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id: "private-method",
+          title: "Private Method",
+          profiles: [],
+          evidenceTemplateMarkdown: "",
+        },
+      ],
+    });
+    const snapshotData = {
+      ledgerId: "11111111-1111-4111-8111-111111111111",
+      methodId: "private-method",
+      methodVersion: workspaceBranchSha,
+      templateId: "repository-artifacts",
+      templateVersion: "1.0",
+      filters: [],
+      manifest: {
+        methods: [],
+        filters: [],
+        contributions: [
+          {
+            id: "evidence.private-method.one",
+            path: "methods/private-method/evidence/one.en.md",
+            sourceHash: "d".repeat(64),
+            methodId: "private-method",
+            methodVersion: workspaceBranchSha,
+            templateVersion: "1.0",
+            dimensionValues: {},
+            scopeValues: {},
+            bucket: "Included" as const,
+          },
+        ],
+      },
+      inputFingerprint: "e".repeat(64),
+      renderHash: "",
+      buckets: {
+        Included: 1,
+        "Outside declared scope": 0,
+        Unknown: 0,
+        Unavailable: 0,
+        "Resolver exclusion": 0,
+      },
+      predicate: "all private Method inputs",
+      generatedAt: "2026-08-24T12:00:00.000Z",
+      resolverVersion: "repository-seal/1",
+      sourceCommit: workspaceBranchSha,
+    };
+    harness.previewSealSnapshot.mockResolvedValue({
+      ...snapshotData,
+      schemaVersion: "1",
+      snapshotId: snapshotData.ledgerId,
+      sealedFromCommit: workspaceBranchSha,
+      reviewerLogin: "researcher",
+      reviewedAt: snapshotData.generatedAt,
+      method: {
+        id: "private-method",
+        version: workspaceBranchSha,
+      },
+      inputs: [],
+      configurationHash: snapshotData.inputFingerprint,
+      renderHash: "f".repeat(64),
+      ledgerPath: `methods/private-method/evidence/ledgers/${snapshotData.ledgerId}.en.md`,
+      sealPath: `methods/private-method/evidence/ledgers/${snapshotData.ledgerId}.seal.yml`,
+      ledgerMarkdown: "# Evidence Ledger\n",
+      manifestYaml: "schema_version: '1'\n",
+      inputArtifactIds: [],
+      snapshotData,
+    });
+
+    const ledger = await createPrivateLedgerWorkspaceItem(
+      "user-1",
+      repositoryItem.id,
+      "private-method"
+    );
+    const result = await createLedgerSnapshotItem("user-1", ledger.id);
+
+    expect(ledger.source.privateRepository).toEqual({
+      repositoryItemId: repositoryItem.id,
+      repositoryId: 101,
+      commitSha: workspaceBranchSha,
+    });
+    expect(result.idempotent).toBe(false);
+    expect(result.item.snapshot).toMatchObject({
+      ledgerId: snapshotData.ledgerId,
+      methodId: "private-method",
+      sourceCommit: workspaceBranchSha,
+      inputFingerprint: snapshotData.inputFingerprint,
+    });
+    expect(result.item.source.privateRepository).toEqual(
+      ledger.source.privateRepository
+    );
+    expect(harness.previewSealSnapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      { methodId: "private-method" }
+    );
+  });
+
   it("projects a deleted repository as unavailable", async () => {
     harness.getGithubInstallationRepository.mockRejectedValue(
       Object.assign(new Error("Not Found"), { status: 404 })
@@ -807,7 +1163,7 @@ describe("research repository workspace items", () => {
       binding: {
         repositoryId: 101,
         installationId: 99,
-        branch: "evaluchat/workspace",
+        branch: "openrigor/workspace",
         headCommitSha: stored.binding.headCommitSha,
         futureBindingField: "keep-me",
       },
@@ -1072,7 +1428,7 @@ describe("method run launch", () => {
     ) as any;
     expect(participantItem.assignment.title).toBe("Great Expectations");
     expect(participantItem.methodSource.url).toBe(
-      "https://research.evaluchat.org/methods/ai-assisted-essay.html"
+      "https://research.openrigor.org/methods/ai-assisted-essay.html"
     );
     expect(participantItem.runId).toBe(result.item.run.id);
     expect(participantItem.operatorItemId).toBe(item.id);
@@ -1218,7 +1574,7 @@ describe("method run launch", () => {
     expect(claimed[0].methodSource).toMatchObject({
       id: "ai-assisted-essay",
       title: expect.stringMatching(/AI-assisted essay/i),
-      url: "https://research.evaluchat.org/methods/ai-assisted-essay.html",
+      url: "https://research.openrigor.org/methods/ai-assisted-essay.html",
     });
 
     const operator = await getWorkspaceItem("user-1", item.id);
