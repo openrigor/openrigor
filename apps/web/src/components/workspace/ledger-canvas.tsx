@@ -256,7 +256,12 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
         threadRestoreSettled.current = item.id;
         setThreadRestorePending(false);
       }, THREAD_RESTORE_GRACE_MS);
-      return () => window.clearTimeout(release);
+      return () => {
+        window.clearTimeout(release);
+        // Timer cancelled before settling (Strict Mode replay / item switch):
+        // allow the replayed setup to run restoration again.
+        bootstrappedItem.current = null;
+      };
     }
     // Genuinely new ledger: start clean and let kickoff run immediately.
     graphData.clearState();
