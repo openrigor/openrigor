@@ -38,6 +38,41 @@ import {
 } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
 
+export function shouldShowGithubResearchOnboarding(
+  repositoriesResponse: Pick<Response, "ok" | "status">,
+  items: Array<Pick<WorkspaceItem, "kind">>
+): boolean {
+  return (
+    repositoriesResponse.ok &&
+    repositoriesResponse.status !== 404 &&
+    !items.some((item) => item.kind === "research_repository")
+  );
+}
+
+function GithubResearchOnboarding() {
+  return (
+    <Card
+      className="mb-4 border-blue-200 bg-blue-50/70"
+      data-testid="github-research-onboarding"
+    >
+      <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+        <div>
+          <p className="font-medium text-slate-900">
+            Connect your private research repository
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Connect GitHub to choose the private repository you will use for
+            your research workspace.
+          </p>
+        </div>
+        <Button asChild>
+          <a href="/api/workspace/github/authorize">Connect GitHub</a>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function WorkspaceItemTypeIcon({ item }: { item: WorkspaceItem }) {
   const type = workspaceItemType(item);
   const Icon =
@@ -69,6 +104,8 @@ function WorkspaceItemTypeIcon({ item }: { item: WorkspaceItem }) {
 
 export function WorkspaceHome() {
   const [items, setItems] = useState<WorkspaceItem[]>([]);
+  const [showGithubResearchOnboarding, setShowGithubResearchOnboarding] =
+    useState(false);
   const [loading, setLoading] = useState(true);
   const [itemToDelete, setItemToDelete] = useState<WorkspaceItem>();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -76,22 +113,33 @@ export function WorkspaceHome() {
   const { user, loading: userLoading } = useUserContext();
 
   useEffect(() => {
-    fetch("/api/workspace/items", { credentials: "include" })
-      .then(async (response) => {
-        if (!response.ok) {
+    Promise.all([
+      fetch("/api/workspace/items", { credentials: "include" }),
+      fetch("/api/workspace/github/repositories", {
+        credentials: "include",
+      }),
+    ])
+      .then(async ([itemsResponse, repositoriesResponse]) => {
+        if (!itemsResponse.ok) {
           throw new Error("Could not load workspace");
         }
-        return response.json() as Promise<{ items?: WorkspaceItem[] }>;
-      })
-      .then((body) =>
-        setItems(
-          (body.items || []).filter(
-            (item) => item.kind !== "research_repository"
+        const body = (await itemsResponse.json()) as {
+          items?: WorkspaceItem[];
+        };
+        const workspaceItems = body.items || [];
+        setShowGithubResearchOnboarding(
+          shouldShowGithubResearchOnboarding(
+            repositoriesResponse,
+            workspaceItems
           )
-        )
-      )
+        );
+        setItems(
+          workspaceItems.filter((item) => item.kind !== "research_repository")
+        );
+      })
       .catch((error) => {
         console.error("Failed to load workspace", error);
+        setShowGithubResearchOnboarding(false);
         toast({
           title: "Could not load workspace",
           description: "Please refresh and try again.",
@@ -145,6 +193,7 @@ export function WorkspaceHome() {
             onCreated={(item) => setItems((current) => [item, ...current])}
           />
         </div>
+        {showGithubResearchOnboarding && <GithubResearchOnboarding />}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading workspace…</p>
         ) : items.length === 0 ? (
