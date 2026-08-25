@@ -35,12 +35,13 @@ export function HeroSection() {
             <em>What should we measure?</em>
           </h1>
           <p className="hero-sub">
-            OpenRigor is an open-source, Markdown-native workspace for defining,
-            running, and inspecting research methods on AI in education.
+            OpenRigor is a place where methods become evidence. Methods and
+            provenance make work inspectable. Evidence contribution, Ledger, and
+            human-authored finding have distinct roles.
           </p>
           <p className="hero-sub">
-            Methods, settings, and evidence are visible and versioned. Humans
-            review the evidence and write the findings.
+            A GitHub-backed private repo is the home for the work. You choose
+            BYOK (recommended), a shared model, or Markdown-only.
           </p>
           <div className="hero-ctas">
             <OpenCanvasButton className="btn btn-primary">
@@ -221,7 +222,8 @@ export function BuildingSection() {
         <p className="lede">
           The Workspace is useful on its own—and gives teachers and researchers
           an open surface for designing, running and explaining new ways of
-          working with AI.
+          working with AI. Choose BYOK, a shared model, or Markdown-only.
+          Shared model is never preselected.
         </p>
         <div className="platform-map">
           {CANVAS_CAPABILITIES.map((layer, index) => (
@@ -307,21 +309,16 @@ export function ResearchSection() {
           <div className="research-principles">
             <p className="measure-label">What makes it inspectable</p>
             <div>
-              <b>Transparent methods</b>
-              <p>Configuration and measurements travel with the work.</p>
+              <b>Evidence contribution</b>
+              <p>Methods and provenance travel with the work.</p>
             </div>
             <div>
-              <b>Human review</b>
-              <p>
-                Teachers and researchers remain the authority on what happened.
-              </p>
+              <b>Ledger</b>
+              <p>The Ledger is a record in the repo, not a finding.</p>
             </div>
             <div>
-              <b>Room to disagree</b>
-              <p>
-                Challenges, replications and negative results are useful
-                outcomes.
-              </p>
+              <b>Human-authored finding</b>
+              <p>People write the claim. AI does not author the finding.</p>
             </div>
           </div>
         </div>
@@ -355,6 +352,21 @@ const OPEN_LAYERS = [
   },
 ];
 
+const DATA_CONTROL = [
+  {
+    label: "Private repo",
+    text: "Your GitHub repo is the home. OpenRigor metadata and Ledgers are stored there.",
+  },
+  {
+    label: "BYOK (recommended)",
+    text: "Model traffic goes to your provider. Retention is that provider's.",
+  },
+  {
+    label: "Markdown-only",
+    text: "No OpenRigor LLM. Shared model is never preselected.",
+  },
+];
+
 export function OssSection() {
   return (
     <section className="oss section" id="open-source">
@@ -364,7 +376,8 @@ export function OssSection() {
         <p className="lede">
           The novelty is not a hidden model. It is applying the technologies and
           practices of open-source projects to the work of figuring out AI in
-          education.
+          education. A private repo is the home for the work; you control the
+          model path.
         </p>
         <div className="open-layers">
           {OPEN_LAYERS.map((layer) => (
@@ -374,6 +387,22 @@ export function OssSection() {
             </div>
           ))}
         </div>
+        <div className="open-layers">
+          {DATA_CONTROL.map((layer) => (
+            <div className="open-layer" key={layer.label}>
+              <span>{layer.label}</span>
+              <p>{layer.text}</p>
+            </div>
+          ))}
+        </div>
+        <p className="lede" style={{ marginTop: 28 }}>
+          Shared-model processing is described in the{" "}
+          <a className="link" href="/privacy/shared-model">
+            shared-model privacy notice
+          </a>
+          {". "}
+          Markdown-only uses no OpenRigor LLM.
+        </p>
         <div className="dark-ctas">
           <a
             className="btn btn-primary"
