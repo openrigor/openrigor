@@ -47,6 +47,9 @@ function keyFor(config: LedgerConfig): string {
   });
 }
 
+/** Bounded wait for restored thread history before releasing the chat gate. */
+const THREAD_RESTORE_GRACE_MS = 2_500;
+
 function filterFor(config: LedgerConfig, fieldId: string) {
   return config.filters.find((filter) => filter.fieldId === fieldId);
 }
@@ -134,6 +137,11 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
   const bootstrappedItem = useRef<string | null>(null);
   const kickedOffItem = useRef<string | null>(null);
   const lastAppliedUpdate = useRef<object | null>(null);
+  // Set once the item's persisted thread history has been restored (or the
+  // restore window closed). The kickoff effect waits for it so a reopen does
+  // not wipe chat history with a fresh welcome turn.
+  const threadRestoreSettled = useRef<string | null>(null);
+  const [threadRestorePending, setThreadRestorePending] = useState(false);
   const latestPreviewRequest = useRef(0);
   const pendingDraftSave = useRef<
     { config: LedgerConfig; timeout: number } | undefined
@@ -234,12 +242,38 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
   useEffect(() => {
     if (bootstrappedItem.current === item.id) return;
     bootstrappedItem.current = item.id;
+    const persistedThreadId = item.threadId;
+    if (persistedThreadId) {
+      // Reopen: restore the persisted thread so prior chat history loads.
+      // Ledger drafts persist to their workspace item, never thread state,
+      // but the conversation transcript lives on the thread.
+      void setThreadId(persistedThreadId);
+      graphData.setChatStarted(true);
+      // Hold the kickoff gate briefly while GraphContext reloads history;
+      // released early by the watcher below once messages arrive.
+      setThreadRestorePending(true);
+      const release = window.setTimeout(() => {
+        threadRestoreSettled.current = item.id;
+        setThreadRestorePending(false);
+      }, THREAD_RESTORE_GRACE_MS);
+      return () => window.clearTimeout(release);
+    }
+    // Genuinely new ledger: start clean and let kickoff run immediately.
     graphData.clearState();
     void setThreadId(null);
     graphData.setChatStarted(true);
-    // Ledger drafts persist to their workspace item, never thread state.
+    threadRestoreSettled.current = item.id;
+    setThreadRestorePending(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
+
+  useEffect(() => {
+    if (!threadRestorePending || configItemId !== item.id) return;
+    if (graphData.messages.length > 0) {
+      threadRestoreSettled.current = item.id;
+      setThreadRestorePending(false);
+    }
+  }, [configItemId, graphData, item.id, threadRestorePending]);
 
   useEffect(() => {
     if (configItemId !== item.id) return;
@@ -267,6 +301,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     if (
       configItemId !== item.id ||
       kickedOffItem.current === item.id ||
+      threadRestoreSettled.current !== item.id ||
       !preview ||
       !selectedAssistant ||
       graphData.isStreaming ||
