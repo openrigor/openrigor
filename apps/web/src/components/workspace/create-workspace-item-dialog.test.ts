@@ -1,10 +1,33 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { createElement } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import {
   buildWorkspaceItemCreateBody,
   catalogResultBadge,
   catalogResultTitle,
+  CreateWorkspaceItemDialog,
   workspaceItemCreationKinds,
 } from "./create-workspace-item-dialog";
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("CreateWorkspaceItemDialog request bodies", () => {
   it("creates a plain method item request body", () => {
@@ -52,5 +75,22 @@ describe("CreateWorkspaceItemDialog request bodies", () => {
       "method",
     ]);
     expect(workspaceItemCreationKinds()).not.toContain("research_repository");
+  });
+
+  it("opens on the Methods tab", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ kind: "method", results: [] })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(CreateWorkspaceItemDialog, { onCreated: vi.fn() }));
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/workspace/catalog?kind=method&q=",
+        { credentials: "include" }
+      );
+    });
   });
 });

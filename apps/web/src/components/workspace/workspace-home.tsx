@@ -10,7 +10,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreateWorkspaceItemDialog } from "./create-workspace-item-dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  buildWorkspaceItemCreateBody,
+  CreateWorkspaceItemDialog,
+  type CatalogResult,
+} from "./create-workspace-item-dialog";
 import type { WorkspaceItem } from "@/lib/workspace/types";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -99,6 +104,158 @@ function WorkspaceItemTypeIcon({ item }: { item: WorkspaceItem }) {
         <TooltipContent>{type.label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+function MethodCatalog({
+  onCreated,
+}: {
+  onCreated: (item: WorkspaceItem) => void;
+}) {
+  const [methods, setMethods] = useState<CatalogResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [creatingKey, setCreatingKey] = useState<string>();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/workspace/catalog?kind=method", {
+      credentials: "include",
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load Methods");
+        return response.json() as Promise<{
+          results?: Array<Omit<CatalogResult, "kind">>;
+        }>;
+      })
+      .then((body) => {
+        if (cancelled) return;
+        setMethods(
+          (body.results || []).map((result) => ({
+            ...result,
+            kind: "method" as const,
+          }))
+        );
+      })
+      .catch((loadError) => {
+        console.error("Failed to load Method catalog", loadError);
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function startMethod(result: CatalogResult) {
+    const key = `${result.id}:${result.repositoryItemId ?? "catalog"}`;
+    setCreatingKey(key);
+    try {
+      const response = await fetch("/api/workspace/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(buildWorkspaceItemCreateBody(result)),
+      });
+      if (!response.ok) throw new Error("Could not create workspace item");
+      const responseBody = (await response.json()) as { item: WorkspaceItem };
+      onCreated(responseBody.item);
+    } catch (createError) {
+      console.error("Failed to create workspace item from Method", createError);
+      toast({
+        title: "Could not create workspace item",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingKey(undefined);
+    }
+  }
+
+  return (
+    <section
+      className="flex min-h-0 flex-1 flex-col gap-4"
+      aria-labelledby="method-catalog-heading"
+      data-testid="method-catalog"
+    >
+      <div>
+        <h1
+          id="method-catalog-heading"
+          className="text-2xl font-semibold tracking-tight text-slate-900"
+        >
+          Start with a Method
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm text-slate-600">
+          Choose a reviewed Method to create your first workspace artifact.
+          Public catalog Methods and private repository Methods are available
+          here.
+        </p>
+      </div>
+
+      {loading && (
+        <Card className="border-dashed bg-white/70">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Loading Methods…
+          </CardContent>
+        </Card>
+      )}
+      {!loading && error && (
+        <Card className="border-dashed bg-white/70">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Methods could not be loaded. Please refresh and try again.
+          </CardContent>
+        </Card>
+      )}
+      {!loading && !error && methods.length === 0 && (
+        <Card className="border-dashed bg-white/70">
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            No Methods are currently available.
+          </CardContent>
+        </Card>
+      )}
+      {!loading && !error && methods.length > 0 && (
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="grid gap-3 md:grid-cols-2">
+            {methods.map((result) => {
+              const key = `${result.id}:${result.repositoryItemId ?? "catalog"}`;
+              return (
+                <Card key={key} className="bg-white">
+                  <CardContent className="flex h-full flex-col gap-4 p-5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <h2 className="font-medium text-slate-900">
+                          {result.title}
+                        </h2>
+                        {result.private && (
+                          <Badge variant="secondary">Private</Badge>
+                        )}
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {result.description}
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={creatingKey !== undefined}
+                        aria-label={`Start ${result.title}`}
+                        onClick={() => void startMethod(result)}
+                      >
+                        {creatingKey === key ? "Starting…" : "Start"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -197,16 +354,9 @@ export function WorkspaceHome() {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading workspace…</p>
         ) : items.length === 0 ? (
-          <Card className="border-dashed bg-white/70">
-            <CardContent className="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
-              <p className="font-medium text-slate-900">
-                Your workspace is empty
-              </p>
-              <p className="max-w-md text-sm text-slate-600">
-                Create a reviewed workspace item when you are ready to start.
-              </p>
-            </CardContent>
-          </Card>
+          <MethodCatalog
+            onCreated={(item) => setItems((current) => [item, ...current])}
+          />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
             {items.map((item) => (
