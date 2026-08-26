@@ -18,6 +18,7 @@ describe("middleware public routes", () => {
 
   it("treats privacy, terms, and auth as unauthenticated public paths", () => {
     expect(isPublicPath("/privacy")).toBe(true);
+    expect(isPublicPath("/privacy/shared-model")).toBe(true);
     expect(isPublicPath("/terms")).toBe(true);
     expect(isPublicPath("/auth/login")).toBe(true);
     expect(isPublicPath("/auth/signup")).toBe(true);
@@ -58,6 +59,7 @@ describe("middleware public routes", () => {
     expect(unauthenticatedPageRedirect("/auth/forgot-password")).toBeNull();
     expect(unauthenticatedPageRedirect("/auth/reset-password")).toBeNull();
     expect(unauthenticatedPageRedirect("/privacy")).toBeNull();
+    expect(unauthenticatedPageRedirect("/privacy/shared-model")).toBeNull();
     expect(unauthenticatedPageRedirect("/terms")).toBeNull();
     expect(unauthenticatedPageRedirect("/invite/accept")).toBe("/auth/login");
 

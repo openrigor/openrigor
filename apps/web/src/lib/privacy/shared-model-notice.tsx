@@ -1,39 +1,28 @@
 import type { ReactNode } from "react";
 
+import {
+  SHARED_MODEL_NOTICE_EFFECTIVE_DATE,
+  SHARED_MODEL_NOTICE_VERSION,
+} from "@opencanvas/shared/ai-mode";
+
+export {
+  assertCurrentSharedModelNoticeVersion,
+  isSharedModelNoticeVersionCurrent,
+  SHARED_MODEL_NOTICE_EFFECTIVE_DATE,
+  SHARED_MODEL_NOTICE_VERSION,
+} from "@opencanvas/shared/ai-mode";
+
 /**
  * The public shared-model notice is deliberately versioned independently from
  * the general Privacy Policy. Acceptance in a later task must record this
  * exact value, not a mutable display date or a provider's current terms.
  */
-export const SHARED_MODEL_NOTICE_VERSION = "2026-08-25" as const;
-export const SHARED_MODEL_NOTICE_EFFECTIVE_DATE = "2026-08-25" as const;
 export const SHARED_MODEL_NOTICE_PATH = "/privacy/shared-model" as const;
 
 export const SHARED_MODEL_NOTICE = Object.freeze({
   version: SHARED_MODEL_NOTICE_VERSION,
   effectiveDate: SHARED_MODEL_NOTICE_EFFECTIVE_DATE,
 });
-
-/**
- * Notice versions are opaque immutable identifiers. Equality is intentional:
- * an older version and an unknown future version must both be treated as not
- * current until the user has seen the applicable notice.
- */
-export function isSharedModelNoticeVersionCurrent(
-  version: unknown
-): version is typeof SHARED_MODEL_NOTICE_VERSION {
-  return version === SHARED_MODEL_NOTICE_VERSION;
-}
-
-export function assertCurrentSharedModelNoticeVersion(
-  version: unknown
-): asserts version is typeof SHARED_MODEL_NOTICE_VERSION {
-  if (!isSharedModelNoticeVersionCurrent(version)) {
-    throw new Error(
-      `Shared-model privacy notice is stale; current version is ${SHARED_MODEL_NOTICE_VERSION}`
-    );
-  }
-}
 
 function NoticeFact({
   title,

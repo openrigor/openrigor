@@ -21,6 +21,12 @@ describe("password-reset auth routes", () => {
     expect(isPublicPath("/auth/reset-password")).toBe(true);
   });
 
+  it("treats the shared-model privacy notice as public", () => {
+    expect(isPublicPath("/privacy/shared-model")).toBe(true);
+    expect(isPublicPath("/privacy/shared-model/")).toBe(true);
+    expect(isPublicPath("/privacy/shared-model?from=settings")).toBe(true);
+  });
+
   it("does not bounce signed-in users from forgot/reset password", () => {
     expect(shouldBounceSignedInFromAuth("/auth/forgot-password")).toBe(false);
     expect(shouldBounceSignedInFromAuth("/auth/reset-password")).toBe(false);
