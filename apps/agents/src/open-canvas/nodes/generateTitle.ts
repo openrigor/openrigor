@@ -23,6 +23,7 @@ export const generateTitleNode = async (
     };
     const titleConfig = {
       configurable: {
+        ...config.configurable,
         open_canvas_thread_id: config.configurable?.thread_id,
       },
     };

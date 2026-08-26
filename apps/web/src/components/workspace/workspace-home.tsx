@@ -42,6 +42,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
+import { AiModeOnboardingDialog } from "./ai-mode-settings-card";
 
 export function shouldShowGithubResearchOnboarding(
   repositoriesResponse: Pick<Response, "ok" | "status">,
@@ -333,6 +334,7 @@ export function WorkspaceHome() {
 
   return (
     <main className="min-h-screen bg-slate-50">
+      <AiModeOnboardingDialog />
       <WorkspaceSiteHeader workspaceLabel="Workspace" maxWidthClass="max-w-6xl">
         <a
           href={DOCS_URL}

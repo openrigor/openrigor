@@ -1,5 +1,6 @@
-import { ChatAnthropic } from "@langchain/anthropic";
+import { LangGraphRunnableConfig } from "@langchain/langgraph";
 import { WebSearchState } from "../state.js";
+import { getModelFromConfig } from "../../utils.js";
 import z from "zod";
 
 const CLASSIFIER_PROMPT = `You're a helpful AI assistant tasked with classifying the user's latest message.
@@ -22,12 +23,14 @@ const classificationSchema = z
   .describe("The classification of the user's latest message.");
 
 export async function classifyMessage(
-  state: WebSearchState
+  state: WebSearchState,
+  config: LangGraphRunnableConfig
 ): Promise<Partial<WebSearchState>> {
-  const model = new ChatAnthropic({
-    model: "claude-3-5-sonnet-latest",
-    temperature: 0,
-  }).withStructuredOutput(classificationSchema, {
+  const model = (
+    await getModelFromConfig(config, {
+      temperature: 0,
+    })
+  ).withStructuredOutput(classificationSchema, {
     name: "classify_message",
   });
 

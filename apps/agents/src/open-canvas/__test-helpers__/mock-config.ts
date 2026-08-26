@@ -70,6 +70,7 @@ export function createMockConfig(
     configurable: {
       customModelName: "mock-model",
       assistant_id: "test-assistant-123",
+      supabase_session: { access_token: "test-token" },
       ...overrides,
     },
     store: overrides.store || null,

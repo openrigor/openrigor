@@ -15,6 +15,7 @@ export function isPublicPath(pathname: string): boolean {
   return (
     path === "/" ||
     path === "/privacy" ||
+    path === "/privacy/shared-model" ||
     path === "/terms" ||
     path.startsWith("/auth") ||
     path === "/api/methods"

@@ -42,6 +42,7 @@ import {
 } from "./provider-registry.js";
 import { createSafeFetch } from "@opencanvas/shared/byok/url";
 import { getByokModelSettings, getSharedByokModelSettings } from "./byok.js";
+import { getAiModeAuthorization } from "./ai-mode.js";
 
 const FREE_ASSIGNMENT_MODEL = "mimo-v2.5-free";
 /** Legacy free id — still route via Zen rail if an old client sends it. */
@@ -462,13 +463,25 @@ export async function getModelFromConfig(
     isToolCalling?: boolean;
   }
 ): Promise<ReturnType<typeof initChatModel>> {
-  // Shared instructor BYOK overrides a participant's own settings within
-  // assignments so all participants get consistent model behavior. Scoped to
-  // live method_participant threads with an active, unrevoked grant.
-  const sharedByokSettings = await getSharedByokModelSettings(config);
-  const resolvedByokSettings =
-    sharedByokSettings ?? (await getByokModelSettings(config));
-  if (resolvedByokSettings) {
+  const authorization = await getAiModeAuthorization(config);
+  if (authorization.mode === "markdown_only") {
+    throw new Error(
+      "Markdown-only mode does not authorize OpenRigor inference"
+    );
+  }
+
+  if (authorization.mode === "byok") {
+    // Shared instructor BYOK overrides a participant's own settings within
+    // assignments so all participants get consistent model behavior. Scoped
+    // to live method_participant threads with an active, unrevoked grant.
+    const sharedByokSettings = await getSharedByokModelSettings(config);
+    const resolvedByokSettings =
+      sharedByokSettings ?? (await getByokModelSettings(config));
+    if (!resolvedByokSettings) {
+      throw new Error(
+        "BYOK mode authorization is missing: a valid enabled BYOK key is required"
+      );
+    }
     const modelConfig = config.configurable?.modelConfig as
       | CustomModelConfig
       | undefined;
