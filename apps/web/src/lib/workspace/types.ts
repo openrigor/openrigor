@@ -132,6 +132,8 @@ export type MethodSource = {
   title?: string;
   description?: string;
   url?: string;
+  profiles?: ReadonlyArray<{ author?: string | null }> | null;
+  publication_date?: string | null;
   privateRepository?: {
     repositoryItemId: string;
     repositoryId: number;

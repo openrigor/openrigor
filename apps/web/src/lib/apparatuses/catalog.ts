@@ -57,6 +57,7 @@ export interface ApparatusCatalogEntry {
   provenance: ApparatusProvenance;
   description: string;
   profiles: ApparatusProfile[];
+  publication_date?: string | null;
   catalog_urls?: ApparatusCatalogUrls;
   run_brief_template?: string;
   evidence_template?: ApparatusEvidenceTemplate;

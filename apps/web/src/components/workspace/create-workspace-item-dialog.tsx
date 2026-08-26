@@ -79,9 +79,7 @@ export function CreateWorkspaceItemDialog({
   onCreated: (item: WorkspaceItem) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<"template" | "method" | "ledger">(
-    "template"
-  );
+  const [kind, setKind] = useState<"template" | "method" | "ledger">("method");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CatalogResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -155,7 +153,7 @@ export function CreateWorkspaceItemDialog({
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
-      setKind("template");
+      setKind("method");
       setQuery("");
     }
   }

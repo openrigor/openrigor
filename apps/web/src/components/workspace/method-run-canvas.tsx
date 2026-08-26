@@ -16,6 +16,7 @@ import {
 import { publicMethodPageUrl } from "@/lib/workspace/method-links";
 import { useUserContext } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
+import { MethodCitation } from "./method-citation";
 
 export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
   const router = useRouter();
@@ -146,6 +147,14 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
                 {item.methodSource.description}
               </p>
             )}
+            <MethodCitation
+              method={{
+                name: item.methodSource.title,
+                version: item.methodSource.version,
+                profiles: item.methodSource.profiles,
+                publication_date: item.methodSource.publication_date,
+              }}
+            />
             {assignment && (
               <dl className="grid gap-2 sm:grid-cols-2">
                 <div>

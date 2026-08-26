@@ -155,6 +155,7 @@ import {
   getWorkspaceItem,
   listWorkspaceItems,
   listSelectedPrivateMethods,
+  privateMethodHostResolver,
   pendingInviteNamespace,
   inviteLockId,
   resolveMethodTrackingAccess,
@@ -1031,6 +1032,126 @@ describe("research repository workspace items", () => {
         commitSha: workspaceBranchSha,
       },
     ]);
+  });
+
+  it("isolates the private Method cache by user, repository, revision, and TTL", async () => {
+    const cacheSha = "c".repeat(40);
+    const changedSha = "d".repeat(40);
+    const cacheItem = ({
+      id,
+      ownerId,
+      repositoryId,
+      headCommitSha,
+    }: {
+      id: string;
+      ownerId: string;
+      repositoryId: number;
+      headCommitSha: string;
+    }) => ({
+      ...repositoryWorkspaceItem(),
+      id,
+      ownerId,
+      binding: {
+        ...repositoryWorkspaceItem().binding,
+        repositoryId,
+        headCommitSha,
+      },
+      selectedMethodIds: ["private-method"],
+    });
+    const setManifest = (userId: string, items: Record<string, unknown>) => {
+      harness.state.items.set(`workspace_items/${userId}:manifest`, {
+        initialized: true,
+        items,
+      });
+    };
+    const resolvePrivateMethodHostMock = vi.fn(
+      async (_userId: string, item: any) =>
+        ({
+          commitSha: item.binding.headCommitSha,
+          credentials: undefined,
+          repository: undefined,
+          discovery: {
+            initialization: { initialized: true },
+            methods: [
+              {
+                id: "private-method",
+                title: "Private Method",
+                description: "Cached description",
+                profiles: [],
+              },
+            ],
+          },
+        }) as any
+    );
+    const resolverSpy = vi
+      .spyOn(privateMethodHostResolver, "resolve")
+      .mockImplementation(resolvePrivateMethodHostMock);
+    vi.useFakeTimers();
+
+    try {
+      const firstItem = cacheItem({
+        id: "wi_cache-first",
+        ownerId: "user-1",
+        repositoryId: 201,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-1", { [firstItem.id]: firstItem });
+
+      await expect(listSelectedPrivateMethods("user-1")).resolves.toHaveLength(
+        1
+      );
+      await expect(listSelectedPrivateMethods("user-1")).resolves.toHaveLength(
+        1
+      );
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(1);
+
+      const otherUserItem = cacheItem({
+        id: "wi_cache-other-user",
+        ownerId: "user-2",
+        repositoryId: 201,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-2", { [otherUserItem.id]: otherUserItem });
+      await listSelectedPrivateMethods("user-2");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(2);
+
+      const otherRepositoryItem = cacheItem({
+        id: "wi_cache-other-repository",
+        ownerId: "user-1",
+        repositoryId: 202,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-1", { [otherRepositoryItem.id]: otherRepositoryItem });
+      await listSelectedPrivateMethods("user-1");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(3);
+
+      const otherRevisionItem = cacheItem({
+        id: "wi_cache-other-revision",
+        ownerId: "user-1",
+        repositoryId: 201,
+        headCommitSha: changedSha,
+      });
+      setManifest("user-1", { [otherRevisionItem.id]: otherRevisionItem });
+      await listSelectedPrivateMethods("user-1");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(4);
+
+      vi.advanceTimersByTime(60_000);
+      await listSelectedPrivateMethods("user-1");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(5);
+
+      const unauthorizedItem = cacheItem({
+        id: "wi_cache-unauthorized",
+        ownerId: "user-2",
+        repositoryId: 201,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-1", { [unauthorizedItem.id]: unauthorizedItem });
+      await expect(listSelectedPrivateMethods("user-1")).resolves.toEqual([]);
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+      resolverSpy.mockRestore();
+    }
   });
 
   it("adopts a selected private Method pinned to the adopt-time commit", async () => {

@@ -551,12 +551,22 @@ export async function ensureDefaultWorkspaceItem(
 function enrichMethodSource(source: MethodSource): MethodSource {
   if (source.privateRepository) return source;
   const url = publicMethodPageUrl(source.id);
-  if (source.title && source.description && source.url === url) return source;
   const spec = getApparatusSpecification(source.id);
+  if (
+    source.title &&
+    source.description &&
+    source.url === url &&
+    source.profiles != null &&
+    source.publication_date != null
+  ) {
+    return source;
+  }
   return {
     ...source,
     title: source.title || spec?.name,
     description: source.description || spec?.description,
+    profiles: source.profiles ?? spec?.profiles,
+    publication_date: source.publication_date ?? spec?.publication_date,
     url,
   };
 }
@@ -1141,6 +1151,31 @@ async function resolvePrivateMethodHost(
   return { commitSha, credentials, repository, discovery };
 }
 
+export const privateMethodHostResolver = {
+  resolve: resolvePrivateMethodHost,
+};
+
+const PRIVATE_METHOD_HOST_CACHE_TTL_MS = 60_000;
+type PrivateMethodHostResolution = Awaited<
+  ReturnType<typeof resolvePrivateMethodHost>
+>;
+type PrivateMethodHostCacheValue = Pick<
+  PrivateMethodHostResolution,
+  "commitSha" | "discovery"
+> & {
+  expiresAt: number;
+};
+
+const privateMethodHostCache = new Map<string, PrivateMethodHostCacheValue>();
+
+function privateMethodHostCacheKey(
+  userId: string,
+  repositoryId: number,
+  commitSha: string
+): string {
+  return `${userId}:${repositoryId}:${commitSha}`;
+}
+
 /** Selected, currently conforming private Methods for the Create catalog. */
 export async function listSelectedPrivateMethods(
   userId: string
@@ -1156,10 +1191,31 @@ export async function listSelectedPrivateMethods(
   const results = await Promise.all(
     repositoryItems.map(async (item) => {
       try {
-        const { commitSha, discovery } = await resolvePrivateMethodHost(
+        const cacheKey = privateMethodHostCacheKey(
           userId,
-          item
+          item.binding.repositoryId,
+          item.binding.headCommitSha
         );
+        const cached = privateMethodHostCache.get(cacheKey);
+        let resolved: Pick<
+          PrivateMethodHostResolution,
+          "commitSha" | "discovery"
+        >;
+
+        if (cached && cached.expiresAt > Date.now()) {
+          resolved = cached;
+        } else {
+          if (cached) privateMethodHostCache.delete(cacheKey);
+          const { commitSha, discovery } =
+            await privateMethodHostResolver.resolve(userId, item);
+          resolved = { commitSha, discovery };
+          privateMethodHostCache.set(cacheKey, {
+            ...resolved,
+            expiresAt: Date.now() + PRIVATE_METHOD_HOST_CACHE_TTL_MS,
+          });
+        }
+
+        const { commitSha, discovery } = resolved;
         const selected = new Set(item.selectedMethodIds);
         return discovery.methods
           .filter((method) => selected.has(method.id))
