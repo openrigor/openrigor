@@ -40,7 +40,7 @@ function authorizationState(
   return row.mode;
 }
 
-export function toAiModeResponse(row: UserAiConsentRow | null): AiModeResponse {
+function toAiModeResponse(row: UserAiConsentRow | null): AiModeResponse {
   return {
     mode: row?.mode ?? null,
     privacy_notice_version: row?.privacy_notice_version ?? null,
