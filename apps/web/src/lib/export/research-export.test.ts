@@ -80,6 +80,27 @@ describe("research export", () => {
     );
   });
 
+  it("uses local storage scope when no repository provenance is present", () => {
+    const appendix = generateDisclosureAppendix({
+      llmMode: "byok",
+      privacyNoticeVersion: null,
+    });
+    expect(appendix).toContain(
+      "Artifact content and provenance metadata are stored locally in the workspace. Workspace telemetry is retained per the OpenRigor data-flow policy."
+    );
+    expect(appendix).not.toContain("private GitHub repository");
+  });
+
+  it("uses local storage scope when commitSha exists but no repository identity", () => {
+    const appendix = generateDisclosureAppendix({
+      commitSha: "abcdef1234567890",
+      llmMode: "byok",
+      privacyNoticeVersion: null,
+    });
+    expect(appendix).toContain("stored locally in the workspace");
+    expect(appendix).not.toContain("private GitHub repository");
+  });
+
   it("covers the BYOK disclosure label", () => {
     expect(
       generateDisclosureAppendix({

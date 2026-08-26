@@ -111,6 +111,16 @@ function shortCommitSha(commitSha: string | null): string {
   return commitSha ? commitSha.slice(0, 7) : "N/A";
 }
 
+function storageScopeLine(normalized: ResearchExportProvenanceBlock): string {
+  const hasRepo =
+    Boolean(normalized.repository || normalized.repositoryId) &&
+    Boolean(normalized.commitSha);
+  if (hasRepo) {
+    return "- Evidence/telemetry scope: Artifact content and provenance metadata are stored in the user's private GitHub repository. Workspace telemetry is retained per the OpenRigor data-flow policy.";
+  }
+  return "- Evidence/telemetry scope: Artifact content and provenance metadata are stored locally in the workspace. Workspace telemetry is retained per the OpenRigor data-flow policy.";
+}
+
 function yamlString(value: string | number | null): string {
   return JSON.stringify(value === null ? "N/A" : value);
 }
@@ -174,7 +184,7 @@ export function generateDisclosureAppendix(
     `- Selected AI mode: ${mode}`,
     `- Privacy-notice version: ${privacyNoticeVersion}`,
     `- Repository commit SHA: ${shortCommitSha(normalized.commitSha)}`,
-    "- Evidence/telemetry scope: Artifact content and provenance metadata are stored in the user's private GitHub repository. Workspace telemetry is retained per the OpenRigor data-flow policy.",
+    storageScopeLine(normalized),
     "- Data-flow details: https://openrigor.org#data-flow",
   ].join("\n");
 }

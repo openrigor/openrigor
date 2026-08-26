@@ -10,6 +10,7 @@ import {
   RepositoryLayoutError,
 } from "@/lib/workspace/research-repository/layout";
 import { parseArtifactFrontMatter } from "@/lib/workspace/research-repository/authoring";
+import yaml from "js-yaml";
 import {
   exportAsEvidencePacket,
   exportAsMarkdown,
@@ -241,6 +242,26 @@ async function loadRepositoryArtifact(
   };
 }
 
+/** Extract evidence_ledgers entries from artifact markdown frontmatter. */
+function ledgerEntriesFromContent(content: string): unknown[] {
+  const match = content.match(/^---\s*\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return [];
+  try {
+    const parsed = yaml.load(match[1], { schema: yaml.JSON_SCHEMA });
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      Array.isArray((parsed as Record<string, unknown>).evidence_ledgers)
+    ) {
+      return (parsed as Record<string, unknown>).evidence_ledgers as unknown[];
+    }
+  } catch {
+    // Malformed frontmatter — return empty rather than failing export.
+  }
+  return [];
+}
+
 function safeFilenamePart(value: string | undefined): string {
   const cleaned = (value || "artifact")
     .replace(/\.(?:md|markdown|yml|yaml|cff)$/i, "")
@@ -330,7 +351,8 @@ export async function GET(request: Request, context: RouteContext) {
   const date = exportedAt.slice(0, 10);
 
   if (format === "evidence-packet") {
-    const packet = exportAsEvidencePacket(artifact, provenance);
+    const entries = ledgerEntriesFromContent(artifact.content);
+    const packet = exportAsEvidencePacket(artifact, provenance, entries);
     return new Response(`${JSON.stringify(packet, null, 2)}\n`, {
       headers: downloadHeaders(
         `${name}-evidence-${date}.json`,
