@@ -217,7 +217,8 @@ export async function generatePath(
   if (messageUrls.length) {
     updatedMessageWithContents = await includeURLContents(
       state._messages[state._messages.length - 1],
-      messageUrls
+      messageUrls,
+      config
     );
   }
 

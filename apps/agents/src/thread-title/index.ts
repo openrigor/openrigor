@@ -4,11 +4,6 @@ import {
   StateGraph,
 } from "@langchain/langgraph";
 import { Client } from "@langchain/langgraph-sdk";
-import { ChatOpenAI } from "@langchain/openai";
-import {
-  createOpenRouterChatModel,
-  isOpenRouterEnabled,
-} from "../openrouter.js";
 import { z } from "zod";
 import {
   getArtifactContent,
@@ -19,6 +14,7 @@ import {
   TitleGenerationAnnotation,
   TitleGenerationReturnType,
 } from "./state.js";
+import { getModelFromConfig } from "../utils.js";
 
 export const generateTitle = async (
   state: typeof TitleGenerationAnnotation.State,
@@ -38,12 +34,10 @@ export const generateTitle = async (
     }),
   };
 
-  const baseModel = isOpenRouterEnabled()
-    ? createOpenRouterChatModel()
-    : new ChatOpenAI({
-        model: "gpt-4o-mini",
-        temperature: 0,
-      });
+  const baseModel = await getModelFromConfig(config, {
+    temperature: 0,
+    isToolCalling: true,
+  });
   const model = baseModel.bindTools([generateTitleTool], {
     tool_choice: "auto",
   });

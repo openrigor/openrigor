@@ -18,7 +18,7 @@ const WORKSPACE_MANIFEST_KEY = "manifest";
 function warnMissingByokConfigOnce(reason: string) {
   if (warnedMissingByokConfig) return;
   warnedMissingByokConfig = true;
-  console.warn(`[byok] ${reason}; falling back to platform providers`);
+  console.warn(`[byok] ${reason}; BYOK authorization will fail closed`);
 }
 
 function isSupabaseServiceRoleConfigured(): boolean {
@@ -30,8 +30,8 @@ function isSupabaseServiceRoleConfigured(): boolean {
 
 /**
  * Load the signed-in user's BYOK settings when configured and enabled.
- * Returns null when BYOK is unavailable, disabled, or not set — callers
- * should keep using the existing platform provider path.
+ * Returns null when BYOK is unavailable, disabled, or not set. The caller
+ * decides whether the selected mode permits a different path.
  *
  * Throws when BYOK is enabled but the stored key cannot be decrypted or
  * the saved base URL is not a public HTTPS destination (fail closed).
@@ -260,10 +260,10 @@ export async function getSharedByokModelSettings(
     await assertPublicHost(new URL(baseUrl).hostname);
     return { baseUrl, model: row.model, apiKey };
   } catch (error) {
-    // A shared grant is optional. Any missing, revoked, deleted, or invalid
-    // owner configuration follows the normal platform-provider path.
+    // A shared grant is optional. Missing, revoked, deleted, or invalid owner
+    // configuration must not authorize a platform-provider fallback.
     console.warn(
-      "[byok] shared grant resolution failed; using platform provider",
+      "[byok] shared grant resolution failed; continuing with the authorized participant mode",
       error
     );
     return null;

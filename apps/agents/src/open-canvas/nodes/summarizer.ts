@@ -20,6 +20,11 @@ export async function summarizer(
       messages: state._messages,
       threadId: config.configurable.thread_id,
     },
+    config: {
+      configurable: {
+        ...config.configurable,
+      },
+    },
   });
 
   return {};

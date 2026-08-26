@@ -18,6 +18,7 @@ const {
   supabaseAuthGetUserMock,
   createClientMock,
   maybeSingleMock,
+  consentMaybeSingleMock,
 } = vi.hoisted(() => {
   const initChatModelMock = vi.fn();
   const wrapModelWithFallbackMock = vi.fn((model) => model);
@@ -44,11 +45,16 @@ const {
 
   const supabaseAuthGetUserMock = vi.fn();
   const maybeSingleMock = vi.fn();
+  const consentMaybeSingleMock = vi.fn();
   const eqMock = vi.fn((_column: string, userId: string) => ({
     maybeSingle: () => maybeSingleMock(userId),
   }));
   const selectMock = vi.fn(() => ({ eq: eqMock }));
-  const supabaseFromMock = vi.fn(() => ({ select: selectMock }));
+  const consentEqMock = vi.fn(() => ({ maybeSingle: consentMaybeSingleMock }));
+  const consentSelectMock = vi.fn(() => ({ eq: consentEqMock }));
+  const supabaseFromMock = vi.fn((table: string) => ({
+    select: table === "user_ai_consent" ? consentSelectMock : selectMock,
+  }));
   const createClientMock = vi.fn(() => ({
     auth: { getUser: supabaseAuthGetUserMock },
     from: supabaseFromMock,
@@ -66,6 +72,7 @@ const {
     supabaseAuthGetUserMock,
     createClientMock,
     maybeSingleMock,
+    consentMaybeSingleMock,
   };
 });
 
@@ -110,6 +117,29 @@ function mockByokRow(
     data: { user: { id: "byok-user" } },
   });
   maybeSingleMock.mockResolvedValue({ data: row, error: null });
+  consentMaybeSingleMock.mockResolvedValue({
+    data: {
+      user_id: "byok-user",
+      mode: "byok",
+      privacy_notice_version: null,
+      revoked_at: null,
+      updated_at: new Date().toISOString(),
+    },
+    error: null,
+  });
+}
+
+function mockAiModeByok(userId: string) {
+  consentMaybeSingleMock.mockResolvedValue({
+    data: {
+      user_id: userId,
+      mode: "byok",
+      privacy_notice_version: null,
+      revoked_at: null,
+      updated_at: new Date().toISOString(),
+    },
+    error: null,
+  });
 }
 
 describe("provider resolution", () => {
@@ -124,11 +154,21 @@ describe("provider resolution", () => {
       OPENCODE_ZEN_API_KEY: "zen-key",
       OPENCODE_ZEN_BASE_URL: "https://opencode.ai/zen/v1",
       OPENROUTER_ENABLED: "true",
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE: "service-role-key",
     };
     delete process.env.BYOK_ENCRYPTION_KEY;
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-    delete process.env.SUPABASE_SERVICE_ROLE;
     mockByokRow(null);
+    consentMaybeSingleMock.mockResolvedValue({
+      data: {
+        user_id: "byok-user",
+        mode: "shared_model",
+        privacy_notice_version: "2026-08-25",
+        revoked_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      error: null,
+    });
     initChatModelMock.mockResolvedValue({
       invoke: vi.fn(),
       stream: vi.fn(),
@@ -322,7 +362,7 @@ describe("provider resolution", () => {
     expect(chatOpenAIInvocations).toHaveLength(0);
   });
 
-  it("falls back to platform providers when BYOK is absent", async () => {
+  it("refuses inference when BYOK is absent", async () => {
     process.env.BYOK_ENCRYPTION_KEY = BYOK_TEST_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE = "service-role-key";
@@ -333,17 +373,14 @@ describe("provider resolution", () => {
       supabase_session: { access_token: "user-token" },
     });
 
-    await getModelFromConfig(config);
-
-    expect(chatOpenAIInvocations).toHaveLength(1);
-    expect(wrapModelWithFallbackMock).toHaveBeenCalledTimes(1);
-    expect(chatOpenAIInvocations[0]).toMatchObject({
-      model: "mimo-v2.5-free",
-      apiKey: "zen-key",
-    });
+    await expect(getModelFromConfig(config)).rejects.toThrow(
+      /BYOK mode authorization is missing/
+    );
+    expect(chatOpenAIInvocations).toHaveLength(0);
+    expect(wrapModelWithFallbackMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to platform providers when BYOK is disabled", async () => {
+  it("refuses inference when BYOK is disabled", async () => {
     process.env.BYOK_ENCRYPTION_KEY = BYOK_TEST_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE = "service-role-key";
@@ -361,14 +398,11 @@ describe("provider resolution", () => {
       supabase_session: { access_token: "user-token" },
     });
 
-    await getModelFromConfig(config);
-
-    expect(chatOpenAIInvocations).toHaveLength(1);
-    expect(wrapModelWithFallbackMock).toHaveBeenCalledTimes(1);
-    expect(chatOpenAIInvocations[0]).toMatchObject({
-      model: "mimo-v2.5-free",
-      apiKey: "zen-key",
-    });
+    await expect(getModelFromConfig(config)).rejects.toThrow(
+      /BYOK mode authorization is missing/
+    );
+    expect(chatOpenAIInvocations).toHaveLength(0);
+    expect(wrapModelWithFallbackMock).not.toHaveBeenCalled();
   });
 
   it("an active instructor grant overrides a participant's own BYOK settings", async () => {
@@ -411,6 +445,7 @@ describe("provider resolution", () => {
         user: { id: "participant-user", email: "student@example.com" },
       },
     });
+    mockAiModeByok("participant-user");
     const ownerRow = {
       user_id: "owner-user",
       base_url: "https://openrouter.ai/api/v1",
@@ -499,6 +534,7 @@ describe("provider resolution", () => {
         user: { id: "participant-user", email: "student@example.com" },
       },
     });
+    mockAiModeByok("participant-user");
     const ownerRow = {
       user_id: "owner-user",
       base_url: "https://openrouter.ai/api/v1",
@@ -586,6 +622,7 @@ describe("provider resolution", () => {
         user: { id: "participant-user", email: "student@example.com" },
       },
     });
+    mockAiModeByok("participant-user");
     const ownerRow = {
       user_id: "owner-user",
       base_url: "https://openrouter.ai/api/v1",
@@ -633,7 +670,7 @@ describe("provider resolution", () => {
     });
   });
 
-  it("a revoked instructor grant does not override; falls back to own or platform BYOK", async () => {
+  it("a revoked instructor grant does not authorize a platform fallback", async () => {
     process.env.BYOK_ENCRYPTION_KEY = BYOK_TEST_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE = "service-role-key";
@@ -671,6 +708,7 @@ describe("provider resolution", () => {
     supabaseAuthGetUserMock.mockResolvedValue({
       data: { user: { id: "participant-user" } },
     });
+    mockAiModeByok("participant-user");
     const revokedRow = {
       user_id: "owner-user",
       base_url: "https://openrouter.ai/api/v1",
@@ -695,14 +733,9 @@ describe("provider resolution", () => {
     config.configurable!.workspace_item_id = "participant-item";
 
     await expect(getSharedByokModelSettings(config)).resolves.toBeNull();
-    await getModelFromConfig(config);
-
-    expect(chatOpenAIInvocations[0]).toMatchObject({
-      model: "mimo-v2.5-free",
-      apiKey: "zen-key",
-    });
-    expect(chatOpenAIInvocations[0]).not.toMatchObject({
-      apiKey: "sk-owner-secret",
-    });
+    await expect(getModelFromConfig(config)).rejects.toThrow(
+      /BYOK mode authorization is missing/
+    );
+    expect(chatOpenAIInvocations).toHaveLength(0);
   });
 });

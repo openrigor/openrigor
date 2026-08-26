@@ -33,6 +33,7 @@ describe("reflectNode", () => {
       configurable: {
         assistant_id: "asst-1",
         supabase_user_id: "user-1",
+        supabase_session: { access_token: "token-1" },
       },
     });
 
@@ -41,10 +42,11 @@ describe("reflectNode", () => {
       "reflection",
       expect.objectContaining({
         config: {
-          configurable: {
+          configurable: expect.objectContaining({
             open_canvas_assistant_id: "asst-1",
             supabase_user_id: "user-1",
-          },
+            supabase_session: { access_token: "token-1" },
+          }),
         },
       })
     );
