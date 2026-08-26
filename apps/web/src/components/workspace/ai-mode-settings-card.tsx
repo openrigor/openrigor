@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   assertCurrentSharedModelNoticeVersion,
@@ -432,28 +432,33 @@ export function AiModeOnboardingDialog() {
   const [sharedNoticeAccepted, setSharedNoticeAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  const loadMode = useCallback(async () => {
+    setLoading(true);
+    try {
+      const state = await loadAiMode();
+      setOpen(state.mode === null);
+      setError(null);
+    } catch (loadError) {
+      setOpen(true);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Could not load AI mode"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    loadAiMode()
-      .then((state) => {
-        if (cancelled) return;
-        setOpen(state.mode === null);
-        setLoading(false);
-      })
-      .catch((loadError) => {
-        if (cancelled) return;
-        setLoading(false);
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "Could not load AI mode"
-        );
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadMode();
+  }, [loadMode]);
+
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
 
   async function handleSave() {
     if (!selectedMode) return;
@@ -473,15 +478,17 @@ export function AiModeOnboardingDialog() {
     }
   }
 
-  if (loading || !open) return null;
+  if (!open) return null;
 
   return (
     <div data-testid="ai-mode-onboarding">
       <div className="fixed inset-0 z-40 bg-black/40" aria-hidden />
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-mode-onboarding-title"
+        tabIndex={-1}
         className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[min(94vw,40rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-white p-6 shadow-xl"
       >
         <h2 id="ai-mode-onboarding-title" className="text-xl font-semibold">
@@ -539,9 +546,19 @@ export function AiModeOnboardingDialog() {
             </div>
           ) : null}
           {error ? (
-            <p className="text-sm text-red-700" role="alert">
-              {error}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-red-700" role="alert">
+                {error}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading || saving}
+                onClick={() => void loadMode()}
+              >
+                {loading ? "Retrying…" : "Retry"}
+              </Button>
+            </div>
           ) : null}
           <Button
             type="button"

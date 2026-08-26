@@ -1,12 +1,27 @@
+// @vitest-environment jsdom
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import {
+  AiModeOnboardingDialog,
   AiModeSettingsCardView,
   buildAiModePutBody,
   loadAiMode,
 } from "./ai-mode-settings-card";
 import { SHARED_MODEL_NOTICE_VERSION } from "@opencanvas/shared/ai-mode";
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const callbacks = {
   onModeChange: () => undefined,
@@ -74,5 +89,65 @@ describe("AI mode settings", () => {
       mode: null,
       authorization_state: "missing",
     });
+  });
+
+  it("moves focus to the onboarding dialog when it opens", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              mode: null,
+              privacy_notice_version: null,
+              revoked_at: null,
+              updated_at: null,
+              authorization_state: "missing",
+            }),
+            { status: 200 }
+          )
+      )
+    );
+
+    render(createElement(AiModeOnboardingDialog));
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => expect(document.activeElement).toBe(dialog));
+    expect(dialog.getAttribute("tabindex")).toBe("-1");
+    expect(dialog.getAttribute("aria-labelledby")).toBe(
+      "ai-mode-onboarding-title"
+    );
+  });
+
+  it("shows a load error with a retry action", async () => {
+    const fetchMock = vi.fn(async () => {
+      if (fetchMock.mock.calls.length === 1) {
+        return new Response(JSON.stringify({ error: "Service unavailable" }), {
+          status: 503,
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          mode: null,
+          privacy_notice_version: null,
+          revoked_at: null,
+          updated_at: null,
+          authorization_state: "missing",
+        }),
+        { status: 200 }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(AiModeOnboardingDialog));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Service unavailable"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.getByRole("dialog")).toBeTruthy();
   });
 });
