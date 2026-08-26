@@ -40,8 +40,9 @@ export function HeroSection() {
             human-authored finding have distinct roles.
           </p>
           <p className="hero-sub">
-            A GitHub-backed private repo is the home for the work. You choose
-            BYOK (recommended), a shared model, or Markdown-only.
+            In your private research workspace, a GitHub-backed private
+            repository is the home for the work. You choose BYOK (recommended),
+            a shared model, or Markdown-only.
           </p>
           <div className="hero-ctas">
             <OpenCanvasButton className="btn btn-primary">
@@ -355,7 +356,7 @@ const OPEN_LAYERS = [
 const DATA_CONTROL = [
   {
     label: "Private repo",
-    text: "Your GitHub repo is the home. OpenRigor metadata and Ledgers are stored there.",
+    text: "In your private research workspace, your GitHub repository is the home. OpenRigor metadata and Ledgers are stored there.",
   },
   {
     label: "BYOK (recommended)",
@@ -376,8 +377,8 @@ export function OssSection() {
         <p className="lede">
           The novelty is not a hidden model. It is applying the technologies and
           practices of open-source projects to the work of figuring out AI in
-          education. A private repo is the home for the work; you control the
-          model path.
+          education. A private repository can be the home for work in your
+          private research workspace; you control the model path.
         </p>
         <div className="open-layers">
           {OPEN_LAYERS.map((layer) => (

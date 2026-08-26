@@ -551,12 +551,22 @@ export async function ensureDefaultWorkspaceItem(
 function enrichMethodSource(source: MethodSource): MethodSource {
   if (source.privateRepository) return source;
   const url = publicMethodPageUrl(source.id);
-  if (source.title && source.description && source.url === url) return source;
   const spec = getApparatusSpecification(source.id);
+  if (
+    source.title &&
+    source.description &&
+    source.url === url &&
+    source.profiles !== undefined &&
+    source.publication_date !== undefined
+  ) {
+    return source;
+  }
   return {
     ...source,
     title: source.title || spec?.name,
     description: source.description || spec?.description,
+    profiles: source.profiles ?? spec?.profiles,
+    publication_date: source.publication_date ?? spec?.publication_date,
     url,
   };
 }
@@ -1199,17 +1209,10 @@ export async function listSelectedPrivateMethods(
           const { commitSha, discovery } =
             await privateMethodHostResolver.resolve(userId, item);
           resolved = { commitSha, discovery };
-          privateMethodHostCache.set(
-            privateMethodHostCacheKey(
-              userId,
-              item.binding.repositoryId,
-              commitSha
-            ),
-            {
-              ...resolved,
-              expiresAt: Date.now() + PRIVATE_METHOD_HOST_CACHE_TTL_MS,
-            }
-          );
+          privateMethodHostCache.set(cacheKey, {
+            ...resolved,
+            expiresAt: Date.now() + PRIVATE_METHOD_HOST_CACHE_TTL_MS,
+          });
         }
 
         const { commitSha, discovery } = resolved;

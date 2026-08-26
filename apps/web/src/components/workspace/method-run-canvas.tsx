@@ -151,7 +151,8 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
               method={{
                 name: item.methodSource.title,
                 version: item.methodSource.version,
-                profiles: [],
+                profiles: item.methodSource.profiles,
+                publication_date: item.methodSource.publication_date,
               }}
             />
             {assignment && (

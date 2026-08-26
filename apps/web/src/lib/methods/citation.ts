@@ -27,7 +27,10 @@ function citationFields(
   const title = present(method.name);
   const version = present(method.version);
   const publicationDate = present(method.publication_date);
-  const year = publicationDate?.match(/^(\d{4})/)?.[1];
+  const yearMatch = publicationDate?.match(
+    /^(\d{4})(-(\d{2}))?(-(0?[1-9]|[12]\d|3[01]))?$/
+  );
+  const year = yearMatch?.[1];
 
   if (!author || !title || !version || !year) return undefined;
 
@@ -41,7 +44,7 @@ function citationFields(
 }
 
 function escapeBibtex(value: string): string {
-  return value.replace(/[\\{}]/g, (character) => `\\${character}`);
+  return value.replace(/[\\{}$&%#_^]/g, (character) => `\\${character}`);
 }
 
 function citationKey(author: string, year: string, version: string): string {

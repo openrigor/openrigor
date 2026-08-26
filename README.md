@@ -36,15 +36,15 @@ Try the public beta at [openrigor.org](https://openrigor.org), or run it yoursel
   telemetry contracts, and reproducibility fixtures are public
 - **Organisation workspaces** — org admins invite teachers and students; route
   authorization and organisation isolation are enforced server-side
-- **GitHub-backed private research** — a private repo is the home; metadata and
-  Ledgers live in the repo
+- **GitHub-backed private research** — in your private research workspace, a
+  private repository is the home; metadata and Ledgers live there
 - **Three LLM modes** — BYOK (recommended), shared model (never preselected), or
   Markdown-only with no OpenRigor LLM
 
 ## Data flow
 
-A private GitHub repository is the home for the work. OpenRigor metadata and
-Ledgers are stored in that repo.
+In your private research workspace, a private GitHub repository is the home for
+the work. OpenRigor metadata and Ledgers are stored in that repository.
 
 LLM traffic follows the mode you choose:
 
