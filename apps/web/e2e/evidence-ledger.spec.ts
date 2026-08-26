@@ -1,5 +1,5 @@
 import { expect, Page, Response, test } from "@playwright/test";
-import { baseUrl, loginAsTestUser, TIMEOUTS } from "./helpers/auth";
+import { baseUrl, ensureAiModeConsent, loginAsTestUser, TIMEOUTS } from "./helpers/auth";
 import {
   createLedgerItemViaApi,
   openWorkspaceItem,
@@ -50,6 +50,7 @@ test.describe("@regression evidence-ledger", () => {
 
   test.beforeEach(async ({ page }) => {
     await loginAsTestUser(page);
+    await ensureAiModeConsent(page);
   });
 
   async function createLedgerViaUi(
@@ -195,12 +196,13 @@ test.describe("@regression evidence-ledger", () => {
     // falls back to a Send click when it did not.
     await sendLedgerChatMessage(page, "Filter the ledger to education_level k12");
 
-    const predicate = page
-      .locator("[data-testid='ledger-canvas'] p.font-mono")
-      .first();
-    await expect(predicate).toContainText("education_level in [k12]", {
-      timeout: 60_000,
-    });
+    // Scope to the Scope-preview heading — .first() on p.font-mono grabs the
+    // baseline "all accepted evidence" card, not the predicate (E2E pitfall).
+    // The predicate appears as e.g. "context.education_level in [k12]" in a
+    // paragraph below the preview table. Search within the ledger canvas.
+    await expect(
+      page.getByTestId("ledger-canvas").getByText(/education_level in \[k12\]/)
+    ).toBeVisible({ timeout: 60_000 });
   });
 
   test("4 · generate Ledger Snapshot canvas with chat, expand groups, and inline publishing", async ({

@@ -94,3 +94,28 @@ export async function logout(page: Page): Promise<void> {
     timeout: TIMEOUTS.loginRedirect,
   });
 }
+
+/**
+ * Ensure the test user has an AI mode consent row so the LangGraph agent
+ * can process chat messages. Without this, the agent throws
+ * "OpenRigor AI mode authorization is missing" (v0.9.0 AI mode feature).
+ *
+ * Idempotent — safe to call on every test run.
+ */
+export async function ensureAiModeConsent(page: Page): Promise<void> {
+  // PUT /api/ai-mode is idempotent (upserts on user_id).
+  const res = await page.request.put(`${baseUrl()}/api/ai-mode`, {
+    data: {
+      mode: "shared_model",
+      privacy_notice_version: "2026-08-25",
+    },
+  });
+  // 200 = set; any non-OK = fail loudly so dependent specs never run with broken setup.
+  if (!res.ok()) {
+    throw new Error(
+      res.status() === 401
+        ? "ensureAiModeConsent: not logged in — call after loginAsTestUser"
+        : `ensureAiModeConsent: PUT /api/ai-mode failed with ${res.status()}`
+    );
+  }
+}
