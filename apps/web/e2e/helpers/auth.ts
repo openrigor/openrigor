@@ -13,11 +13,12 @@ export const TIMEOUTS = {
 };
 
 export function baseUrl(): string {
-  return (
+  const raw =
     process.env.E2E_BASE_URL ||
     test.info().project.use.baseURL ||
-    "https://dev.openrigor.org"
-  );
+    "https://dev.openrigor.org";
+  // Normalize trailing slashes so `${baseUrl()}/path` never doubles up.
+  return raw.replace(/\/+$/, "");
 }
 
 /** Throw if any env key is missing/empty. */
@@ -68,10 +69,9 @@ export async function loginWithCredentials(
   await emailInput.fill(email);
   await passwordInput.fill(password);
   await page.locator("button[type='submit']").first().click();
-  await page.waitForURL(
-    (url) => !url.pathname.startsWith("/auth/login"),
-    { timeout: TIMEOUTS.loginRedirect }
-  );
+  await page.waitForURL((url) => !url.pathname.startsWith("/auth/login"), {
+    timeout: TIMEOUTS.loginRedirect,
+  });
 }
 
 export async function loginAsTestUser(page: Page): Promise<void> {

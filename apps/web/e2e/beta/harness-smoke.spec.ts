@@ -13,6 +13,10 @@ import {
 } from "../helpers/github-fixture";
 
 test.describe("public-beta E2E harness", () => {
+  // Applies to every test in this suite including the provisioning
+  // beforeEach hook, which runs before any body-level setTimeout would.
+  test.describe.configure({ timeout: 180_000 });
+
   test.beforeEach(async ({ page }) => {
     await provision(page);
   });
@@ -48,7 +52,7 @@ test.describe("public-beta E2E harness", () => {
     });
 
     const repositoriesResponse = await page.request.get(
-      `${baseUrl()}/api/workspace/github/repositories`,
+      `${baseUrl()}/api/workspace/github/repositories`
     );
     const repositoryCard = page.getByTestId("private-repositories-card");
     if (repositoriesResponse.status() === 404) {
@@ -61,7 +65,7 @@ test.describe("public-beta E2E harness", () => {
         timeout: TIMEOUTS.pageLoad,
       });
       await expect(repositoryCard).toContainText(
-        "Private research repositories",
+        "Private research repositories"
       );
       await repositoryCard
         .getByRole("button", { name: "Add private research repository" })
@@ -70,24 +74,24 @@ test.describe("public-beta E2E harness", () => {
       await expect(bindEntry).toBeVisible({ timeout: TIMEOUTS.pageLoad });
       await expect(
         bindEntry.getByText(
-          /Connect GitHub|No installation repositories|Bind repository/,
-        ),
+          /Connect GitHub|No installation repositories|Bind repository/
+        )
       ).toBeVisible({ timeout: TIMEOUTS.pageLoad });
     }
 
     const fixtureEnv = getGithubFixtureEnv();
     if (!fixtureEnv.available) {
+      // Return WITHOUT test.skip: the login + binding-entry journey already
+      // passed above; skipping here would discard those assertions.
       recordGithubFixtureSkipReason(test.info(), fixtureEnv.reason);
-      test.skip(true, fixtureEnv.reason);
       return;
     }
 
     const fixtureRepository = await verifyGithubFixtureRepository(
-      fixtureEnv.config,
+      fixtureEnv.config
     );
     if (fixtureRepository.skipReason) {
       recordGithubFixtureSkipReason(test.info(), fixtureRepository.skipReason);
-      test.skip(true, fixtureRepository.skipReason);
       return;
     }
 
