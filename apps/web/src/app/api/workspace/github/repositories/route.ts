@@ -46,16 +46,18 @@ export async function GET() {
         retainedRepositories.map(async (entry) => {
           let isPrivate = entry.private;
           let nameWithOwner = entry.nameWithOwner;
-          if (isPrivate !== true && isPrivate !== false) {
+          const needsLookup = isPrivate !== true && isPrivate !== false;
+          const needsName = !nameWithOwner || nameWithOwner.trim() === "";
+          if (needsLookup || needsName) {
             try {
               const repository = await getGithubInstallationRepository(
                 installationId,
                 entry.id
               );
-              isPrivate = repository.private;
-              nameWithOwner = repository.nameWithOwner;
+              if (needsLookup) isPrivate = repository.private;
+              if (needsName) nameWithOwner = repository.nameWithOwner;
             } catch {
-              return undefined;
+              if (needsLookup) return undefined;
             }
           }
           if (!isPrivate) return undefined;

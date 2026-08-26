@@ -556,8 +556,8 @@ function enrichMethodSource(source: MethodSource): MethodSource {
     source.title &&
     source.description &&
     source.url === url &&
-    source.profiles !== undefined &&
-    source.publication_date !== undefined
+    source.profiles != null &&
+    source.publication_date != null
   ) {
     return source;
   }
