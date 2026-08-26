@@ -222,8 +222,8 @@ export function BuildingSection() {
         <p className="lede">
           The Workspace is useful on its own—and gives teachers and researchers
           an open surface for designing, running and explaining new ways of
-          working with AI. Choose BYOK, a shared model, or Markdown-only.
-          Shared model is never preselected.
+          working with AI. Choose BYOK, a shared model, or Markdown-only. Shared
+          model is never preselected.
         </p>
         <div className="platform-map">
           {CANVAS_CAPABILITIES.map((layer, index) => (

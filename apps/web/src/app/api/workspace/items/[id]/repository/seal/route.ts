@@ -12,7 +12,6 @@ import {
   repositoryCommitProvenance,
   StaleRepositoryError,
   type GithubCommitAuthor,
-  type GithubRepositoryCoordinates,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
   RepositoryAccessError,
@@ -341,7 +340,6 @@ export async function POST(request: Request, context: RouteContext) {
   ) {
     return json({ error: "Research repository is disconnected" }, 409);
   }
-  let repositoryForCommit: GithubRepositoryCoordinates | undefined;
   const baseCommitSha =
     body.action === "seal"
       ? (body.preview.sealedFromCommit ?? item.binding.headCommitSha)
@@ -364,7 +362,6 @@ export async function POST(request: Request, context: RouteContext) {
           item.binding.installationId,
           item.binding.repositoryId
         );
-        repositoryForCommit = repository;
         assertRepositoryPrivate(repository);
         return getRepositoryBranchHead(
           item.binding.installationId,
@@ -480,7 +477,6 @@ export async function POST(request: Request, context: RouteContext) {
       expectedHeadSha: item.binding.headCommitSha,
       files: [sealLedgerPath(snapshotId), sealManifestPath(snapshotId)],
     });
-    repositoryForCommit = repository;
     access = { binding: item.binding, credentials, repository };
   } catch (error) {
     try {
