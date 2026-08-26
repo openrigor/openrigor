@@ -110,10 +110,12 @@ export async function ensureAiModeConsent(page: Page): Promise<void> {
       privacy_notice_version: "2026-08-25",
     },
   });
-  // 200 = set, 401 = not logged in yet (caller must log in first).
-  if (res.status() === 401) {
+  // 200 = set; any non-OK = fail loudly so dependent specs never run with broken setup.
+  if (!res.ok()) {
     throw new Error(
-      "ensureAiModeConsent: not logged in — call after loginAsTestUser"
+      res.status() === 401
+        ? "ensureAiModeConsent: not logged in — call after loginAsTestUser"
+        : `ensureAiModeConsent: PUT /api/ai-mode failed with ${res.status()}`
     );
   }
 }
