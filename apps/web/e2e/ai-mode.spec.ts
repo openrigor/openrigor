@@ -60,9 +60,6 @@ test.describe("@regression ai-mode", () => {
       );
       await save.click();
       const putResponse = await putWait;
-      if (!putResponse.ok() && mode === "byok") {
-        continue;
-      }
       expect(putResponse.ok()).toBeTruthy();
 
       const getResponse = await page.request.get(`${baseUrl()}/api/ai-mode`);
@@ -128,6 +125,46 @@ test.describe("@regression ai-mode", () => {
     expect(getResponse.ok()).toBeTruthy();
     const body = (await getResponse.json()) as AiModeResponse;
     expect(body.authorization_state).toBe("revoked");
+
+    const configResponse = await page.request.get(
+      `${baseUrl()}/api/workspace/config`
+    );
+    expect(configResponse.ok()).toBeTruthy();
+    const configBody = (await configResponse.json()) as {
+      assistantId?: string;
+    };
+    const assistantId = configBody.assistantId || "agent";
+
+    const threadResponse = await page.request.post(`${baseUrl()}/api/threads`, {
+      data: { metadata: {} },
+    });
+    expect(threadResponse.ok()).toBeTruthy();
+    const thread = (await threadResponse.json()) as { thread_id: string };
+    expect(thread.thread_id).toBeTruthy();
+
+    const runResponse = await page.request.post(
+      `${baseUrl()}/api/threads/${thread.thread_id}/runs/wait`,
+      {
+        data: {
+          assistant_id: assistantId,
+          input: {
+            // Mirrors the app's real invocation shape (convertToOpenAIFormat
+            // output + explicit routing) so the graph reaches the model
+            // gate instead of dying in message plumbing.
+            messages: [
+              {
+                role: "user",
+                content: [{ type: "text", text: "ping" }],
+              },
+            ],
+            next: "replyToGeneralInput",
+          },
+        },
+        timeout: 60_000,
+      }
+    );
+    const runBody = await runResponse.text();
+    expect(runBody).toMatch(/OpenRigor AI mode authorization is revoked/);
 
     await ensureAiModeConsent(page);
   });

@@ -40,8 +40,12 @@ test.describe("@regression export-api", () => {
       expect(body).toContain("Welcome to OpenRigor");
       // exportAsMarkdown records disclosure in YAML provenance, not the
       // generateDisclosureAppendix heading (that heading is evidence-packet).
-      expect(body).toContain('llm_mode: "shared_model"');
-      expect(body).toContain('privacy_notice_version: "2026-08-25"');
+      const frontmatter = body.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+      expect(frontmatter).not.toBeNull();
+      expect(frontmatter?.[1]).toContain('llm_mode: "shared_model"');
+      expect(frontmatter?.[1]).toContain(
+        'privacy_notice_version: "2026-08-25"'
+      );
     });
 
     test("evidence-packet export returns provenance and disclosure appendix", async ({
