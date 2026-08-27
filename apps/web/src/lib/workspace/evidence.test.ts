@@ -201,6 +201,75 @@ describe("Evidence runtime", () => {
     expect(snapshot.methodVersion).toBe("0.1.0");
   });
 
+  it("canonicalizes stale private declaration options before validation", () => {
+    const normalized = normalizeEvidenceTemplate(template());
+    const snapshot = buildEvidenceSnapshotFromMarker(
+      methodItem({
+        privateEvidenceTemplate: {
+          kind: "evidence",
+          templateId: "evidence-template",
+          templateVersion: "0.9.0",
+          sourcePath: "methods/ai-assisted-essay/evidence-template.en.md",
+          guidance: "Guidance",
+          layoutMarkdown: "{{narrative}}",
+          fields: {
+            ...normalized.fields,
+            publication_authorisation: {
+              ...normalized.fields.publication_authorisation,
+              options: ["confirmed-authorised"],
+            },
+            anonymisation_status: {
+              ...normalized.fields.anonymisation_status,
+              options: ["confirmed-no-student-identifiers"],
+            },
+          },
+        },
+      }),
+      {
+        method_id: "ai-assisted-essay",
+        method_version: "0.1.0",
+        template_version: "0.9.0",
+        frozen_values: { method_id: "ai-assisted-essay" },
+      }
+    );
+
+    expect(snapshot.fields.publication_authorisation.options).toEqual([
+      "confirmed-authorised-to-publish",
+      "not-confirmed-do-not-submit",
+    ]);
+    expect(snapshot.fields.anonymisation_status.options).toEqual([
+      "confirmed-no-student-identifiers-or-raw-student-material",
+      "needs-human-privacy-review",
+      "not-ready-for-publication",
+    ]);
+    expect(
+      validateEvidenceSubmission(snapshot, {
+        mode: "one",
+        narrative: "A factual account.",
+        contribution_stage: "documented-experience",
+        publication_authorisation: "confirmed-authorised-to-publish",
+        anonymisation_status:
+          "confirmed-no-student-identifiers-or-raw-student-material",
+        data_sharing_limits: "Aggregate counts only.",
+      }).values
+    ).toMatchObject({
+      publication_authorisation: "confirmed-authorised-to-publish",
+      anonymisation_status:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+    });
+    expect(() =>
+      validateEvidenceSubmission(snapshot, {
+        mode: "one",
+        narrative: "A factual account.",
+        contribution_stage: "documented-experience",
+        publication_authorisation: "not-confirmed-do-not-submit",
+        anonymisation_status:
+          "confirmed-no-student-identifiers-or-raw-student-material",
+        data_sharing_limits: "Aggregate counts only.",
+      })
+    ).toThrow(FormValidationError);
+  });
+
   it("normalizes snake_case fields, carries controls, and rejects invalid types", () => {
     const normalized = normalizeEvidenceTemplate(template());
     expect(normalized.fields.method_id).toMatchObject({
