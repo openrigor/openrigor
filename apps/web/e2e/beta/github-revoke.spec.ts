@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import { REPOSITORY_DISCONNECTED_COPY } from "../../src/components/research-repository/copy";
 import { baseUrl, TIMEOUTS } from "../helpers/auth";
 import { provision, reset } from "../helpers/beta-harness";
@@ -35,11 +35,79 @@ function isRepositoryItem(
   );
 }
 
+type ArtifactListWire = {
+  artifacts?: Array<{ artifactId: string; path: string }>;
+};
+
 async function listWorkspaceItems(page: Parameters<typeof provision>[0]) {
   const response = await page.request.get(`${baseUrl()}/api/workspace/items`);
   expect(response.status()).toBe(200);
   const body = (await response.json()) as { items?: WorkspaceItemWire[] };
   return body.items ?? [];
+}
+
+async function restoreGithubConnection(page: Parameters<typeof provision>[0]) {
+  const reconnect = page.getByRole("link", { name: "Reconnect GitHub" });
+  if ((await reconnect.count()) > 0) {
+    await Promise.all([
+      page.waitForURL(
+        (url) =>
+          url.hostname === "github.com" ||
+          (url.pathname.startsWith("/workspace/settings") &&
+            url.searchParams.get("github") === "connected"),
+        { timeout: TIMEOUTS.pageLoad }
+      ),
+      reconnect.click(),
+    ]);
+  } else {
+    await page.goto(`${baseUrl()}/api/workspace/github/authorize`, {
+      waitUntil: "domcontentloaded",
+      timeout: TIMEOUTS.pageLoad,
+    });
+  }
+
+  if (new URL(page.url()).hostname === "github.com") {
+    const loginField = page.locator("#login_field");
+    const authorizeButton = page.getByRole("button", { name: /^Authorize/i });
+    await loginField
+      .or(authorizeButton)
+      .waitFor({ state: "visible", timeout: TIMEOUTS.pageLoad });
+
+    if (await loginField.isVisible()) {
+      const githubUser = process.env.E2E_BETA_GITHUB_USERNAME?.trim();
+      const githubPassword = process.env.E2E_BETA_GITHUB_PASSWORD?.trim();
+      if (!githubUser || !githubPassword) {
+        throw new Error(
+          "GitHub reconnect requires E2E_BETA_GITHUB_USERNAME and E2E_BETA_GITHUB_PASSWORD to restore the shared account"
+        );
+      }
+      await loginField.fill(githubUser);
+      await page.locator("#password").fill(githubPassword);
+      await page.locator("input[name=commit]").click();
+      await authorizeButton
+        .or(page.getByTestId("settings-breadcrumb"))
+        .waitFor({ state: "visible", timeout: TIMEOUTS.pageLoad });
+    }
+
+    if (await authorizeButton.isVisible()) {
+      await authorizeButton.click();
+    }
+
+    await page.waitForURL(
+      (url) =>
+        url.pathname.startsWith("/workspace/settings") &&
+        url.searchParams.get("github") === "connected",
+      { timeout: TIMEOUTS.pageLoad }
+    );
+  }
+
+  const restored = await page.request.get(
+    `${baseUrl()}/api/workspace/github/repositories`
+  );
+  expect(restored.status()).toBe(200);
+  expect(
+    ((await restored.json()) as GithubRepositoriesResponse).connected
+  ).toBe(true);
 }
 
 test.describe("@beta-release github revoke journey", () => {
@@ -175,60 +243,103 @@ test.describe("@beta-release github revoke journey", () => {
 
     expect(repositoryItemId).toBeTruthy();
 
-    const disconnectResponse = await page.request.post(
-      `${baseUrl()}/api/workspace/github/disconnect`
+    const artifactsResponse = await page.request.get(
+      `${baseUrl()}/api/workspace/items/${repositoryItemId}/repository/artifacts`
     );
-    expect(disconnectResponse.ok()).toBe(true);
+    expect(artifactsResponse.ok()).toBe(true);
+    const artifactsBody = (await artifactsResponse.json()) as ArtifactListWire;
+    const selectedArtifact = artifactsBody.artifacts?.[0];
+    if (!selectedArtifact) {
+      skipGithubFixture(
+        "The bound fixture repository did not expose a managed artifact for the read-only commit assertion"
+      );
+    }
 
-    const disconnectedGithub = await page.request.get(
-      `${baseUrl()}/api/workspace/github/repositories`
-    );
-    expect(disconnectedGithub.status()).toBe(200);
-    expect(
-      ((await disconnectedGithub.json()) as GithubRepositoriesResponse)
-        .connected
-    ).not.toBe(true);
-
-    const statusResponse = await page.request.get(
-      `${baseUrl()}/api/workspace/items/${repositoryItemId}/repository`
-    );
-    expect(statusResponse.ok()).toBe(true);
-    const statusBody = (await statusResponse.json()) as RepositoryStatusWire;
-    expect(statusBody.status).toMatchObject({
-      state: "disconnected",
-      reason: "disconnected",
-    });
-
-    const itemsAfterDisconnect = await listWorkspaceItems(page);
-    const repositoryAfterDisconnect = itemsAfterDisconnect.find(
-      (item) => item.id === repositoryItemId
-    );
-    expect(repositoryAfterDisconnect?.kind).toBe("research_repository");
-    expect(repositoryAfterDisconnect?.binding?.repositoryId).toBe(
-      fixtureRepository.repository.id
-    );
-
-    await page.goto(
-      `${baseUrl()}/workspace/settings/repositories/${repositoryItemId}`,
-      {
-        waitUntil: "domcontentloaded",
-        timeout: TIMEOUTS.pageLoad,
+    const artifactsPattern = `**/api/workspace/items/${repositoryItemId}/repository/artifacts**`;
+    const fulfillArtifactList = async (route: Route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
       }
-    );
-    await expect(page.getByText(REPOSITORY_DISCONNECTED_COPY)).toBeVisible({
-      timeout: TIMEOUTS.pageLoad,
-    });
-    const reconnect = page.getByRole("link", { name: "Reconnect GitHub" });
-    await expect(reconnect).toBeVisible({ timeout: TIMEOUTS.pageLoad });
-    await expect(reconnect).toHaveAttribute(
-      "href",
-      "/api/workspace/github/authorize"
-    );
+      const url = new URL(route.request().url());
+      if (url.searchParams.has("artifactId")) {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(artifactsBody),
+      });
+    };
 
-    const commitButton = page.getByRole("button", { name: "Commit changes" });
-    if ((await commitButton.count()) > 0) {
-      expect(await commitButton.count()).toBe(1);
+    let disconnected = false;
+    try {
+      const disconnectResponse = await page.request.post(
+        `${baseUrl()}/api/workspace/github/disconnect`
+      );
+      expect(disconnectResponse.ok()).toBe(true);
+      disconnected = true;
+
+      const disconnectedGithub = await page.request.get(
+        `${baseUrl()}/api/workspace/github/repositories`
+      );
+      expect(disconnectedGithub.status()).toBe(200);
+      expect(
+        ((await disconnectedGithub.json()) as GithubRepositoriesResponse)
+          .connected
+      ).not.toBe(true);
+
+      const statusResponse = await page.request.get(
+        `${baseUrl()}/api/workspace/items/${repositoryItemId}/repository`
+      );
+      expect(statusResponse.ok()).toBe(true);
+      const statusBody = (await statusResponse.json()) as RepositoryStatusWire;
+      expect(statusBody.status).toMatchObject({
+        state: "disconnected",
+        reason: "disconnected",
+      });
+
+      const itemsAfterDisconnect = await listWorkspaceItems(page);
+      const repositoryAfterDisconnect = itemsAfterDisconnect.find(
+        (item) => item.id === repositoryItemId
+      );
+      expect(repositoryAfterDisconnect?.kind).toBe("research_repository");
+      expect(repositoryAfterDisconnect?.binding?.repositoryId).toBe(
+        fixtureRepository.repository.id
+      );
+
+      await page.route(artifactsPattern, fulfillArtifactList);
+      await page.goto(
+        `${baseUrl()}/workspace/settings/repositories/${repositoryItemId}?artifactId=${encodeURIComponent(selectedArtifact.artifactId)}`,
+        {
+          waitUntil: "domcontentloaded",
+          timeout: TIMEOUTS.pageLoad,
+        }
+      );
+      await expect(page.getByText(REPOSITORY_DISCONNECTED_COPY)).toBeVisible({
+        timeout: TIMEOUTS.pageLoad,
+      });
+      const reconnect = page.getByRole("link", { name: "Reconnect GitHub" });
+      await expect(reconnect).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+      await expect(reconnect).toHaveAttribute(
+        "href",
+        "/api/workspace/github/authorize"
+      );
+
+      const commitButton = page.getByRole("button", {
+        name: "Commit changes",
+        exact: true,
+      });
+      await expect(commitButton).toHaveCount(1);
       await expect(commitButton).toBeDisabled();
+    } finally {
+      await page
+        .unroute(artifactsPattern, fulfillArtifactList)
+        .catch(() => undefined);
+      if (disconnected) {
+        await restoreGithubConnection(page);
+      }
     }
   });
 });
