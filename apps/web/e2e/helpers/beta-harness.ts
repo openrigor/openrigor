@@ -6,6 +6,9 @@
 import { expect, Page } from "@playwright/test";
 import { baseUrl, loginWithCredentials, requireEnv, TIMEOUTS } from "./auth";
 
+/** Optional dialog attach wait. Delayed mount; do not use pageLoad. */
+const AI_MODE_DIALOG_ATTACH_TIMEOUT = 15_000;
+
 /** Log in the dedicated beta account and leave the page at the workspace home. */
 export async function provision(page: Page): Promise<void> {
   const { E2E_BETA_EMAIL, E2E_BETA_PASSWORD } = requireEnv(
@@ -52,7 +55,7 @@ export async function completeAiModeOnboardingIfOpen(
 ): Promise<void> {
   const dialog = page.getByTestId("ai-mode-onboarding");
   await dialog
-    .waitFor({ state: "attached", timeout: TIMEOUTS.pageLoad })
+    .waitFor({ state: "attached", timeout: AI_MODE_DIALOG_ATTACH_TIMEOUT })
     .catch(() => undefined);
   if ((await dialog.count().catch(() => 0)) === 0) return;
   await dialog.getByTestId("ai-mode-byok").click();
