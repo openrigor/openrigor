@@ -1,10 +1,12 @@
 /**
  * Read and verify the private synthetic GitHub fixture used by public-beta
  * E2E tests. Secrets come only from exported E2E_BETA_* variables; no dotenv
- * file is read. The required helper fails hard, while the optional status
- * helper lets a smoke test record an intentional skip after auth assertions.
+ * file is read. The required helper fails hard. When fixture env is absent,
+ * skipGithubFixture skips; when it is present but the fixture is unusable,
+ * skipGithubFixture fails. Tests never pass merely because fixture state is
+ * missing.
  */
-import type { TestInfo } from "@playwright/test";
+import { test } from "@playwright/test";
 import { requireEnv } from "./auth";
 
 const GITHUB_API = "https://api.github.com";
@@ -51,7 +53,7 @@ function parseFixtureRepository(value: string): {
     parts.some((part) => part.length === 0 || /\s/.test(part))
   ) {
     throw new Error(
-      "E2E_BETA_FIXTURE_REPO must be an owner/repo name without whitespace",
+      "E2E_BETA_FIXTURE_REPO must be an owner/repo name without whitespace"
     );
   }
   const [owner, repository] = parts;
@@ -94,7 +96,7 @@ export function getGithubFixtureEnv(): GithubFixtureEnvStatus {
 export function requireGithubFixture(): GithubFixtureConfig {
   const { E2E_BETA_GITHUB_TOKEN, E2E_BETA_FIXTURE_REPO } = requireEnv(
     "E2E_BETA_GITHUB_TOKEN",
-    "E2E_BETA_FIXTURE_REPO",
+    "E2E_BETA_FIXTURE_REPO"
   );
   const { owner, repository } = parseFixtureRepository(E2E_BETA_FIXTURE_REPO);
   return {
@@ -105,17 +107,19 @@ export function requireGithubFixture(): GithubFixtureConfig {
   };
 }
 
-/** Record the reason that a fixture-dependent test was intentionally skipped. */
-export function recordGithubFixtureSkipReason(
-  testInfo: TestInfo,
-  reason: string,
-): void {
-  testInfo.annotations.push({ type: "skip", description: reason });
+/**
+ * Skip when E2E_BETA_GITHUB_TOKEN and E2E_BETA_FIXTURE_REPO are absent.
+ * Fail when they are present but the fixture cannot be used. Never pass.
+ */
+export function skipGithubFixture(reason: string): never {
+  const env = getGithubFixtureEnv();
+  test.skip(!env.available, reason);
+  throw new Error(reason);
 }
 
 /** Verify that the configured GitHub repository exists and remains private. */
 export async function verifyGithubFixtureRepository(
-  fixture: GithubFixtureConfig = requireGithubFixture(),
+  fixture: GithubFixtureConfig = requireGithubFixture()
 ): Promise<GithubFixtureRepositoryCheck> {
   const response = await fetch(
     `${GITHUB_API}/repos/${encodeURIComponent(fixture.owner)}/${encodeURIComponent(fixture.repository)}`,
@@ -125,7 +129,7 @@ export async function verifyGithubFixtureRepository(
         Authorization: `Bearer ${fixture.token}`,
         "X-GitHub-Api-Version": GITHUB_API_VERSION,
       },
-    },
+    }
   );
 
   if (response.status === 404) {
@@ -137,7 +141,7 @@ export async function verifyGithubFixtureRepository(
   }
   if (!response.ok) {
     throw new Error(
-      `GitHub fixture repository check failed with HTTP ${response.status}`,
+      `GitHub fixture repository check failed with HTTP ${response.status}`
     );
   }
 

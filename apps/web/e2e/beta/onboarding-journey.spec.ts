@@ -3,7 +3,7 @@ import { baseUrl, TIMEOUTS } from "../helpers/auth";
 import { provision, reset } from "../helpers/beta-harness";
 import {
   getGithubFixtureEnv,
-  recordGithubFixtureSkipReason,
+  skipGithubFixture,
   verifyGithubFixtureRepository,
 } from "../helpers/github-fixture";
 
@@ -95,7 +95,7 @@ test.describe("@beta-release public-beta onboarding journey", () => {
     await reset(page);
   });
 
-  test("signup → connect GitHub → bind private repo → create first artifact", async ({
+  test("login → connect GitHub → bind private repo → create first artifact", async ({
     page,
   }) => {
     // `provision` is the beta harness's env-only signup/session boundary.
@@ -111,38 +111,31 @@ test.describe("@beta-release public-beta onboarding journey", () => {
       `${baseUrl()}/api/workspace/github/repositories`
     );
     if (githubResponse.status() === 404) {
-      recordGithubFixtureSkipReason(
-        test.info(),
+      skipGithubFixture(
         "GitHub research workspaces are disabled (the server endpoint returned 404)"
       );
-      return;
     }
     expect(githubResponse.status()).toBe(200);
     const github = (await githubResponse.json()) as GithubRepositoriesResponse;
 
     const fixtureEnv = getGithubFixtureEnv();
     if (!fixtureEnv.available) {
-      recordGithubFixtureSkipReason(test.info(), fixtureEnv.reason);
-      return;
+      skipGithubFixture(fixtureEnv.reason);
     }
     const fixtureRepository = await verifyGithubFixtureRepository(
       fixtureEnv.config
     );
     if (!fixtureRepository.exists) {
-      recordGithubFixtureSkipReason(test.info(), fixtureRepository.skipReason);
-      return;
+      skipGithubFixture(fixtureRepository.skipReason);
     }
     if (fixtureRepository.skipReason) {
-      recordGithubFixtureSkipReason(test.info(), fixtureRepository.skipReason);
-      return;
+      skipGithubFixture(fixtureRepository.skipReason);
     }
     expect(fixtureRepository.isPrivate).toBe(true);
     if (github.connected !== true) {
-      recordGithubFixtureSkipReason(
-        test.info(),
+      skipGithubFixture(
         "The beta account is not connected to the GitHub App; OAuth requires the configured beta account session"
       );
-      return;
     }
 
     const initialItems = await listWorkspaceItems(page);
@@ -156,11 +149,9 @@ test.describe("@beta-release public-beta onboarding journey", () => {
 
     if (!boundRepository) {
       if (anotherBoundRepository) {
-        recordGithubFixtureSkipReason(
-          test.info(),
+        skipGithubFixture(
           `The beta account is already bound to repository #${anotherBoundRepository.binding.repositoryId}, not ${fixtureRepository.repository.nameWithOwner}`
         );
-        return;
       }
       const onboarding = page.getByTestId("github-research-onboarding");
       await expect(onboarding).toBeVisible({ timeout: TIMEOUTS.pageLoad });
@@ -189,22 +180,18 @@ test.describe("@beta-release public-beta onboarding journey", () => {
         (repository) => repository.id === fixtureRepository.repository.id
       );
       if (!fixtureOption) {
-        recordGithubFixtureSkipReason(
-          test.info(),
+        skipGithubFixture(
           `GitHub App installation does not expose fixture repository ${fixtureRepository.repository.nameWithOwner}`
         );
-        return;
       }
       const bindButton = repositoryCard.getByRole("button", {
         name: `Bind ${fixtureOption.nameWithOwner}`,
         exact: true,
       });
       if ((await bindButton.count()) === 0) {
-        recordGithubFixtureSkipReason(
-          test.info(),
+        skipGithubFixture(
           `GitHub App installation did not render fixture repository ${fixtureOption.nameWithOwner}`
         );
-        return;
       }
       const bindResponse = page.waitForResponse(
         (response) =>

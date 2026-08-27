@@ -8,11 +8,11 @@ import { baseUrl, TIMEOUTS } from "../helpers/auth";
 import { provision, reset } from "../helpers/beta-harness";
 import {
   getGithubFixtureEnv,
-  recordGithubFixtureSkipReason,
+  skipGithubFixture,
   verifyGithubFixtureRepository,
 } from "../helpers/github-fixture";
 
-test.describe("public-beta E2E harness", () => {
+test.describe("@beta-release @beta-harness public-beta E2E harness", () => {
   // Applies to every test in this suite including the provisioning
   // beforeEach hook, which runs before any body-level setTimeout would.
   test.describe.configure({ timeout: 180_000 });
@@ -26,13 +26,13 @@ test.describe("public-beta E2E harness", () => {
     await reset(page);
   });
 
-  test("@beta-harness login reaches workspace and the GitHub binding entry point is available", async ({
+  test("login reaches workspace and the GitHub binding entry point is available", async ({
     page,
   }) => {
     test.setTimeout(180_000);
 
     // Auth assertions intentionally precede fixture checks: missing fixture
-    // secrets may skip the repository portion, never the login journey.
+    // secrets skip the repository portion, never the login journey.
     await expect(page).toHaveURL(/\/workspace(?:\/|\?|$)/, {
       timeout: TIMEOUTS.pageLoad,
     });
@@ -54,45 +54,38 @@ test.describe("public-beta E2E harness", () => {
     const repositoriesResponse = await page.request.get(
       `${baseUrl()}/api/workspace/github/repositories`
     );
-    const repositoryCard = page.getByTestId("private-repositories-card");
     if (repositoriesResponse.status() === 404) {
-      // The feature flag is intentionally off in this task. The settings
-      // entry point remains reachable and the binding card is disabled.
-      await expect(repositoryCard).toHaveCount(0);
-    } else {
-      expect(repositoriesResponse.status()).toBe(200);
-      await expect(repositoryCard).toBeVisible({
-        timeout: TIMEOUTS.pageLoad,
-      });
-      await expect(repositoryCard).toContainText(
-        "Private research repositories"
+      skipGithubFixture(
+        "GitHub research workspaces are disabled (the server endpoint returned 404)"
       );
-      await repositoryCard
-        .getByRole("button", { name: "Add private research repository" })
-        .click();
-      const bindEntry = page.getByTestId("add-private-repository");
-      await expect(bindEntry).toBeVisible({ timeout: TIMEOUTS.pageLoad });
-      await expect(
-        bindEntry.getByText(
-          /Connect GitHub|No installation repositories|Bind repository/
-        )
-      ).toBeVisible({ timeout: TIMEOUTS.pageLoad });
     }
+    expect(repositoriesResponse.status()).toBe(200);
+    const repositoryCard = page.getByTestId("private-repositories-card");
+    await expect(repositoryCard).toBeVisible({
+      timeout: TIMEOUTS.pageLoad,
+    });
+    await expect(repositoryCard).toContainText("Private research repositories");
+    await repositoryCard
+      .getByRole("button", { name: "Add private research repository" })
+      .click();
+    const bindEntry = page.getByTestId("add-private-repository");
+    await expect(bindEntry).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+    await expect(
+      bindEntry.getByText(
+        /Connect GitHub|No installation repositories|Bind repository/
+      )
+    ).toBeVisible({ timeout: TIMEOUTS.pageLoad });
 
     const fixtureEnv = getGithubFixtureEnv();
     if (!fixtureEnv.available) {
-      // Return WITHOUT test.skip: the login + binding-entry journey already
-      // passed above; skipping here would discard those assertions.
-      recordGithubFixtureSkipReason(test.info(), fixtureEnv.reason);
-      return;
+      skipGithubFixture(fixtureEnv.reason);
     }
 
     const fixtureRepository = await verifyGithubFixtureRepository(
       fixtureEnv.config
     );
     if (fixtureRepository.skipReason) {
-      recordGithubFixtureSkipReason(test.info(), fixtureRepository.skipReason);
-      return;
+      skipGithubFixture(fixtureRepository.skipReason);
     }
 
     expect(fixtureRepository.exists).toBe(true);
