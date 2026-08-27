@@ -274,6 +274,7 @@ test.describe("@beta-release github revoke journey", () => {
     };
 
     let disconnected = false;
+    let bodyFailed = false;
     try {
       const disconnectResponse = await page.request.post(
         `${baseUrl()}/api/workspace/github/disconnect`
@@ -333,6 +334,11 @@ test.describe("@beta-release github revoke journey", () => {
       });
       await expect(commitButton).toHaveCount(1);
       await expect(commitButton).toBeDisabled();
+    } catch (error) {
+      // Playwright records body failures only after `finally` exits, so track
+      // the primary failure locally instead of trusting test.info().errors.
+      bodyFailed = true;
+      throw error;
     } finally {
       await page
         .unroute(artifactsPattern, fulfillArtifactList)
@@ -346,7 +352,7 @@ test.describe("@beta-release github revoke journey", () => {
             body: String(error),
             contentType: "text/plain",
           });
-          if (!test.info().errors.length) {
+          if (!bodyFailed) {
             throw error;
           }
         }
