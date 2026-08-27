@@ -338,7 +338,18 @@ test.describe("@beta-release github revoke journey", () => {
         .unroute(artifactsPattern, fulfillArtifactList)
         .catch(() => undefined);
       if (disconnected) {
-        await restoreGithubConnection(page);
+        try {
+          await restoreGithubConnection(page);
+        } catch (error) {
+          // Surface the restore failure without hiding the primary assertion error.
+          await test.info().attach("github-restore-failure", {
+            body: String(error),
+            contentType: "text/plain",
+          });
+          if (!test.info().errors.length) {
+            throw error;
+          }
+        }
       }
     }
   });
