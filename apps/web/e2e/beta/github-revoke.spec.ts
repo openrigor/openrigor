@@ -161,6 +161,17 @@ test.describe("@beta-release github revoke journey", () => {
       );
     }
 
+    // Fail-closed guard: the disconnect below can only be undone through the
+    // GitHub OAuth UI, which needs the app-owner sign-in secrets. Without
+    // them, running the journey would strand the shared fixture account
+    // disconnected for every other spec — skip for real instead.
+    const githubUser = process.env.E2E_BETA_GITHUB_USERNAME?.trim();
+    const githubPassword = process.env.E2E_BETA_GITHUB_PASSWORD?.trim();
+    test.skip(
+      !githubUser || !githubPassword,
+      "GitHub reconnect requires E2E_BETA_GITHUB_USERNAME and E2E_BETA_GITHUB_PASSWORD to restore the shared account after the disconnect journey"
+    );
+
     const initialItems = await listWorkspaceItems(page);
     const boundRepository = initialItems
       .filter(isRepositoryItem)
