@@ -22,6 +22,7 @@
  * the revoke journey must not run without a working restore path, and the
  * gate must not go green with the journey unexercised.
  */
+import { Client } from "@langchain/langgraph-sdk";
 import { Page } from "@playwright/test";
 import { baseUrl, requireEnv } from "./auth";
 
@@ -29,11 +30,9 @@ const STORE_ROOT = "github_research_credentials";
 const CREDENTIALS_KEY = "credentials";
 const CONNECTION_STATUS_KEY = "connection_status";
 const SEARCH_PAGE_SIZE = 100;
+const SUPABASE_AUTH_TOKEN_COOKIE = /^sb-[^-]+-auth-token(?:\.(\d+))?$/;
 
-export type GithubStoreClient = {
-  baseUrl: string;
-  apiKey?: string;
-};
+export type GithubStoreClient = Client;
 
 export type GithubCredentialsRecord = {
   accessTokenEnc: string;
@@ -48,42 +47,46 @@ export function githubStoreClient(): GithubStoreClient {
     "E2E_BETA_LANGGRAPH_API_URL"
   );
   const apiKey = process.env.E2E_BETA_LANGGRAPH_API_KEY?.trim();
-  return {
-    baseUrl: E2E_BETA_LANGGRAPH_API_URL.replace(/\/+$/, ""),
-    ...(apiKey ? { apiKey } : {}),
-  };
+  const apiUrl = E2E_BETA_LANGGRAPH_API_URL.replace(/\/+$/, "");
+  return new Client({ apiUrl, ...(apiKey ? { apiKey } : {}) });
 }
 
-async function storeRequest(
-  client: GithubStoreClient,
-  path: string,
-  init: RequestInit = {}
-): Promise<Response> {
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  if (client.apiKey) headers.set("x-api-key", client.apiKey);
-  if (init.body) headers.set("Content-Type", "application/json");
-  return fetch(`${client.baseUrl}${path}`, { ...init, headers });
+function storeHttpStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
 }
 
 /**
  * Derive the current user's Supabase id from the session JWT. The app stores
- * the session in the `sb-<ref>-auth-token` cookie, base64-wrapped; `sub` is
- * the user id that keys the github_research_credentials namespace.
+ * the session in `sb-<ref>-auth-token` (or chunked `sb-<ref>-auth-token.N`
+ * cookies from @supabase/ssr), base64-wrapped; `sub` is the user id that
+ * keys the github_research_credentials namespace.
  */
 export async function currentSupabaseUserId(page: Page): Promise<string> {
   const cookies = await page.context().cookies();
-  const tokenCookie = cookies.find((cookie) =>
-    /^sb-[^-]+-auth-token$/.test(cookie.name)
+  const sessionCookies = cookies.filter((cookie) =>
+    SUPABASE_AUTH_TOKEN_COOKIE.test(cookie.name)
   );
-  if (!tokenCookie) {
+  const chunks = sessionCookies.flatMap((cookie) => {
+    const match = cookie.name.match(/^sb-[^-]+-auth-token\.(\d+)$/);
+    return match ? [{ suffix: Number(match[1]), value: cookie.value }] : [];
+  });
+  const tokenValue = chunks.length
+    ? chunks
+        .sort((a, b) => a.suffix - b.suffix)
+        .map((chunk) => chunk.value)
+        .join("")
+    : sessionCookies.find((cookie) => /^sb-[^-]+-auth-token$/.test(cookie.name))
+        ?.value;
+  if (!tokenValue) {
     throw new Error(
       "GitHub restore: no Supabase session cookie (sb-*-auth-token) found — log in before snapshotting"
     );
   }
-  const raw = tokenCookie.value.startsWith("base64-")
-    ? tokenCookie.value.slice("base64-".length)
-    : tokenCookie.value;
+  const raw = tokenValue.startsWith("base64-")
+    ? tokenValue.slice("base64-".length)
+    : tokenValue;
   const jwt = Buffer.from(raw, "base64").toString("utf8");
   const payloadSegment = jwt.split(".")[1];
   if (!payloadSegment) {
@@ -105,22 +108,22 @@ export async function readStoredCredentials(
   client: GithubStoreClient,
   userId: string
 ): Promise<GithubCredentialsRecord | null> {
-  const url = new URL(`${client.baseUrl}/store/items`);
-  url.searchParams.set("namespace", `${STORE_ROOT}.${userId}`);
-  url.searchParams.set("key", CREDENTIALS_KEY);
-  const response = await storeRequest(
-    client,
-    `${url.pathname}?${url.searchParams}`
-  );
-  if (response.status === 404) return null;
-  if (!response.ok) {
-    throw new Error(
-      `GitHub restore: store GET failed with HTTP ${response.status}`
+  try {
+    const item = await client.store.getItem(
+      [STORE_ROOT, userId],
+      CREDENTIALS_KEY
     );
+    if (!item?.value || typeof item.value !== "object") return null;
+    return item.value as GithubCredentialsRecord;
+  } catch (error) {
+    // SDK typings return null for a miss, but AsyncCaller throws HTTPError on 404.
+    const status = storeHttpStatus(error);
+    if (status === 404) return null;
+    if (status !== undefined) {
+      throw new Error(`GitHub restore: store GET failed with HTTP ${status}`);
+    }
+    throw error;
   }
-  const body = (await response.json()) as { value?: unknown };
-  if (!body.value || typeof body.value !== "object") return null;
-  return body.value as GithubCredentialsRecord;
 }
 
 /** Write a credentials record verbatim, with the app's search indexes. */
@@ -129,19 +132,16 @@ export async function writeStoredCredentials(
   userId: string,
   value: GithubCredentialsRecord
 ): Promise<void> {
-  const response = await storeRequest(client, "/store/items", {
-    method: "PUT",
-    body: JSON.stringify({
-      namespace: [STORE_ROOT, userId],
-      key: CREDENTIALS_KEY,
-      value,
+  try {
+    await client.store.putItem([STORE_ROOT, userId], CREDENTIALS_KEY, value, {
       index: ["installationId", "githubUserIdHash"],
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `GitHub restore: store PUT failed with HTTP ${response.status}`
-    );
+    });
+  } catch (error) {
+    const status = storeHttpStatus(error);
+    if (status !== undefined) {
+      throw new Error(`GitHub restore: store PUT failed with HTTP ${status}`);
+    }
+    throw error;
   }
 }
 
@@ -151,14 +151,17 @@ export async function deleteStoredItem(
   userId: string,
   key: string
 ): Promise<void> {
-  const response = await storeRequest(client, "/store/items", {
-    method: "DELETE",
-    body: JSON.stringify({ namespace: [STORE_ROOT, userId], key }),
-  });
-  if (!response.ok && response.status !== 404) {
-    throw new Error(
-      `GitHub restore: store DELETE ${key} failed with HTTP ${response.status}`
-    );
+  try {
+    await client.store.deleteItem([STORE_ROOT, userId], key);
+  } catch (error) {
+    const status = storeHttpStatus(error);
+    if (status === 404) return;
+    if (status !== undefined) {
+      throw new Error(
+        `GitHub restore: store DELETE ${key} failed with HTTP ${status}`
+      );
+    }
+    throw error;
   }
 }
 
@@ -172,22 +175,22 @@ export async function findCloneableCredentialsRecord(
   client: GithubStoreClient,
   repositoryId: number
 ): Promise<GithubCredentialsRecord | null> {
-  const response = await storeRequest(client, "/store/items/search", {
-    method: "POST",
-    body: JSON.stringify({
-      namespace_prefix: [STORE_ROOT],
+  let items: Array<{ key?: unknown; value?: unknown }>;
+  try {
+    const response = await client.store.searchItems([STORE_ROOT], {
       limit: SEARCH_PAGE_SIZE,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `GitHub restore: store search failed with HTTP ${response.status}`
-    );
+    });
+    items = response.items;
+  } catch (error) {
+    const status = storeHttpStatus(error);
+    if (status !== undefined) {
+      throw new Error(
+        `GitHub restore: store search failed with HTTP ${status}`
+      );
+    }
+    throw error;
   }
-  const body = (await response.json()) as {
-    items?: Array<{ key?: unknown; value?: unknown }>;
-  };
-  for (const item of body.items ?? []) {
+  for (const item of items) {
     if (item.key !== CREDENTIALS_KEY) continue;
     const value = item.value as GithubCredentialsRecord | undefined;
     if (
