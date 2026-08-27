@@ -7,6 +7,12 @@ import {
   skipGithubFixture,
   verifyGithubFixtureRepository,
 } from "../helpers/github-fixture";
+import {
+  currentSupabaseUserId,
+  githubStoreClient,
+  readStoredCredentials,
+  restoreGithubConnectionViaStore,
+} from "../helpers/github-store-restore";
 
 type WorkspaceItemWire = {
   id: string;
@@ -44,70 +50,6 @@ async function listWorkspaceItems(page: Parameters<typeof provision>[0]) {
   expect(response.status()).toBe(200);
   const body = (await response.json()) as { items?: WorkspaceItemWire[] };
   return body.items ?? [];
-}
-
-async function restoreGithubConnection(page: Parameters<typeof provision>[0]) {
-  const reconnect = page.getByRole("link", { name: "Reconnect GitHub" });
-  if ((await reconnect.count()) > 0) {
-    await Promise.all([
-      page.waitForURL(
-        (url) =>
-          url.hostname === "github.com" ||
-          (url.pathname.startsWith("/workspace/settings") &&
-            url.searchParams.get("github") === "connected"),
-        { timeout: TIMEOUTS.pageLoad }
-      ),
-      reconnect.click(),
-    ]);
-  } else {
-    await page.goto(`${baseUrl()}/api/workspace/github/authorize`, {
-      waitUntil: "domcontentloaded",
-      timeout: TIMEOUTS.pageLoad,
-    });
-  }
-
-  if (new URL(page.url()).hostname === "github.com") {
-    const loginField = page.locator("#login_field");
-    const authorizeButton = page.getByRole("button", { name: /^Authorize/i });
-    await loginField
-      .or(authorizeButton)
-      .waitFor({ state: "visible", timeout: TIMEOUTS.pageLoad });
-
-    if (await loginField.isVisible()) {
-      const githubUser = process.env.E2E_BETA_GITHUB_USERNAME?.trim();
-      const githubPassword = process.env.E2E_BETA_GITHUB_PASSWORD?.trim();
-      if (!githubUser || !githubPassword) {
-        throw new Error(
-          "GitHub reconnect requires E2E_BETA_GITHUB_USERNAME and E2E_BETA_GITHUB_PASSWORD to restore the shared account"
-        );
-      }
-      await loginField.fill(githubUser);
-      await page.locator("#password").fill(githubPassword);
-      await page.locator("input[name=commit]").click();
-      await authorizeButton
-        .or(page.getByTestId("settings-breadcrumb"))
-        .waitFor({ state: "visible", timeout: TIMEOUTS.pageLoad });
-    }
-
-    if (await authorizeButton.isVisible()) {
-      await authorizeButton.click();
-    }
-
-    await page.waitForURL(
-      (url) =>
-        url.pathname.startsWith("/workspace/settings") &&
-        url.searchParams.get("github") === "connected",
-      { timeout: TIMEOUTS.pageLoad }
-    );
-  }
-
-  const restored = await page.request.get(
-    `${baseUrl()}/api/workspace/github/repositories`
-  );
-  expect(restored.status()).toBe(200);
-  expect(
-    ((await restored.json()) as GithubRepositoriesResponse).connected
-  ).toBe(true);
 }
 
 test.describe("@beta-release github revoke journey", () => {
@@ -156,21 +98,28 @@ test.describe("@beta-release github revoke journey", () => {
     }
     expect(fixtureRepository.isPrivate).toBe(true);
     if (github.connected !== true) {
-      skipGithubFixture(
-        "The beta account is not connected to the GitHub App; OAuth requires the configured beta account session"
+      throw new Error(
+        "Cannot run the revoke journey: the beta account is not connected to the GitHub App. Reconnect ops-side, then re-run the gate."
       );
     }
 
-    // Fail-closed guard: the disconnect below can only be undone through the
-    // GitHub OAuth UI, which needs the app-owner sign-in secrets. Without
-    // them, running the journey would strand the shared fixture account
-    // disconnected for every other spec — skip for real instead.
-    const githubUser = process.env.E2E_BETA_GITHUB_USERNAME?.trim();
-    const githubPassword = process.env.E2E_BETA_GITHUB_PASSWORD?.trim();
-    test.skip(
-      !githubUser || !githubPassword,
-      "GitHub reconnect requires E2E_BETA_GITHUB_USERNAME and E2E_BETA_GITHUB_PASSWORD to restore the shared account after the disconnect journey"
+    // Token/API restore capability. The disconnect below is reversed by
+    // re-writing the fixture's credentials record through the LangGraph
+    // Store API (snapshot → verbatim restore) — no OAuth UI, no app-owner
+    // sign-in secrets. Fail closed BEFORE the destructive call: no store
+    // client, no user id, no live record to restore from → never run the
+    // journey, and never pass the gate with it skipped.
+    const storeClient = githubStoreClient();
+    const fixtureUserId = await currentSupabaseUserId(page);
+    const credentialsSnapshot = await readStoredCredentials(
+      storeClient,
+      fixtureUserId
     );
+    if (!credentialsSnapshot) {
+      throw new Error(
+        "Cannot run the revoke journey: the fixture account has no GitHub credentials record to restore from. Reconnect ops-side, then re-run the gate."
+      );
+    }
 
     const initialItems = await listWorkspaceItems(page);
     const boundRepository = initialItems
@@ -356,7 +305,11 @@ test.describe("@beta-release github revoke journey", () => {
         .catch(() => undefined);
       if (disconnected) {
         try {
-          await restoreGithubConnection(page);
+          await restoreGithubConnectionViaStore(page, storeClient, {
+            userId: fixtureUserId,
+            repositoryId: fixtureRepository.repository.id,
+            snapshot: credentialsSnapshot,
+          });
         } catch (error) {
           // Surface the restore failure without hiding the primary assertion error.
           await test.info().attach("github-restore-failure", {
