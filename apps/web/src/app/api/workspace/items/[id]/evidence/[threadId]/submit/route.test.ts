@@ -114,10 +114,14 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       url: "https://github.com/openrigor/research/pull/12",
     });
 
-    const response = await POST(
-      request({ narrative: "Account" }),
-      context("wi_1", "thread-1")
-    );
+    const values = {
+      narrative: "Account",
+      publication_authorisation: "confirmed-authorised-to-publish",
+      anonymisation_status:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+      data_sharing_limits: "Aggregate counts only.",
+    };
+    const response = await POST(request(values), context("wi_1", "thread-1"));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       status: "filed",
@@ -126,7 +130,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     });
     expect(harness.validateEvidenceSubmission).toHaveBeenCalledWith(
       { methodId: "test-method" },
-      { narrative: "Account" }
+      values
     );
     expect(harness.updateEvidenceThreadReference).toHaveBeenCalledWith(
       "user-1",
@@ -180,10 +184,14 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       commitSha: "b".repeat(40),
     });
 
-    const response = await POST(
-      request({ narrative: "Account" }),
-      context("wi_1", "thread-1")
-    );
+    const values = {
+      narrative: "Account",
+      publication_authorisation: "confirmed-authorised-to-publish",
+      anonymisation_status:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+      data_sharing_limits: "Aggregate counts only.",
+    };
+    const response = await POST(request(values), context("wi_1", "thread-1"));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
@@ -199,6 +207,10 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       filePath: "methods/test-method/evidence/file.en.md",
       markdown: "private markdown",
     });
+    expect(harness.validateEvidenceSubmission).toHaveBeenCalledWith(
+      { methodId: "test-method" },
+      values
+    );
     expect(harness.openEvidencePullRequest).not.toHaveBeenCalled();
     expect(harness.updateEvidenceThreadReference).toHaveBeenCalledWith(
       "user-1",
