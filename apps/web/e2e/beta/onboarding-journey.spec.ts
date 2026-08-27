@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { baseUrl, TIMEOUTS } from "../helpers/auth";
-import { provision, reset } from "../helpers/beta-harness";
+import {
+  provision,
+  reset,
+  completeAiModeOnboardingIfOpen,
+} from "../helpers/beta-harness";
 import {
   getGithubFixtureEnv,
   skipGithubFixture,
@@ -55,6 +59,10 @@ async function createFromCatalog(
   result: CatalogResultWire,
   ariaLabel: string
 ): Promise<{ id: string }> {
+  // Workspace home mounts the AI-mode onboarding modal for accounts without a
+  // saved mode; its overlay blocks the Create trigger. Dismiss through the
+  // real dialog when present (no-op once consent is saved).
+  await completeAiModeOnboardingIfOpen(page);
   await page.getByRole("button", { name: "Create" }).click();
   await expect(
     page.getByRole("heading", { name: "Create workspace item" })

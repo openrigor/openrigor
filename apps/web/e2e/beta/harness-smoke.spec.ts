@@ -70,10 +70,15 @@ test.describe("@beta-release @beta-harness public-beta E2E harness", () => {
       .click();
     const bindEntry = page.getByTestId("add-private-repository");
     await expect(bindEntry).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+    // Scope to interactive affordances: the explainer paragraph ("Connect
+    // GitHub to choose an installation repository…") and the connect link
+    // can coexist, which trips strict mode on a bare getByText.
     await expect(
-      bindEntry.getByText(
-        /Connect GitHub|No installation repositories|Bind repository/
-      )
+      bindEntry
+        .getByRole("link", { name: "Connect GitHub" })
+        .or(bindEntry.getByRole("button", { name: /Bind repository/ }))
+        .or(bindEntry.getByText("No installation repositories"))
+        .first()
     ).toBeVisible({ timeout: TIMEOUTS.pageLoad });
 
     const fixtureEnv = getGithubFixtureEnv();
