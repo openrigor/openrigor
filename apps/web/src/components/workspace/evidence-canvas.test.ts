@@ -46,6 +46,49 @@ import {
 } from "./evidence-canvas";
 
 describe("evidence canvas controls", () => {
+  it("renders multi-line fields at full text-column width", () => {
+    const field = renderToStaticMarkup(
+      React.createElement(EvidenceFieldControl, {
+        field: {
+          id: "observations",
+          label: "Observations",
+          type: "textarea",
+          required: true,
+          displayLines: 5,
+        },
+        value: "",
+        onChange: () => undefined,
+        register: () => undefined,
+      })
+    );
+
+    expect(field).toContain('class="my-1 flex w-full flex-col align-middle"');
+    expect(field).toContain('class="flex w-full items-start"');
+    expect(field).toMatch(/<textarea[^>]+class="[^"]*w-full/);
+    expect(field).not.toMatch(/<textarea[^>]+min-w-\[/);
+    expect(field).toContain('rows="5"');
+  });
+
+  it("keeps single-line fields inline-sized", () => {
+    const field = renderToStaticMarkup(
+      React.createElement(EvidenceFieldControl, {
+        field: {
+          id: "method_name",
+          label: "Method name",
+          type: "text",
+          required: false,
+        },
+        value: "",
+        onChange: () => undefined,
+        register: () => undefined,
+      })
+    );
+
+    expect(field).toMatch(
+      /<input[^>]+class="[^"]*inline-flex[^"]*min-w-\[12ch\]/
+    );
+  });
+
   it("renders frozen fields disabled and displays a filed PR", () => {
     const field = renderToStaticMarkup(
       React.createElement(EvidenceFieldControl, {

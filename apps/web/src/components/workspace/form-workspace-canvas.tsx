@@ -204,8 +204,12 @@ function FormFieldControl({
 }) {
   const id = `workspace-form-${field.id}`;
   const describedBy = error ? `${id}-error` : undefined;
+  const baseClassName =
+    "mx-1 inline-flex rounded-md border border-slate-300 bg-white px-2 py-1 align-middle text-sm text-slate-900 shadow-sm outline-none focus:border-[#2c3e56] focus:ring-2 focus:ring-[#2c3e56]/20 disabled:bg-slate-100";
   const className =
-    "mx-1 inline-flex min-w-[12ch] rounded-md border border-slate-300 bg-white px-2 py-1 align-middle text-sm text-slate-900 shadow-sm outline-none focus:border-[#2c3e56] focus:ring-2 focus:ring-[#2c3e56]/20 disabled:bg-slate-100";
+    field.type === "textarea"
+      ? `${baseClassName} w-full align-top`
+      : `${baseClassName} min-w-[12ch]`;
   const width = field.displayChars
     ? { width: `${Math.min(Math.max(field.displayChars, 12), 80)}ch` }
     : undefined;
@@ -223,8 +227,7 @@ function FormFieldControl({
         aria-label={field.label}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        className={`${className} min-w-[24ch] align-top`}
-        style={width}
+        className={className}
         data-testid={`form-field-${field.id}`}
       />
     ) : field.type === "select" ? (
@@ -267,12 +270,12 @@ function FormFieldControl({
     );
 
   return (
-    <span className="my-1 inline-flex flex-col align-middle">
+    <span className="my-1 flex w-full flex-col align-middle">
       <label htmlFor={id} className="sr-only">
         {field.label}
         {field.required ? " (required)" : ""}
       </label>
-      <span className="inline-flex items-center">
+      <span className="flex w-full items-start">
         {control}
         {field.required && (
           <span className="text-xs font-semibold text-rose-600" aria-hidden>
