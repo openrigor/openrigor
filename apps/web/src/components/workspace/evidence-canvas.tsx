@@ -297,7 +297,7 @@ function EvidenceMarkdown({
             id="evidence-unplaced-fields-heading"
             className="mb-4 text-2xl font-semibold text-slate-900"
           >
-            Additional required fields
+            Additional fields
           </h2>
           {unplacedIds.map((fieldId) => {
             const field = payload.fields[fieldId];
