@@ -77,14 +77,18 @@ test.describe("@beta-release multi-line evidence fields", () => {
     );
     await expect(dataSharingLimits).toBeVisible({ timeout: TIMEOUTS.pageLoad });
 
-    // #57: the textarea must span the prose column, not shrink to label width.
+    // #57: the textarea must span the text column (the h3 block above spans
+    // the same column), not shrink to label width. The textarea keeps a small
+    // horizontal margin (mx-1) + border, so allow a ~12px inset.
     const textareaBox = await dataSharingLimits.boundingBox();
-    const proseBox = await page.locator(".prose").first().boundingBox();
+    const columnBox = await page
+      .getByRole("heading", { name: "Data sharing limits", level: 3 })
+      .boundingBox();
     expect(textareaBox).toBeTruthy();
-    expect(proseBox).toBeTruthy();
-    expect(Math.abs(textareaBox!.x - proseBox!.x)).toBeLessThanOrEqual(2);
-    expect(Math.abs(textareaBox!.width - proseBox!.width)).toBeLessThanOrEqual(
-      2
+    expect(columnBox).toBeTruthy();
+    expect(Math.abs(textareaBox!.x - columnBox!.x)).toBeLessThanOrEqual(12);
+    expect(Math.abs(textareaBox!.width - columnBox!.width)).toBeLessThanOrEqual(
+      12
     );
   });
 });
