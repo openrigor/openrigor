@@ -29,6 +29,7 @@ agents_service="${OSS_DEV_AGENTS_SERVICE:-evaluchat-oss-agents.service}"
 dev_url="${OSS_DEV_URL:-https://dev.openrigor.org}"
 agent_url="${OSS_DEV_AGENT_URL:-http://127.0.0.1:54367}"
 web_port="${OSS_DEV_WEB_PORT:-3000}"
+# OSS_DEV_ROLLBACKS_KEEP: newest *.tgz archives to keep in .rollbacks (default 5).
 
 work_dir=""
 package_file=""
@@ -365,6 +366,32 @@ chmod 600 "$archive"
 REMOTE_ARCHIVE
 }
 
+prune_rollbacks() {
+  local keep="${OSS_DEV_ROLLBACKS_KEEP:-5}"
+  [[ "$keep" =~ ^[1-9][0-9]*$ ]] || die "OSS_DEV_ROLLBACKS_KEEP must be a positive integer (got ${keep})"
+  ssh_remote bash -s -- "$remote_app_dir" "$keep" <<'REMOTE_PRUNE'
+set -Eeuo pipefail
+app_dir="$1"
+keep="$2"
+rollback_dir="$app_dir/.rollbacks"
+shopt -s nullglob
+archives=("$rollback_dir"/*.tgz)
+count="${#archives[@]}"
+if (( count <= keep )); then
+  echo "rollback retention ok (newest ${count} kept)"
+  exit 0
+fi
+find "$rollback_dir" -maxdepth 1 -name '*.tgz' -printf '%T@ %p\0' \
+  | sort -znr \
+  | cut -zd' ' -f2- \
+  | tail -z -n +"$((keep + 1))" \
+  | while IFS= read -r -d '' path; do
+      rm -f -- "$path"
+    done
+echo "pruned $((count - keep)) old rollback archive(s), keeping newest ${keep}"
+REMOTE_PRUNE
+}
+
 deploy() {
   required_command yarn
   required_command node
@@ -421,6 +448,7 @@ deploy() {
   rollback_archive="$rollback_dir/${deploy_id}-pre-deploy.tgz"
   log "Archiving the current VPS app"
   archive_current_app "$rollback_archive"
+  prune_rollbacks
 
   log "Uploading application"
   scp_remote "$package_file" "$vps_user@$vps_host:/tmp/$package_name"
@@ -558,6 +586,7 @@ chmod 600 "$pre_rollback"
 tar xzf "$selected" -C "$app_dir"
 echo "rolled back from $selected"
 REMOTE_ROLLBACK
+  prune_rollbacks
 
   restart_and_verify
   echo "ROLLBACK_OK target=$target"
