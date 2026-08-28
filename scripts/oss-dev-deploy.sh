@@ -296,7 +296,11 @@ if langgraph_store_reset "$store_before" "$store_after" "$store_file"; then
     exit 1
   fi
   systemctl stop "$agents_unit" || true
-  tar xzf "$archive" -C "$app_dir"
+  if ! tar xzf "$archive" -C "$app_dir"; then
+    echo "langgraph restore extract failed for $archive" >&2
+    systemctl start "$agents_unit" || true
+    exit 1
+  fi
   echo "langgraph store reset detected; restored from $archive"
   systemctl start "$agents_unit"
   wait_agents_ready
