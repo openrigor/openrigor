@@ -74,6 +74,18 @@ function markEvidencePlaceholders(markdown: string): string {
   );
 }
 
+export function unplacedEditableFieldIds(
+  fields: Record<string, FormFieldDefinition>,
+  layoutMarkdown: string
+): string[] {
+  return Object.entries(fields)
+    .filter(
+      ([fieldId, field]) =>
+        field.readOnly !== true && !layoutMarkdown.includes(`{{${fieldId}}}`)
+    )
+    .map(([fieldId]) => fieldId);
+}
+
 export function EvidenceFieldControl({
   field,
   value,
@@ -267,10 +279,48 @@ function EvidenceMarkdown({
     }),
     [errors, locked, onChange, payload.fields, register, values]
   );
+  const unplacedIds = useMemo(
+    () => unplacedEditableFieldIds(payload.fields, payload.layoutMarkdown),
+    [payload.fields, payload.layoutMarkdown]
+  );
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-      {markEvidencePlaceholders(payload.layoutMarkdown)}
-    </ReactMarkdown>
+    <>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {markEvidencePlaceholders(payload.layoutMarkdown)}
+      </ReactMarkdown>
+      {unplacedIds.length > 0 && (
+        <section
+          className="mt-8 border-t border-slate-200 pt-6"
+          aria-labelledby="evidence-unplaced-fields-heading"
+        >
+          <h2
+            id="evidence-unplaced-fields-heading"
+            className="mb-4 text-2xl font-semibold text-slate-900"
+          >
+            Additional required fields
+          </h2>
+          {unplacedIds.map((fieldId) => {
+            const field = payload.fields[fieldId];
+            if (!field) return null;
+            return (
+              <div key={fieldId} className="mb-4">
+                <p className="mb-1 text-sm font-medium text-slate-800">
+                  {field.label}
+                </p>
+                <EvidenceFieldControl
+                  field={field}
+                  value={values[fieldId]}
+                  error={errors[fieldId]}
+                  onChange={(value) => onChange(fieldId, value)}
+                  register={(node) => register(fieldId, node)}
+                  disabled={locked}
+                />
+              </div>
+            );
+          })}
+        </section>
+      )}
+    </>
   );
 }
 

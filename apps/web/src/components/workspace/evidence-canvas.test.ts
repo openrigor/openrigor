@@ -42,6 +42,7 @@ import {
   EvidenceStatusDisplay,
   evidenceEditableValues,
   evidenceSubmitRequest,
+  unplacedEditableFieldIds,
 } from "./evidence-canvas";
 
 describe("evidence canvas controls", () => {
@@ -117,5 +118,49 @@ describe("evidence canvas controls", () => {
         { method_id: "server-value", narrative: "owner value" }
       )
     ).toEqual({ narrative: "owner value" });
+  });
+
+  it("lists editable fields whose layout placeholder is absent", () => {
+    const fields = {
+      method_id: {
+        id: "method_id",
+        label: "Method ID",
+        type: "text" as const,
+        required: true,
+        readOnly: true,
+      },
+      publication_authorisation: {
+        id: "publication_authorisation",
+        label: "Publication authorisation",
+        type: "select" as const,
+        required: true,
+      },
+      observations: {
+        id: "observations",
+        label: "Observations",
+        type: "textarea" as const,
+        required: true,
+      },
+      optional_note: {
+        id: "optional_note",
+        label: "Optional note",
+        type: "text" as const,
+        required: false,
+      },
+    };
+    const layoutMarkdown =
+      "Confirm {{publication_authorisation}} and {{anonymisation_status}}.";
+
+    expect(unplacedEditableFieldIds(fields, layoutMarkdown)).toEqual([
+      "observations",
+      "optional_note",
+    ]);
+    expect(
+      unplacedEditableFieldIds(fields, `${layoutMarkdown}\n{{observations}}`)
+    ).toEqual(["optional_note"]);
+    expect(unplacedEditableFieldIds(fields, "{{optional_note}}")).toEqual([
+      "publication_authorisation",
+      "observations",
+    ]);
   });
 });
