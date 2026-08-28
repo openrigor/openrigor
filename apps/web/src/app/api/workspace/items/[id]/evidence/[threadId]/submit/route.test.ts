@@ -16,6 +16,7 @@ const harness = vi.hoisted(() => {
     assembleEvidenceMarkdown: vi.fn(),
     evidenceFilePath: vi.fn(),
     evidenceTimestampSlug: vi.fn(),
+    canonicalizeEvidenceSubmissionKey: vi.fn((value: string) => value),
     openEvidencePullRequest: vi.fn(),
     findExistingEvidencePullRequest: vi.fn(),
     commitPrivateMethodEvidence: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/lib/workspace/evidence", () => ({
   assembleEvidenceMarkdown: harness.assembleEvidenceMarkdown,
   evidenceFilePath: harness.evidenceFilePath,
   evidenceTimestampSlug: harness.evidenceTimestampSlug,
+  canonicalizeEvidenceSubmissionKey: harness.canonicalizeEvidenceSubmissionKey,
 }));
 vi.mock("@/lib/workspace/evidence-github", () => ({
   openEvidencePullRequest: harness.openEvidencePullRequest,
@@ -80,7 +82,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     harness.evidenceFilePath.mockReset();
     harness.evidenceTimestampSlug
       .mockReset()
-      .mockReturnValue("2026-08-18T12-34-56Z");
+      .mockReturnValue("2026-08-18t12-34-56z");
     harness.openEvidencePullRequest.mockReset();
     harness.commitPrivateMethodEvidence.mockReset();
     harness.findExistingEvidencePullRequest
@@ -88,7 +90,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       .mockResolvedValue(undefined);
     harness.claimEvidenceSubmission.mockResolvedValue({
       status: "submitting",
-      submissionKey: "2026-08-18T12-34-56Z",
+      submissionKey: "2026-08-18t12-34-56z",
     });
   });
 

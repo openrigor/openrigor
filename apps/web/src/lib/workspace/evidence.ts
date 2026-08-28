@@ -652,16 +652,45 @@ function safeMethodPathSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
+/** Components must match the research-repository layout COMPONENT grammar. */
+export const EVIDENCE_SLUG_COMPONENT = /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/;
+
+/**
+ * Canonical layout-valid evidence identity from an ISO timestamp.
+ * Keeps millisecond precision (lowercased, separators normalized) so two
+ * submissions in the same second still produce distinct evidence paths.
+ */
 export function evidenceTimestampSlug(value: string | Date): string {
   const iso = (value instanceof Date ? value : new Date(value)).toISOString();
-  return iso.replace(/\.\d{3}Z$/, "Z").replace(/:/g, "-");
+  return iso.replace(/:/g, "-").replace(/\./g, "-").toLowerCase();
+}
+
+/**
+ * Normalize a submission key (which may come from a stored claim row written
+ * by an older build, e.g. "2026-08-28T07-01-36Z") into a layout-valid
+ * evidence component. Fail-closed: throws if a normalized key still cannot
+ * form a valid artifact path component.
+ */
+export function canonicalizeEvidenceSubmissionKey(value: string): string {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!EVIDENCE_SLUG_COMPONENT.test(normalized)) {
+    throw new Error(
+      `Submission key "${value}" cannot be canonicalized into a repository-layout evidence component`
+    );
+  }
+  return normalized;
 }
 
 export function evidenceFilePath(
   methodId: string,
   timestampSlug: string
 ): string {
-  return `methods/${safeMethodPathSegment(methodId)}/evidence/${timestampSlug}.en.md`;
+  const safeSlug = canonicalizeEvidenceSubmissionKey(timestampSlug);
+  return `methods/${safeMethodPathSegment(methodId)}/evidence/${safeSlug}.en.md`;
 }
 
 export type EvidenceAssemblyInput = {

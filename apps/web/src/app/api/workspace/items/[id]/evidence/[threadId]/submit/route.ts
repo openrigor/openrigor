@@ -3,6 +3,7 @@ import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
 import { FormValidationError } from "@/lib/workspace/form-validation";
 import {
   assembleEvidenceMarkdown,
+  canonicalizeEvidenceSubmissionKey,
   evidenceFilePath,
   evidenceTimestampSlug,
   validateEvidenceSubmission,
@@ -71,7 +72,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       threadId,
       requestedSubmissionKey
     );
-    const submissionKey = claimed.submissionKey || requestedSubmissionKey;
+    const submissionKey = canonicalizeEvidenceSubmissionKey(
+      claimed.submissionKey || requestedSubmissionKey
+    );
     const markdown = assembleEvidenceMarkdown({
       snapshot: loaded.snapshot,
       values: validated.values,
