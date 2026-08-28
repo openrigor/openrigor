@@ -158,10 +158,20 @@ export function EvidenceFieldControl({
       <label htmlFor={id} className="sr-only">
         {field.label}
       </label>
-      <span className="flex w-full items-start">
+      <span
+        className="flex w-full items-start"
+        style={field.type === "textarea" ? { position: "relative" } : undefined}
+      >
         {control}
         {field.required && (
-          <span className="text-xs font-semibold text-rose-600" aria-hidden>
+          <span
+            className={
+              field.type === "textarea"
+                ? "absolute -right-3 top-1 text-xs font-semibold text-rose-600"
+                : "text-xs font-semibold text-rose-600"
+            }
+            aria-hidden
+          >
             *
           </span>
         )}

@@ -82,6 +82,9 @@ test.describe("@beta-release multi-line evidence fields", () => {
     const proseBox = await page.locator(".prose").first().boundingBox();
     expect(textareaBox).toBeTruthy();
     expect(proseBox).toBeTruthy();
-    expect(textareaBox!.width).toBeGreaterThanOrEqual(proseBox!.width * 0.8);
+    expect(Math.abs(textareaBox!.x - proseBox!.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(textareaBox!.width - proseBox!.width)).toBeLessThanOrEqual(
+      2
+    );
   });
 });
