@@ -168,61 +168,17 @@ async function createConcludedPrivateMethod(
   return `${itemId}?evidence=${encodeURIComponent(evidenceBody.threadId!)}`;
 }
 
-async function seedUnrenderedRequiredFields(
-  page: Page,
-  itemId: string,
-  threadId: string,
-  snapshot: EvidenceSnapshotWire
-): Promise<void> {
-  // Only fields with a {{fieldId}} placeholder in the layout render as
-  // inline form controls. Required editable fields without a placeholder
-  // (e.g. the narrative/observations textarea) must be persisted through the
-  // same draft-values endpoint the canvas itself uses, or the server rejects
-  // the submission as missing a required value.
-  const placeholders = new Set(
-    [
-      ...(snapshot.layoutMarkdown ?? "").matchAll(
-        /\{\{([a-z][a-z0-9_-]*)\}\}/g
-      ),
-    ].map((match) => match[1])
-  );
-  const seed: Record<string, string> = {};
-  for (const [fieldId, field] of Object.entries(snapshot.fields)) {
-    if (field.readOnly || !field.required || placeholders.has(fieldId)) {
-      continue;
-    }
-    seed[fieldId] = field.type === "number" ? "1" : "Seeded factual evidence.";
-  }
-  if (Object.keys(seed).length === 0) return;
-  const seedResponse = await page.request.patch(
-    `${baseUrl()}/api/workspace/items/${itemId}/evidence/${threadId}`,
-    { data: { values: seed } }
-  );
-  expect(
-    seedResponse.status(),
-    `draft-values seed for ${Object.keys(seed).join(", ")}`
-  ).toBe(200);
-}
-
 async function fillRequiredEditableFields(
   page: Page,
   snapshot: EvidenceSnapshotWire,
   confirmedValues: Record<string, string>
 ): Promise<void> {
-  const placeholders = new Set(
-    [
-      ...(snapshot.layoutMarkdown ?? "").matchAll(
-        /\{\{([a-z][a-z0-9_-]*)\}\}/g
-      ),
-    ].map((match) => match[1])
-  );
   for (const [fieldId, field] of Object.entries(snapshot.fields)) {
     if (
       field.readOnly ||
       !field.required ||
       fieldId in confirmedValues ||
-      fieldId === "data_sharing_limits" ||
-      !placeholders.has(fieldId)
+      fieldId === "data_sharing_limits"
     ) {
       continue;
     }
@@ -280,7 +236,6 @@ test.describe("@beta-release private evidence declarations", () => {
     );
     expect(snapshotResponse.status()).toBe(200);
     const snapshot = await jsonResponse<EvidenceSnapshotWire>(snapshotResponse);
-    await seedUnrenderedRequiredFields(page, itemId, threadId!, snapshot);
     const renderedFieldDefinitions = Object.fromEntries(
       Object.entries(snapshot.fields).map(([fieldId, field]) => [
         fieldId,
@@ -310,6 +265,9 @@ test.describe("@beta-release private evidence declarations", () => {
     );
     await expect(publication).toBeVisible({ timeout: TIMEOUTS.pageLoad });
     await expect(anonymisation).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+    await expect(page.getByTestId("evidence-field-observations")).toBeVisible({
+      timeout: TIMEOUTS.pageLoad,
+    });
     expect(snapshot.fields.publication_authorisation?.options).toBeDefined();
     expect(snapshot.fields.anonymisation_status?.options).toBeDefined();
     await expect(publication.locator("option")).toHaveText([
