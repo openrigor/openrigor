@@ -13,11 +13,12 @@ export const TIMEOUTS = {
 };
 
 export function baseUrl(): string {
-  return (
+  const raw =
     process.env.E2E_BASE_URL ||
     test.info().project.use.baseURL ||
-    "https://dev.openrigor.org"
-  );
+    "https://dev.openrigor.org";
+  // Normalize trailing slashes so `${baseUrl()}/path` never doubles up.
+  return raw.replace(/\/+$/, "");
 }
 
 /** Throw if any env key is missing/empty. */
@@ -68,10 +69,9 @@ export async function loginWithCredentials(
   await emailInput.fill(email);
   await passwordInput.fill(password);
   await page.locator("button[type='submit']").first().click();
-  await page.waitForURL(
-    (url) => !url.pathname.startsWith("/auth/login"),
-    { timeout: TIMEOUTS.loginRedirect }
-  );
+  await page.waitForURL((url) => !url.pathname.startsWith("/auth/login"), {
+    timeout: TIMEOUTS.loginRedirect,
+  });
 }
 
 export async function loginAsTestUser(page: Page): Promise<void> {
@@ -93,4 +93,29 @@ export async function logout(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/auth\/login(\?|$)/, {
     timeout: TIMEOUTS.loginRedirect,
   });
+}
+
+/**
+ * Ensure the test user has an AI mode consent row so the LangGraph agent
+ * can process chat messages. Without this, the agent throws
+ * "OpenRigor AI mode authorization is missing" (v0.9.0 AI mode feature).
+ *
+ * Idempotent — safe to call on every test run.
+ */
+export async function ensureAiModeConsent(page: Page): Promise<void> {
+  // PUT /api/ai-mode is idempotent (upserts on user_id).
+  const res = await page.request.put(`${baseUrl()}/api/ai-mode`, {
+    data: {
+      mode: "shared_model",
+      privacy_notice_version: "2026-08-25",
+    },
+  });
+  // 200 = set; any non-OK = fail loudly so dependent specs never run with broken setup.
+  if (!res.ok()) {
+    throw new Error(
+      res.status() === 401
+        ? "ensureAiModeConsent: not logged in — call after loginAsTestUser"
+        : `ensureAiModeConsent: PUT /api/ai-mode failed with ${res.status()}`
+    );
+  }
 }

@@ -10,6 +10,9 @@ import type {
 import { ArtifactEditor } from "./artifact-editor";
 import { Badge } from "@/components/ui/badge";
 import {
+  REPOSITORY_AUTHORIZATION_COPY,
+  REPOSITORY_DISCONNECTED_COPY,
+  REPOSITORY_PERMISSION_COPY,
   RESEARCH_REPOSITORY_TRUST_COPY,
   REPOSITORY_PUBLIC_COPY,
   REPOSITORY_UNAVAILABLE_COPY,
@@ -39,7 +42,9 @@ function shortCommit(sha: string | undefined): string {
 
 function statusLabel(status: RepositoryStatus | undefined): string {
   if (!status) return "unavailable";
-  return status.state.replace("_", " ");
+  return status.reason
+    ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
+    : status.state.replace("_", " ");
 }
 
 function BoundRepositoryPanel({
@@ -175,6 +180,11 @@ function BoundRepositoryPanel({
             {RESEARCH_REPOSITORY_TRUST_COPY}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span>
+              {status?.repositoryFullName ??
+                item.binding.repositoryFullName ??
+                `Repository #${item.binding.repositoryId}`}
+            </span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
               {statusLabel(status)}
             </span>
@@ -195,15 +205,55 @@ function BoundRepositoryPanel({
       </div>
 
       {(status?.reason === "repository_deleted" ||
-        (status?.state === "blocked" &&
-          (status.reason === "permission_lost" ||
-            status.reason === "branch_deleted" ||
-            status.reason === "force_push"))) && (
+        status?.reason === "branch_deleted" ||
+        status?.reason === "force_push") && (
         <p
           role="status"
           className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
         >
           {REPOSITORY_UNAVAILABLE_COPY}
+        </p>
+      )}
+      {status?.reason === "permission_lost" && (
+        <p
+          role="status"
+          className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          {REPOSITORY_PERMISSION_COPY}{" "}
+          <a
+            href="/api/workspace/github/authorize"
+            className="font-semibold underline"
+          >
+            Reconnect GitHub
+          </a>
+        </p>
+      )}
+      {status?.reason === "authorization_required" && (
+        <p
+          role="status"
+          className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          {REPOSITORY_AUTHORIZATION_COPY}{" "}
+          <a
+            href="/api/workspace/github/authorize"
+            className="font-semibold underline"
+          >
+            Re-authorize GitHub
+          </a>
+        </p>
+      )}
+      {status?.reason === "disconnected" && (
+        <p
+          role="status"
+          className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          {REPOSITORY_DISCONNECTED_COPY}{" "}
+          <a
+            href="/api/workspace/github/authorize"
+            className="font-semibold underline"
+          >
+            Reconnect GitHub
+          </a>
         </p>
       )}
       {(status?.readonlyReason === "repository_public" ||

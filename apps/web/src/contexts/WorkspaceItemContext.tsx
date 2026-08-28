@@ -38,7 +38,7 @@ export function WorkspaceItemProvider({
     try {
       const response = await fetch(
         `/api/workspace/items/${encodeURIComponent(itemId)}`,
-        { credentials: "include" }
+        { credentials: "include", cache: "no-store" }
       );
       if (!response.ok) {
         setItem(undefined);

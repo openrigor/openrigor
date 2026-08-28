@@ -132,6 +132,8 @@ export type MethodSource = {
   title?: string;
   description?: string;
   url?: string;
+  profiles?: ReadonlyArray<{ author?: string | null }> | null;
+  publication_date?: string | null;
   privateRepository?: {
     repositoryItemId: string;
     repositoryId: number;
@@ -226,6 +228,7 @@ export type LedgerSource = {
 
 export type LedgerWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
   kind: "ledger";
+  threadId?: string;
   ledgerConfig: LedgerConfig;
   snapshotIds: string[];
   source: LedgerSource;
@@ -233,6 +236,7 @@ export type LedgerWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
 
 export type LedgerSnapshotWorkspaceItem = Omit<WorkspaceItemBase, "source"> & {
   kind: "ledger_snapshot";
+  threadId?: string;
   parentLedgerItemId: string;
   snapshot: LedgerSnapshotData;
   /** Present after a draft research PR has been created. */

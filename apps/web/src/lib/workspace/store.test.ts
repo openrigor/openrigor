@@ -94,6 +94,7 @@ const harness = vi.hoisted(() => {
     ),
     inviteWorkspaceParticipant: vi.fn(async () => undefined),
     readGithubResearchCredentials: vi.fn(),
+    readGithubResearchConnectionStatus: vi.fn(),
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
@@ -116,6 +117,8 @@ vi.mock("@/lib/teaching/invitation-helpers", () => ({
 }));
 vi.mock("./research-repository/credentials", () => ({
   readGithubResearchCredentials: harness.readGithubResearchCredentials,
+  readGithubResearchConnectionStatus:
+    harness.readGithubResearchConnectionStatus,
 }));
 vi.mock("./research-repository/github-app", () => ({
   createGithubRepositoryBranch: harness.createGithubRepositoryBranch,
@@ -152,6 +155,7 @@ import {
   getWorkspaceItem,
   listWorkspaceItems,
   listSelectedPrivateMethods,
+  privateMethodHostResolver,
   pendingInviteNamespace,
   inviteLockId,
   resolveMethodTrackingAccess,
@@ -162,6 +166,7 @@ import {
   reconcileWorkspaceItemThread,
   refreshResearchRepositoryBindings,
   ResearchRepositoryBindingError,
+  replaceResearchRepositoryBinding,
   updateResearchRepositoryBindingHead,
   updateResearchRepositoryMethodSelection,
   workspaceLockAcquireTimeoutMs,
@@ -325,6 +330,53 @@ describe("workspace item lifecycle", () => {
     expect(attached.kind === "method" && attached.threadId).toBe("thread-1");
   });
 
+  it("attaches a thread to ledger items for the workspace chat", async () => {
+    const ledger = {
+      id: "wi_ledger",
+      ownerId: "user-1",
+      kind: "ledger" as const,
+      status: "active" as const,
+      createdAt: "2026-08-25T10:00:00.000Z",
+      updatedAt: "2026-08-25T10:00:00.000Z",
+      ledgerConfig: {
+        methodId: "demo-method",
+        methodVersion: "1.0.0",
+        templateId: "demo-template",
+        templateVersion: "1.0.0",
+        filters: [],
+      },
+      snapshotIds: [],
+      source: {
+        catalogRevision: "test",
+        templateId: "demo-template",
+        templateVersion: "1.0.0",
+        sourcePath: "test",
+        methodId: "demo-method",
+        methodVersion: "1.0.0",
+      },
+    };
+    harness.state.manifest = {
+      initialized: true,
+      items: { [ledger.id]: ledger },
+    };
+    harness.state.threads.set("thread-1", {
+      metadata: { user_id: "user-1", workspace_item_id: ledger.id },
+    });
+
+    const attached = await reconcileWorkspaceItemThread(
+      "user-1",
+      ledger.id,
+      "thread-1"
+    );
+
+    expect(attached).toMatchObject({
+      id: ledger.id,
+      kind: "ledger",
+      threadId: "thread-1",
+    });
+    expect(harness.state.manifest.items[ledger.id].threadId).toBe("thread-1");
+  });
+
   it("creates a Form-backed method draft from a built-in method id", async () => {
     const item = await createMethodWorkspaceItem("user-1", "ai-assisted-essay");
     expect(item.kind).toBe("method");
@@ -427,6 +479,7 @@ describe("research repository workspace items", () => {
     harness.state.items.clear();
     harness.state.threads.clear();
     harness.readGithubResearchCredentials.mockReset();
+    harness.readGithubResearchConnectionStatus.mockReset();
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
@@ -733,6 +786,91 @@ describe("research repository workspace items", () => {
     expect(Object.keys(harness.state.manifest.items)).toHaveLength(1);
   });
 
+  it("replaces one item's binding atomically after the new repository is ready", async () => {
+    const original = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    const originalManifest = structuredClone(harness.state.manifest);
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "replacement",
+      nameWithOwner: "octocat/replacement",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    harness.getGithubRepositoryBranchHead.mockResolvedValue("d".repeat(40));
+
+    const replaced = await replaceResearchRepositoryBinding(
+      "user-1",
+      original.id,
+      { repositoryId: 102, installationId: 99 }
+    );
+
+    expect(replaced.id).toBe(original.id);
+    expect(replaced.binding).toMatchObject({
+      repositoryId: 102,
+      repositoryFullName: "octocat/replacement",
+      headCommitSha: "d".repeat(40),
+    });
+    expect(replaced.selectedMethodIds).toEqual([]);
+    expect(harness.state.manifest.items[original.id]).toEqual(replaced);
+    expect(Object.keys(harness.state.manifest.items)).toEqual([original.id]);
+
+    harness.probeMethodHostInitialization.mockRejectedValueOnce(
+      new Error("probe failed")
+    );
+    await expect(
+      replaceResearchRepositoryBinding("user-1", original.id, {
+        repositoryId: 102,
+        installationId: 99,
+      })
+    ).rejects.toThrow("probe failed");
+    expect(harness.state.manifest).toEqual(
+      expect.objectContaining({ items: { [original.id]: replaced } })
+    );
+    expect(harness.state.manifest).not.toEqual(originalManifest);
+  });
+
+  it("checks replacement duplicates before creating the replacement branch", async () => {
+    const original = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([101, 102])
+    );
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 102,
+      name: "other",
+      nameWithOwner: "octocat/other",
+      owner: "octocat",
+      private: true,
+      defaultBranch: "main",
+    });
+    await createResearchRepositoryItem("user-1", {
+      repositoryId: 102,
+      installationId: 99,
+    });
+    harness.getGithubRepositoryBranchHead.mockReset();
+    harness.createGithubRepositoryBranch.mockReset();
+    harness.probeMethodHostInitialization.mockReset();
+
+    await expect(
+      replaceResearchRepositoryBinding("user-1", original.id, {
+        repositoryId: 102,
+        installationId: 99,
+      })
+    ).rejects.toMatchObject({ code: "repository_already_bound" });
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+    expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).not.toHaveBeenCalled();
+  });
+
   it("normalises stored repository items even while the flag is off", async () => {
     const item = await createResearchRepositoryItem("user-1", {
       repositoryId: 101,
@@ -755,6 +893,74 @@ describe("research repository workspace items", () => {
       state: "ready",
       layoutVersion: "1.0",
       headCommitSha: workspaceBranchSha,
+    });
+  });
+
+  it("projects a revoked authorization without calling GitHub", async () => {
+    harness.readGithubResearchConnectionStatus.mockResolvedValue({
+      reason: "authorization_required",
+    });
+    harness.readGithubResearchCredentials.mockResolvedValue(null);
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "read_only",
+      reason: "authorization_required",
+    });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+  });
+
+  it("keeps repository removal distinct from permission loss", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      ...connectedGithubCredentials([]),
+      repositoryStatusReasons: { "101": "repository_deleted" },
+    });
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "repository_deleted",
+    });
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([])
+    );
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
+    });
+  });
+
+  it("falls back to permission_lost for an invalid persisted status reason", async () => {
+    harness.readGithubResearchCredentials.mockResolvedValue({
+      ...connectedGithubCredentials([]),
+      repositoryStatusReasons: { "101": "not-a-status-reason" },
+    });
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
+    });
+  });
+
+  it("maps a live GitHub permission failure to permission_lost", async () => {
+    harness.getGithubInstallationRepository.mockRejectedValue(
+      Object.assign(new Error("Forbidden"), { status: 403 })
+    );
+
+    await expect(
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem())
+    ).resolves.toMatchObject({
+      state: "blocked",
+      reason: "permission_lost",
     });
   });
 
@@ -826,6 +1032,126 @@ describe("research repository workspace items", () => {
         commitSha: workspaceBranchSha,
       },
     ]);
+  });
+
+  it("isolates the private Method cache by user, repository, revision, and TTL", async () => {
+    const cacheSha = "c".repeat(40);
+    const changedSha = "d".repeat(40);
+    const cacheItem = ({
+      id,
+      ownerId,
+      repositoryId,
+      headCommitSha,
+    }: {
+      id: string;
+      ownerId: string;
+      repositoryId: number;
+      headCommitSha: string;
+    }) => ({
+      ...repositoryWorkspaceItem(),
+      id,
+      ownerId,
+      binding: {
+        ...repositoryWorkspaceItem().binding,
+        repositoryId,
+        headCommitSha,
+      },
+      selectedMethodIds: ["private-method"],
+    });
+    const setManifest = (userId: string, items: Record<string, unknown>) => {
+      harness.state.items.set(`workspace_items/${userId}:manifest`, {
+        initialized: true,
+        items,
+      });
+    };
+    const resolvePrivateMethodHostMock = vi.fn(
+      async (_userId: string, item: any) =>
+        ({
+          commitSha: item.binding.headCommitSha,
+          credentials: undefined,
+          repository: undefined,
+          discovery: {
+            initialization: { initialized: true },
+            methods: [
+              {
+                id: "private-method",
+                title: "Private Method",
+                description: "Cached description",
+                profiles: [],
+              },
+            ],
+          },
+        }) as any
+    );
+    const resolverSpy = vi
+      .spyOn(privateMethodHostResolver, "resolve")
+      .mockImplementation(resolvePrivateMethodHostMock);
+    vi.useFakeTimers();
+
+    try {
+      const firstItem = cacheItem({
+        id: "wi_cache-first",
+        ownerId: "user-1",
+        repositoryId: 201,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-1", { [firstItem.id]: firstItem });
+
+      await expect(listSelectedPrivateMethods("user-1")).resolves.toHaveLength(
+        1
+      );
+      await expect(listSelectedPrivateMethods("user-1")).resolves.toHaveLength(
+        1
+      );
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(1);
+
+      const otherUserItem = cacheItem({
+        id: "wi_cache-other-user",
+        ownerId: "user-2",
+        repositoryId: 201,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-2", { [otherUserItem.id]: otherUserItem });
+      await listSelectedPrivateMethods("user-2");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(2);
+
+      const otherRepositoryItem = cacheItem({
+        id: "wi_cache-other-repository",
+        ownerId: "user-1",
+        repositoryId: 202,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-1", { [otherRepositoryItem.id]: otherRepositoryItem });
+      await listSelectedPrivateMethods("user-1");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(3);
+
+      const otherRevisionItem = cacheItem({
+        id: "wi_cache-other-revision",
+        ownerId: "user-1",
+        repositoryId: 201,
+        headCommitSha: changedSha,
+      });
+      setManifest("user-1", { [otherRevisionItem.id]: otherRevisionItem });
+      await listSelectedPrivateMethods("user-1");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(4);
+
+      vi.advanceTimersByTime(60_000);
+      await listSelectedPrivateMethods("user-1");
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(5);
+
+      const unauthorizedItem = cacheItem({
+        id: "wi_cache-unauthorized",
+        ownerId: "user-2",
+        repositoryId: 201,
+        headCommitSha: cacheSha,
+      });
+      setManifest("user-1", { [unauthorizedItem.id]: unauthorizedItem });
+      await expect(listSelectedPrivateMethods("user-1")).resolves.toEqual([]);
+      expect(resolvePrivateMethodHostMock).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+      resolverSpy.mockRestore();
+    }
   });
 
   it("adopts a selected private Method pinned to the adopt-time commit", async () => {

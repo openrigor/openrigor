@@ -17,11 +17,12 @@ import {
   GITHUB_RESEARCH_APP_COMMITTER,
   listRepositoryArtifactRefs,
   probeMethodHostInitialization,
+  repositoryCommitProvenance,
   StaleRepositoryError,
 } from "./git-adapter";
 import { RepositoryLayoutError } from "./layout";
 
-const repository = { owner: "octocat", name: "private" };
+const repository = { id: 101, owner: "octocat", name: "private" };
 const baseSha = "a".repeat(40);
 const baseTreeSha = "b".repeat(40);
 const blobSha = "c".repeat(40);
@@ -33,6 +34,27 @@ describe("GitHub repository Git Data adapter", () => {
     for (const method of Object.values(harness)) method.mockReset();
     harness.createOctokit.mockReturnValue({ request: harness.request });
     harness.getHead.mockResolvedValue(baseSha);
+  });
+
+  it("retains full repository commit provenance", () => {
+    expect(
+      repositoryCommitProvenance(
+        {
+          id: 101,
+          owner: "octocat",
+          name: "private",
+          fullName: "octocat/private",
+        },
+        "openrigor/workspace",
+        "methods/example/example.en.md",
+        commitSha
+      )
+    ).toEqual({
+      repository: "octocat/private",
+      branch: "openrigor/workspace",
+      path: "methods/example/example.en.md",
+      revision: commitSha,
+    });
   });
 
   it.each([

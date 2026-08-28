@@ -66,14 +66,17 @@ import {
   consumeGithubOAuthState,
   deleteGithubResearchCredentials,
   CredentialOwnerSearchTruncatedError,
+  findGithubCredentialOwnersByGithubUserId,
   findGithubCredentialOwnersByInstallationId,
   githubResearchCredentialsNamespace,
   MAX_CREDENTIAL_SEARCH_PAGES,
   hashGithubCredentialIdentifier,
   readGithubResearchCredentialRecord,
+  readGithubResearchConnectionStatus,
   readGithubResearchCredentials,
   recordGithubPush,
   releaseGithubWebhookDelivery,
+  revokeGithubAuthorization,
   storeGithubOAuthState,
   storeGithubResearchCredentials,
   updateGithubInstallationRepositories,
@@ -141,6 +144,27 @@ describe("GitHub research credential Store", () => {
     ).resolves.toBe("v".repeat(43));
   });
 
+  it("finds credential owners hashed with a previous encryption key", async () => {
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_access" },
+      repositoryIds: [],
+      displayMetadata: { githubUserId: 7 },
+    });
+    vi.stubEnv("GITHUB_RESEARCH_TOKEN_ENCRYPTION_KEY", OTHER_KEY);
+    vi.stubEnv("GITHUB_RESEARCH_TOKEN_ENCRYPTION_PREVIOUS_KEYS", KEY);
+
+    await expect(findGithubCredentialOwnersByGithubUserId(7)).resolves.toEqual([
+      "user-1",
+    ]);
+    expect(harness.store.searchItems).toHaveBeenCalledWith(
+      ["github_research_credentials"],
+      expect.objectContaining({
+        filter: { githubUserIdHash: expect.any(String) },
+      })
+    );
+    expect(harness.store.searchItems).toHaveBeenCalledTimes(2);
+  });
+
   it("uses a keyed hash for stored credential identifiers", () => {
     const firstHash = hashGithubCredentialIdentifier("7");
     vi.stubEnv("GITHUB_RESEARCH_TOKEN_ENCRYPTION_KEY", OTHER_KEY);
@@ -175,6 +199,51 @@ describe("GitHub research credential Store", () => {
     await expect(
       findGithubCredentialOwnersByInstallationId(99)
     ).resolves.toEqual(["user-1"]);
+    await expect(findGithubCredentialOwnersByGithubUserId(7)).resolves.toEqual([
+      "user-1",
+    ]);
+  });
+
+  it("records repository removal separately from generic permission loss", async () => {
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_access" },
+      installationId: 99,
+      repositoryIds: [101],
+      displayMetadata: { githubUserId: 7 },
+    });
+
+    await updateGithubInstallationRepositories("user-1", [], [101]);
+
+    await expect(readGithubResearchCredentials("user-1")).resolves.toEqual(
+      expect.objectContaining({
+        repositoryIds: [],
+        repositoryStatusReasons: { "101": "repository_deleted" },
+      })
+    );
+  });
+
+  it("preserves authorization-required state after revocation and clears it after reauthorization", async () => {
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_access" },
+      repositoryIds: [],
+      displayMetadata: { githubUserId: 7 },
+    });
+
+    await revokeGithubAuthorization("user-1");
+
+    await expect(readGithubResearchConnectionStatus("user-1")).resolves.toEqual(
+      { reason: "authorization_required" }
+    );
+
+    await storeGithubResearchCredentials("user-1", {
+      tokens: { accessToken: "ghu_new" },
+      repositoryIds: [],
+      displayMetadata: { githubUserId: 7 },
+    });
+
+    await expect(
+      readGithubResearchConnectionStatus("user-1")
+    ).resolves.toBeNull();
   });
 
   it("preserves connection history when credentials are re-authorized", async () => {

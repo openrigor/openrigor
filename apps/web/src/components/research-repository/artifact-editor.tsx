@@ -6,6 +6,7 @@ import {
   artifactKindFromId,
   validateArtifactFrontMatter,
 } from "@/lib/workspace/research-repository/authoring";
+import { ExportButton } from "@/components/workspace/export-button";
 
 type ArtifactEditorProps = {
   workspaceItemId: string;
@@ -268,22 +269,29 @@ export function ArtifactEditor({
             {dirty ? "Unsaved changes" : "No unsaved changes"}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={
-            readOnly ||
-            supported === false ||
-            !dirty ||
-            loading ||
-            committing ||
-            !baseCommitSha ||
-            Boolean(frontMatterError)
-          }
-          onClick={() => void commitChanges()}
-          className="rounded border border-slate-300 bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {committing ? "Committing…" : "Commit changes"}
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            workspaceItemId={workspaceItemId}
+            artifactId={artifact.artifactId}
+            artifactName={artifact.path}
+          />
+          <button
+            type="button"
+            disabled={
+              readOnly ||
+              supported === false ||
+              !dirty ||
+              loading ||
+              committing ||
+              !baseCommitSha ||
+              Boolean(frontMatterError)
+            }
+            onClick={() => void commitChanges()}
+            className="rounded border border-slate-300 bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {committing ? "Committing…" : "Commit changes"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -334,6 +342,15 @@ export function ArtifactEditor({
           className="mb-3 rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800"
         >
           This artifact version is not supported by this workspace
+        </p>
+      )}
+      {readOnly && (
+        <p
+          role="note"
+          className="mb-3 rounded border border-slate-200 bg-slate-50 p-2 text-sm text-slate-700"
+        >
+          Current-session local content is not synced / last locally available
+          state.
         </p>
       )}
 

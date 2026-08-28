@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { DEFAULT_INPUTS } from "@opencanvas/shared/constants";
 
 // Mock pdf-parse
 vi.mock("pdf-parse", () => ({ default: vi.fn() }));
@@ -55,7 +56,6 @@ describe("Teaching flow — multi-turn phase persistence", () => {
     };
 
     // cleanState returns { ...DEFAULT_INPUTS } — NO phase_state
-    const { DEFAULT_INPUTS } = require("@opencanvas/shared/constants");
     const cleanStateOutput = { ...DEFAULT_INPUTS };
 
     // Simulate the merge: apply replyOutput, then cleanStateOutput
@@ -68,8 +68,6 @@ describe("Teaching flow — multi-turn phase persistence", () => {
 
   it("phase_state should persist through DEFAULT_INPUTS spread", () => {
     // Direct test: spreading DEFAULT_INPUTS over a state with phase_state
-    const { DEFAULT_INPUTS } = require("@opencanvas/shared/constants");
-
     const stateWithPhase = {
       phase_state: "drafting" as const,
       thesis: { passed: true, feedback: "ok", thesis: "t" },
@@ -86,8 +84,6 @@ describe("Teaching flow — multi-turn phase persistence", () => {
   });
 
   it("simulates full 3-turn socratic→drafting flow", () => {
-    const { DEFAULT_INPUTS } = require("@opencanvas/shared/constants");
-
     // Turn 1: Kickoff — frontend sends phase_state: "socratic"
     let state: Record<string, any> = {
       ...DEFAULT_INPUTS,

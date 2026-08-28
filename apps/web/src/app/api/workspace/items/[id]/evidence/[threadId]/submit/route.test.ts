@@ -16,6 +16,7 @@ const harness = vi.hoisted(() => {
     assembleEvidenceMarkdown: vi.fn(),
     evidenceFilePath: vi.fn(),
     evidenceTimestampSlug: vi.fn(),
+    canonicalizeEvidenceSubmissionKey: vi.fn((value: string) => value),
     openEvidencePullRequest: vi.fn(),
     findExistingEvidencePullRequest: vi.fn(),
     commitPrivateMethodEvidence: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/lib/workspace/evidence", () => ({
   assembleEvidenceMarkdown: harness.assembleEvidenceMarkdown,
   evidenceFilePath: harness.evidenceFilePath,
   evidenceTimestampSlug: harness.evidenceTimestampSlug,
+  canonicalizeEvidenceSubmissionKey: harness.canonicalizeEvidenceSubmissionKey,
 }));
 vi.mock("@/lib/workspace/evidence-github", () => ({
   openEvidencePullRequest: harness.openEvidencePullRequest,
@@ -80,7 +82,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     harness.evidenceFilePath.mockReset();
     harness.evidenceTimestampSlug
       .mockReset()
-      .mockReturnValue("2026-08-18T12-34-56Z");
+      .mockReturnValue("2026-08-18t12-34-56z");
     harness.openEvidencePullRequest.mockReset();
     harness.commitPrivateMethodEvidence.mockReset();
     harness.findExistingEvidencePullRequest
@@ -88,7 +90,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       .mockResolvedValue(undefined);
     harness.claimEvidenceSubmission.mockResolvedValue({
       status: "submitting",
-      submissionKey: "2026-08-18T12-34-56Z",
+      submissionKey: "2026-08-18t12-34-56z",
     });
   });
 
@@ -114,10 +116,14 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       url: "https://github.com/openrigor/research/pull/12",
     });
 
-    const response = await POST(
-      request({ narrative: "Account" }),
-      context("wi_1", "thread-1")
-    );
+    const values = {
+      narrative: "Account",
+      publication_authorisation: "confirmed-authorised-to-publish",
+      anonymisation_status:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+      data_sharing_limits: "Aggregate counts only.",
+    };
+    const response = await POST(request(values), context("wi_1", "thread-1"));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       status: "filed",
@@ -126,7 +132,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     });
     expect(harness.validateEvidenceSubmission).toHaveBeenCalledWith(
       { methodId: "test-method" },
-      { narrative: "Account" }
+      values
     );
     expect(harness.updateEvidenceThreadReference).toHaveBeenCalledWith(
       "user-1",
@@ -180,10 +186,14 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       commitSha: "b".repeat(40),
     });
 
-    const response = await POST(
-      request({ narrative: "Account" }),
-      context("wi_1", "thread-1")
-    );
+    const values = {
+      narrative: "Account",
+      publication_authorisation: "confirmed-authorised-to-publish",
+      anonymisation_status:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+      data_sharing_limits: "Aggregate counts only.",
+    };
+    const response = await POST(request(values), context("wi_1", "thread-1"));
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
@@ -199,6 +209,10 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       filePath: "methods/test-method/evidence/file.en.md",
       markdown: "private markdown",
     });
+    expect(harness.validateEvidenceSubmission).toHaveBeenCalledWith(
+      { methodId: "test-method" },
+      values
+    );
     expect(harness.openEvidencePullRequest).not.toHaveBeenCalled();
     expect(harness.updateEvidenceThreadReference).toHaveBeenCalledWith(
       "user-1",

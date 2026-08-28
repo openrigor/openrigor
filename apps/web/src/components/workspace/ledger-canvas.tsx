@@ -47,6 +47,9 @@ function keyFor(config: LedgerConfig): string {
   });
 }
 
+/** Bounded wait for restored thread history before releasing the chat gate. */
+const THREAD_RESTORE_GRACE_MS = 2_500;
+
 function filterFor(config: LedgerConfig, fieldId: string) {
   return config.filters.find((filter) => filter.fieldId === fieldId);
 }
@@ -58,6 +61,24 @@ function withFilter(
 ): LedgerConfig {
   const filters = config.filters.filter((filter) => filter.fieldId !== fieldId);
   return { ...config, filters: next ? [...filters, next] : filters };
+}
+
+function isGenuineUserMessage(message: {
+  getType?: () => string;
+  additional_kwargs?: Record<string, unknown>;
+}): boolean {
+  // Restored thread history can be plain objects (no class instance), so
+  // classify by id prefix first and fall back to the live-message check.
+  const type = message.getType?.();
+  if (type === "human") {
+    return message.additional_kwargs?.[OC_HIDE_FROM_UI_KEY] !== true;
+  }
+  if (type !== undefined) return false;
+  return (
+    typeof (message as { id?: unknown }).id === "string" &&
+    !(message as { id?: string }).id!.startsWith("ledger-kickoff-") &&
+    message.additional_kwargs?.[OC_HIDE_FROM_UI_KEY] !== true
+  );
 }
 
 function buildLedgerAgentContext(
@@ -124,6 +145,11 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
   const bootstrappedItem = useRef<string | null>(null);
   const kickedOffItem = useRef<string | null>(null);
   const lastAppliedUpdate = useRef<object | null>(null);
+  // Set once the item's persisted thread history has been restored (or the
+  // restore window closed). The kickoff effect waits for it so a reopen does
+  // not wipe chat history with a fresh welcome turn.
+  const threadRestoreSettled = useRef<string | null>(null);
+  const [threadRestorePending, setThreadRestorePending] = useState(false);
   const latestPreviewRequest = useRef(0);
   const pendingDraftSave = useRef<
     { config: LedgerConfig; timeout: number } | undefined
@@ -224,12 +250,44 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
   useEffect(() => {
     if (bootstrappedItem.current === item.id) return;
     bootstrappedItem.current = item.id;
+    const persistedThreadId = item.threadId;
+    if (persistedThreadId) {
+      // Reopen: restore the persisted thread so prior chat history loads.
+      // Ledger drafts persist to their workspace item, never thread state,
+      // but the conversation transcript lives on the thread.
+      threadRestoreSettled.current = null;
+      void setThreadId(persistedThreadId);
+      graphData.setChatStarted(true);
+      // Hold the kickoff gate briefly while GraphContext reloads history;
+      // released early by the watcher below once messages arrive.
+      setThreadRestorePending(true);
+      const release = window.setTimeout(() => {
+        threadRestoreSettled.current = item.id;
+        setThreadRestorePending(false);
+      }, THREAD_RESTORE_GRACE_MS);
+      return () => {
+        window.clearTimeout(release);
+        // Timer cancelled before settling (Strict Mode replay / item switch):
+        // allow the replayed setup to run restoration again.
+        bootstrappedItem.current = null;
+      };
+    }
+    // Genuinely new ledger: start clean and let kickoff run immediately.
     graphData.clearState();
     void setThreadId(null);
     graphData.setChatStarted(true);
-    // Ledger drafts persist to their workspace item, never thread state.
+    threadRestoreSettled.current = item.id;
+    setThreadRestorePending(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
+
+  useEffect(() => {
+    if (!threadRestorePending || configItemId !== item.id) return;
+    if (graphData.messages.length > 0) {
+      threadRestoreSettled.current = item.id;
+      setThreadRestorePending(false);
+    }
+  }, [configItemId, graphData, item.id, threadRestorePending]);
 
   useEffect(() => {
     if (configItemId !== item.id) return;
@@ -257,6 +315,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     if (
       configItemId !== item.id ||
       kickedOffItem.current === item.id ||
+      threadRestoreSettled.current !== item.id ||
       !preview ||
       !selectedAssistant ||
       graphData.isStreaming ||
@@ -298,6 +357,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     item.id,
     preview,
     selectedAssistant,
+    threadRestorePending,
     toast,
   ]);
 
@@ -315,6 +375,22 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     if (lastAppliedUpdate.current === assistantMessage) return;
 
     lastAppliedUpdate.current = assistantMessage;
+    if (!graphData.messages.some(isGenuineUserMessage)) {
+      const cleanContent = parsed.cleanContent.trim();
+      graphData.setMessages((messages) =>
+        messages.map((message) =>
+          message === assistantMessage
+            ? new AIMessage({
+                id: message.id,
+                content: cleanContent,
+                additional_kwargs: message.additional_kwargs,
+              })
+            : message
+        )
+      );
+      return;
+    }
+
     const nextConfig = { ...config, filters: parsed.updates };
     setConfig(nextConfig);
     void refresh(nextConfig);

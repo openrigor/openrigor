@@ -8,9 +8,11 @@ const harness = vi.hoisted(() => ({
     return { verify: harness.verify };
   }),
   findOwners: vi.fn(),
+  findOwnersByGithubUser: vi.fn(),
   claimDelivery: vi.fn(),
   releaseDelivery: vi.fn(),
   deleteCredentials: vi.fn(),
+  revokeAuthorization: vi.fn(),
   updateInstallation: vi.fn(),
   updateRepositories: vi.fn(),
   recordPush: vi.fn(),
@@ -22,9 +24,11 @@ vi.mock("@/lib/research-workspaces-enabled.server", () => ({
 }));
 vi.mock("@/lib/workspace/research-repository/credentials", () => ({
   findGithubCredentialOwnersByInstallationId: harness.findOwners,
+  findGithubCredentialOwnersByGithubUserId: harness.findOwnersByGithubUser,
   claimGithubWebhookDelivery: harness.claimDelivery,
   releaseGithubWebhookDelivery: harness.releaseDelivery,
   deleteGithubResearchCredentials: harness.deleteCredentials,
+  revokeGithubAuthorization: harness.revokeAuthorization,
   updateGithubInstallation: harness.updateInstallation,
   updateGithubInstallationRepositories: harness.updateRepositories,
   recordGithubPush: harness.recordPush,
@@ -57,8 +61,10 @@ describe("POST /api/workspace/github/webhook", () => {
     harness.enabled.mockReturnValue(true);
     harness.verify.mockResolvedValue(true);
     harness.findOwners.mockResolvedValue(["user-1"]);
+    harness.findOwnersByGithubUser.mockResolvedValue([]);
     harness.claimDelivery.mockResolvedValue(true);
     harness.releaseDelivery.mockResolvedValue(undefined);
+    harness.revokeAuthorization.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -195,6 +201,25 @@ describe("POST /api/workspace/github/webhook", () => {
     expect(response.status).toBe(200);
     expect(harness.deleteCredentials).toHaveBeenCalledWith("user-1");
     expect(harness.updateInstallation).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the revoked user's credentials without requiring an installation id", async () => {
+    harness.findOwnersByGithubUser.mockResolvedValue(["user-1"]);
+    const response = await POST(
+      request(
+        { action: "revoked", sender: { id: 7 } },
+        {},
+        "github_app_authorization"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(harness.findOwnersByGithubUser).toHaveBeenCalledWith(7);
+    expect(harness.findOwners).not.toHaveBeenCalled();
+    expect(harness.revokeAuthorization).toHaveBeenCalledWith("user-1");
+    expect(harness.deleteCredentials).not.toHaveBeenCalled();
+    expect(harness.recordPush).not.toHaveBeenCalled();
+    expect(harness.updateRepositories).not.toHaveBeenCalled();
   });
 
   it("does not delete credentials when the installation is created", async () => {

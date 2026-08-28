@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { RepositoryArtifactRefSchema } from "@opencanvas/shared/research-repository";
 import type { RepositoryArtifactRef } from "@opencanvas/shared/research-repository";
+import type { RepositoryCommitProvenance } from "@opencanvas/shared/research-repository";
 import {
   createGithubInstallationOctokit,
   getGithubRepositoryBranchHead,
@@ -24,7 +25,13 @@ import {
 
 const GITHUB_API_VERSION = "2022-11-28";
 
-export type GithubRepositoryCoordinates = { owner: string; name: string };
+export type GithubRepositoryCoordinates = {
+  id: number;
+  owner: string;
+  name: string;
+  fullName?: string;
+  nameWithOwner?: string;
+};
 
 export type GithubCommitAuthor = {
   name: string;
@@ -65,6 +72,24 @@ function headers() {
 
 function repositoryParameters(repository: GithubRepositoryCoordinates) {
   return { owner: repository.owner, repo: repository.name };
+}
+
+/** Build the stable provenance record returned for a landed repository commit. */
+export function repositoryCommitProvenance(
+  repository: GithubRepositoryCoordinates,
+  branch: string,
+  path: string,
+  revision: string
+): RepositoryCommitProvenance {
+  return {
+    repository:
+      repository.fullName ??
+      repository.nameWithOwner ??
+      `${repository.owner}/${repository.name}`,
+    branch,
+    path,
+    revision,
+  };
 }
 
 const GITHUB_BLOB_CONCURRENCY = 8;
@@ -135,7 +160,10 @@ async function repositoryTree(
   repository: GithubRepositoryCoordinates,
   commitSha: string
 ): Promise<TreeEntry[]> {
-  const octokit = createGithubInstallationOctokit(installationId);
+  const octokit = createGithubInstallationOctokit(
+    installationId,
+    repository.id
+  );
   const commitResponse = await octokit.request(
     "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
     {
@@ -220,7 +248,10 @@ async function readBlobBuffer(
   repository: GithubRepositoryCoordinates,
   blobSha: string
 ): Promise<Buffer> {
-  const octokit = createGithubInstallationOctokit(installationId);
+  const octokit = createGithubInstallationOctokit(
+    installationId,
+    repository.id
+  );
   const response = await octokit.request(
     "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
     {
@@ -337,7 +368,10 @@ export async function commitArtifactBlobs(
     paths.add(file.path);
   }
 
-  const octokit = createGithubInstallationOctokit(installationId);
+  const octokit = createGithubInstallationOctokit(
+    installationId,
+    repository.id
+  );
   let currentHead: string | undefined;
   try {
     currentHead = await getGithubRepositoryBranchHead(

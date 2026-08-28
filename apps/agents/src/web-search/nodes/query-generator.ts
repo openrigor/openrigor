@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import { ChatAnthropic } from "@langchain/anthropic";
+import { LangGraphRunnableConfig } from "@langchain/langgraph";
 import { WebSearchState } from "../state.js";
-import { formatMessages } from "../../utils.js";
+import { formatMessages, getModelFromConfig } from "../../utils.js";
 
 const QUERY_GENERATOR_PROMPT = `You're a helpful AI assistant tasked with writing a query to search the web.
 You're provided with a list of messages between a user and an AI assistant.
@@ -22,10 +22,10 @@ Here is the conversation between the user and the assistant, in order of oldest 
 Respond ONLY with the search query, and nothing else.`;
 
 export async function queryGenerator(
-  state: WebSearchState
+  state: WebSearchState,
+  config: LangGraphRunnableConfig
 ): Promise<Partial<WebSearchState>> {
-  const model = new ChatAnthropic({
-    model: "claude-3-5-sonnet-latest",
+  const model = await getModelFromConfig(config, {
     temperature: 0,
   });
 

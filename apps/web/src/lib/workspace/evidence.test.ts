@@ -7,6 +7,7 @@ import {
   buildEvidenceSnapshotFromMarker,
   evidenceFilePath,
   evidenceTimestampSlug,
+  canonicalizeEvidenceSubmissionKey,
   isAutoMergeEligibleStage,
   normalizeEvidenceTemplate,
   resolveEvidenceFieldValues,
@@ -15,6 +16,7 @@ import {
   validateEvidenceSubmission,
   type EvidenceSnapshot,
 } from "./evidence";
+import { identifyRepositoryArtifactPath } from "./research-repository/layout";
 import type { MethodWorkspaceItem } from "./types";
 
 const template = (overrides: Partial<ApparatusEvidenceTemplate> = {}) =>
@@ -201,6 +203,75 @@ describe("Evidence runtime", () => {
     expect(snapshot.methodVersion).toBe("0.1.0");
   });
 
+  it("canonicalizes stale private declaration options before validation", () => {
+    const normalized = normalizeEvidenceTemplate(template());
+    const snapshot = buildEvidenceSnapshotFromMarker(
+      methodItem({
+        privateEvidenceTemplate: {
+          kind: "evidence",
+          templateId: "evidence-template",
+          templateVersion: "0.9.0",
+          sourcePath: "methods/ai-assisted-essay/evidence-template.en.md",
+          guidance: "Guidance",
+          layoutMarkdown: "{{narrative}}",
+          fields: {
+            ...normalized.fields,
+            publication_authorisation: {
+              ...normalized.fields.publication_authorisation,
+              options: ["confirmed-authorised"],
+            },
+            anonymisation_status: {
+              ...normalized.fields.anonymisation_status,
+              options: ["confirmed-no-student-identifiers"],
+            },
+          },
+        },
+      }),
+      {
+        method_id: "ai-assisted-essay",
+        method_version: "0.1.0",
+        template_version: "0.9.0",
+        frozen_values: { method_id: "ai-assisted-essay" },
+      }
+    );
+
+    expect(snapshot.fields.publication_authorisation.options).toEqual([
+      "confirmed-authorised-to-publish",
+      "not-confirmed-do-not-submit",
+    ]);
+    expect(snapshot.fields.anonymisation_status.options).toEqual([
+      "confirmed-no-student-identifiers-or-raw-student-material",
+      "needs-human-privacy-review",
+      "not-ready-for-publication",
+    ]);
+    expect(
+      validateEvidenceSubmission(snapshot, {
+        mode: "one",
+        narrative: "A factual account.",
+        contribution_stage: "documented-experience",
+        publication_authorisation: "confirmed-authorised-to-publish",
+        anonymisation_status:
+          "confirmed-no-student-identifiers-or-raw-student-material",
+        data_sharing_limits: "Aggregate counts only.",
+      }).values
+    ).toMatchObject({
+      publication_authorisation: "confirmed-authorised-to-publish",
+      anonymisation_status:
+        "confirmed-no-student-identifiers-or-raw-student-material",
+    });
+    expect(() =>
+      validateEvidenceSubmission(snapshot, {
+        mode: "one",
+        narrative: "A factual account.",
+        contribution_stage: "documented-experience",
+        publication_authorisation: "not-confirmed-do-not-submit",
+        anonymisation_status:
+          "confirmed-no-student-identifiers-or-raw-student-material",
+        data_sharing_limits: "Aggregate counts only.",
+      })
+    ).toThrow(FormValidationError);
+  });
+
   it("normalizes snake_case fields, carries controls, and rejects invalid types", () => {
     const normalized = normalizeEvidenceTemplate(template());
     expect(normalized.fields.method_id).toMatchObject({
@@ -369,6 +440,36 @@ describe("Evidence runtime", () => {
     expect(evidenceFilePath("ai-assisted-essay", timestampSlug)).toBe(
       `methods/ai-assisted-essay/evidence/${timestampSlug}.en.md`
     );
+  });
+
+  it("emits a layout-valid lowercase evidence timestamp slug", () => {
+    const slug = evidenceTimestampSlug(new Date("2026-08-28T07:01:36.123Z"));
+    expect(slug).toMatch(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/);
+    const artifact = identifyRepositoryArtifactPath(
+      evidenceFilePath("synthetic-method", slug)
+    );
+    expect(artifact).toEqual(expect.objectContaining({ kind: "evidence" }));
+  });
+
+  it("keeps millisecond precision so same-second submissions stay distinct", () => {
+    const first = evidenceTimestampSlug(new Date("2026-08-28T07:01:36.123Z"));
+    const second = evidenceTimestampSlug(new Date("2026-08-28T07:01:36.987Z"));
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/);
+    expect(second).toMatch(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/);
+  });
+
+  it("canonicalizes legacy stored submission keys into layout-valid paths", () => {
+    const legacy = "2026-08-28T07-01-36Z";
+    const canonical = canonicalizeEvidenceSubmissionKey(legacy);
+    expect(canonical).toBe("2026-08-28t07-01-36z");
+    const artifact = identifyRepositoryArtifactPath(
+      evidenceFilePath("synthetic-method", legacy)
+    );
+    expect(artifact).toEqual(expect.objectContaining({ kind: "evidence" }));
+    // A key that cannot be canonicalized fails closed instead of writing an
+    // unmanaged artifact.
+    expect(() => canonicalizeEvidenceSubmissionKey("...")).toThrow();
   });
 
   it("only auto-merges documented experience with every integrity gate", () => {

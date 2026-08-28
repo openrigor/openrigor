@@ -163,7 +163,10 @@ describe("GitHub App OAuth helpers", () => {
     });
     harness.paginate
       .mockResolvedValueOnce([{ id: 99, account: { login: "octo" } }])
-      .mockResolvedValueOnce([{ id: 101, full_name: "octo/private" }]);
+      .mockResolvedValueOnce([
+        { id: 101, full_name: "octo/private", private: true },
+        { id: 202, full_name: "octo/public", private: false },
+      ]);
 
     await expect(
       resolveGithubResearchConnection("ghu_access", 99)
@@ -175,7 +178,9 @@ describe("GitHub App OAuth helpers", () => {
         login: "octo",
         avatarUrl: "https://avatar.test/7",
         installationAccount: "octo",
-        repositories: [{ id: 101, nameWithOwner: "octo/private" }],
+        repositories: [
+          { id: 101, nameWithOwner: "octo/private", private: true },
+        ],
       },
     });
     expect(harness.paginate).toHaveBeenNthCalledWith(
@@ -278,7 +283,7 @@ describe("GitHub App OAuth helpers", () => {
     await expect(
       getGithubRepositoryBranchHead(
         99,
-        { owner: "octocat", name: "private" },
+        { id: 101, owner: "octocat", name: "private" },
         "openrigor/workspace"
       )
     ).resolves.toBe(sha);
@@ -328,7 +333,7 @@ describe("GitHub App OAuth helpers", () => {
 
     await createGithubRepositoryBranch(
       99,
-      { owner: "octocat", name: "private" },
+      { id: 101, owner: "octocat", name: "private" },
       "openrigor/workspace",
       sha
     );

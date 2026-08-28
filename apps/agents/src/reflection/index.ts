@@ -1,8 +1,3 @@
-import { ChatAnthropic } from "@langchain/anthropic";
-import {
-  createOpenRouterChatModel,
-  isOpenRouterEnabled,
-} from "../openrouter.js";
 import {
   type LangGraphRunnableConfig,
   StateGraph,
@@ -15,7 +10,11 @@ import {
 import { Reflections } from "@opencanvas/shared/types";
 import { REFLECT_SYSTEM_PROMPT, REFLECT_USER_PROMPT } from "./prompts.js";
 import { z } from "zod";
-import { ensureStoreInConfig, formatReflections } from "../utils.js";
+import {
+  ensureStoreInConfig,
+  formatReflections,
+  getModelFromConfig,
+} from "../utils.js";
 import {
   getArtifactContent,
   isArtifactMarkdownContent,
@@ -55,12 +54,10 @@ export const reflect = async (
     }),
   };
 
-  const baseModel = isOpenRouterEnabled()
-    ? createOpenRouterChatModel(undefined, 0)
-    : new ChatAnthropic({
-        model: "claude-3-5-sonnet-20240620",
-        temperature: 0,
-      });
+  const baseModel = await getModelFromConfig(config, {
+    temperature: 0,
+    isToolCalling: true,
+  });
   const model = baseModel.bindTools([generateReflectionTool], {
     tool_choice: "auto",
   });

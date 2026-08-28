@@ -1,8 +1,9 @@
 import { FireCrawlLoader } from "@langchain/community/document_loaders/web/firecrawl";
 import { BaseMessage, HumanMessage } from "@langchain/core/messages";
-import { initChatModel } from "langchain/chat_models/universal";
+import { LangGraphRunnableConfig } from "@langchain/langgraph";
 import { traceable } from "langsmith/traceable";
 import z from "zod";
+import { getModelFromConfig } from "../../../utils.js";
 
 const PROMPT = `You're an advanced AI assistant.
 You have been tasked with analyzing the user's message and determining if the user wants the contents of the URL included in their message included in their prompt.
@@ -57,62 +58,58 @@ const fetchUrlContents = traceable(fetchUrlContentsFunc, {
  */
 async function includeURLContentsFunc(
   message: BaseMessage,
-  urls: string[]
+  urls: string[],
+  config: LangGraphRunnableConfig
 ): Promise<HumanMessage | undefined> {
-  try {
-    const prompt = message.content as string;
+  const prompt = message.content as string;
 
-    const model = (
-      await initChatModel("gemini-2.0-flash", {
-        modelProvider: "google-genai",
-        temperature: 0,
-      })
-    ).bindTools(
-      [
-        {
-          name: "determine_include_url_contents",
-          description: schema.description,
-          schema,
-        },
-      ],
+  const model = (
+    await getModelFromConfig(config, {
+      temperature: 0,
+      isToolCalling: true,
+    })
+  ).bindTools(
+    [
       {
-        tool_choice: "auto",
-      }
-    );
-
-    const formattedPrompt = PROMPT.replace("{message}", prompt);
-
-    const result = await model.invoke([["user", formattedPrompt]]);
-
-    const args = result.tool_calls?.[0].args as
-      | z.infer<typeof schema>
-      | undefined;
-    const shouldIncludeUrlContents = args?.shouldIncludeUrlContents;
-
-    if (!shouldIncludeUrlContents) {
-      return undefined;
+        name: "determine_include_url_contents",
+        description: schema.description,
+        schema,
+      },
+    ],
+    {
+      tool_choice: "auto",
     }
+  );
 
-    const urlContents = await Promise.all(urls.map(fetchUrlContents));
+  const formattedPrompt = PROMPT.replace("{message}", prompt);
 
-    let transformedPrompt = prompt;
-    for (const { url, pageContent } of urlContents) {
-      transformedPrompt = transformedPrompt.replace(
-        url,
-        `<page-contents url="${url}">
-  ${pageContent}
-  </page-contents>`
-      );
-    }
+  const result = await model.invoke([["user", formattedPrompt]]);
 
-    return new HumanMessage({
-      ...message,
-      content: transformedPrompt,
-    });
-  } catch (e) {
-    console.error("Failed to handle included URLs", e);
+  const args = result.tool_calls?.[0].args as
+    | z.infer<typeof schema>
+    | undefined;
+  const shouldIncludeUrlContents = args?.shouldIncludeUrlContents;
+
+  if (!shouldIncludeUrlContents) {
     return undefined;
   }
+
+  const urlContents = await Promise.all(urls.map(fetchUrlContents));
+
+  let transformedPrompt = prompt;
+  for (const { url, pageContent } of urlContents) {
+    transformedPrompt = transformedPrompt.replace(
+      url,
+      `<page-contents url="${url}">
+  ${pageContent}
+  </page-contents>`
+    );
+  }
+
+  return new HumanMessage({
+    ...message,
+    content: transformedPrompt,
+  });
 }
 
 export const includeURLContents = traceable(includeURLContentsFunc, {

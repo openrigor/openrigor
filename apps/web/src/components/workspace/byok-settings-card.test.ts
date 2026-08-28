@@ -281,6 +281,8 @@ describe("ByokSettingsCardView", () => {
     expect(markup).toContain('value="https://openrouter.ai/api/v1"');
     expect(markup).toContain('value="openai/gpt-4o-mini"');
     expect(markup).toContain("sk-…mini");
+    expect(markup).toContain('href="/privacy/shared-model"');
+    expect(markup).toContain("shared-model privacy notice");
     expect(markup).toContain(
       'type="button" data-testid="byok-test">Test connection</button>'
     );

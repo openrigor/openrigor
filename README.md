@@ -3,6 +3,10 @@
 [![CI](https://github.com/openrigor/openrigor/actions/workflows/ci.yml/badge.svg)](https://github.com/openrigor/openrigor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**A place where methods become evidence.** Methods and provenance make work
+inspectable. Evidence contribution, Ledger, and human-authored finding have
+distinct roles.
+
 **Open-source AI writing and education research workspace.** OpenRigor combines
 an authoring workspace with reviewed, reproducible research apparatuses so
 educators, administrators, and researchers can run classroom writing workflows
@@ -32,6 +36,25 @@ Try the public beta at [openrigor.org](https://openrigor.org), or run it yoursel
   telemetry contracts, and reproducibility fixtures are public
 - **Organisation workspaces** — org admins invite teachers and students; route
   authorization and organisation isolation are enforced server-side
+- **GitHub-backed private research** — in your private research workspace, a
+  private repository is the home; metadata and Ledgers live there
+- **Three LLM modes** — BYOK (recommended), shared model (never preselected), or
+  Markdown-only with no OpenRigor LLM
+
+## Data flow
+
+In your private research workspace, a private GitHub repository is the home for
+the work. OpenRigor metadata and Ledgers are stored in that repository.
+
+LLM traffic follows the mode you choose:
+
+- **BYOK (recommended)** — requests go to your model provider. Retention is
+  that provider's.
+- **Shared model** — never preselected. Read the
+  [shared-model privacy notice](https://openrigor.org/privacy/shared-model)
+  before using it.
+- **Markdown-only** — no OpenRigor LLM. Methods still become evidence in the
+  repo.
 
 ## Repo layout
 
@@ -113,8 +136,10 @@ also powers:
 
 Direct signup creates an isolated organisation-admin workspace at `/teacher`.
 Invited teachers manage classes, assignments, and student invitations; invited
-students see only assigned work. Research materials stay public in the beta.
-v0.8 adds a **dark** GitHub-backed private research workspace (flag off).
+students see only assigned work. v0.9 enables GitHub-backed private research
+workspaces (flag on for public beta). Three LLM modes: BYOK (recommended),
+shared model (never preselected), and Markdown-only. Research materials stay
+public in the beta unless they live in a private research workspace.
 [`research-starter/`](research-starter/) is the SYNTHETIC default for that
 flow — no real participants; do not load identifiable classroom data into it.
 The canonical Essays profile preserves the current four-message drafting

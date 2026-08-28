@@ -29,6 +29,7 @@ agents_service="${OSS_DEV_AGENTS_SERVICE:-evaluchat-oss-agents.service}"
 dev_url="${OSS_DEV_URL:-https://dev.openrigor.org}"
 agent_url="${OSS_DEV_AGENT_URL:-http://127.0.0.1:54367}"
 web_port="${OSS_DEV_WEB_PORT:-3000}"
+# OSS_DEV_ROLLBACKS_KEEP: newest *.tgz archives to keep in .rollbacks (default 5).
 
 work_dir=""
 package_file=""
@@ -235,23 +236,97 @@ if [[ -r "$app_dir/.env" ]]; then
   set +a
 fi
 
-systemctl restart "$agents_unit"
-agent_ok=0
-for attempt in $(seq 1 90); do
-  if curl -fsS --max-time 5 "$agent_base/ok" >/dev/null 2>&1; then
-    auth_header=()
-    if [[ -n "${LANGCHAIN_API_KEY:-}" ]]; then
-      auth_header=(-H "x-api-key: $LANGCHAIN_API_KEY")
+wait_agents_ready() {
+  agent_ok=0
+  for attempt in $(seq 1 90); do
+    if curl -fsS --max-time 5 "$agent_base/ok" >/dev/null 2>&1; then
+      auth_header=()
+      if [[ -n "${LANGCHAIN_API_KEY:-}" ]]; then
+        auth_header=(-H "x-api-key: $LANGCHAIN_API_KEY")
+      fi
+      assistant_search="$(curl -fsS --max-time 10 -X POST "$agent_base/assistants/search" \
+        "${auth_header[@]}" -H 'content-type: application/json' --data '{"limit":100}')"
+      case "$assistant_search" in
+        *'"agent"'*) agent_ok=1; break ;;
+      esac
     fi
-    assistant_search="$(curl -fsS --max-time 10 -X POST "$agent_base/assistants/search" \
-      "${auth_header[@]}" -H 'content-type: application/json' --data '{"limit":100}')"
-    case "$assistant_search" in
-      *'"agent"'*) agent_ok=1; break ;;
-    esac
+    sleep 1
+  done
+  [[ "$agent_ok" == 1 ]] || { journalctl -u "$agents_unit" -n 80 --no-pager >&2 || true; exit 1; }
+}
+
+langgraph_store_reset() {
+  local before="$1" after="$2" file="$3"
+  if (( after * 10 < before )) || { (( before > 0 )) && (( after < 500 )); }; then
+    return 0
   fi
-  sleep 1
-done
-[[ "$agent_ok" == 1 ]] || { journalctl -u "$agents_unit" -n 80 --no-pager >&2 || true; exit 1; }
+  if (( before > 0 )) && ! grep -q '"workspace_items' "$file" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+mkdir -p "$app_dir/.rollbacks"
+lg_dir="$app_dir/.langgraph_api"
+store_file="$lg_dir/.langgraphjs_api.store.json"
+ckpt_file="$lg_dir/.langgraphjs_api.checkpointer.json"
+if [[ ! -d "$lg_dir" ]] || [[ -z "$(ls -A "$lg_dir" 2>/dev/null || true)" ]]; then
+  echo "langgraph snapshot skipped (absent or empty)"
+else
+  tar czf "$app_dir/.rollbacks/langgraph-pre-$(date -u +%Y%m%dT%H%M%SZ).tgz" -C "$app_dir" .langgraph_api \
+    || echo "langgraph snapshot failed; proceeding"
+fi
+store_before=$(stat -c %s "$store_file" 2>/dev/null || echo 0)
+
+systemctl restart "$agents_unit"
+wait_agents_ready
+
+store_after=$(stat -c %s "$store_file" 2>/dev/null || echo 0)
+ckpt_after=$(stat -c %s "$ckpt_file" 2>/dev/null || echo 0)
+if langgraph_store_reset "$store_before" "$store_after" "$store_file"; then
+  echo "langgraph store appears reset"
+  archive=""
+  for f in "$app_dir/.rollbacks"/langgraph-pre-*.tgz; do
+    [[ -f "$f" ]] || continue
+    if [[ -z "$archive" || "$f" -nt "$archive" ]]; then
+      archive="$f"
+    fi
+  done
+  if [[ -z "$archive" || ! -f "$archive" ]]; then
+    echo "langgraph restore failed: no archive (before=$store_before after=$store_after ckpt=$ckpt_after)"
+    exit 1
+  fi
+  systemctl stop "$agents_unit" || true
+  restore_dir="$app_dir/.rollbacks/langgraph-restore-$(date -u +%Y%m%dT%H%M%SZ)"
+  mkdir -p "$restore_dir"
+  if ! tar xzf "$archive" -C "$restore_dir"; then
+    echo "langgraph restore extract failed for $archive" >&2
+    rm -rf "$restore_dir"
+    systemctl start "$agents_unit" || true
+    exit 1
+  fi
+  restored_store="$restore_dir/.langgraph_api/.langgraphjs_api.store.json"
+  if [[ ! -s "$restored_store" ]] || ! grep -q '"workspace_items' "$restored_store"; then
+    echo "langgraph restore validation failed for $archive" >&2
+    rm -rf "$restore_dir"
+    systemctl start "$agents_unit" || true
+    exit 1
+  fi
+  rm -rf "$lg_dir"
+  mv "$restore_dir/.langgraph_api" "$lg_dir"
+  rm -rf "$restore_dir"
+  echo "langgraph store reset detected; restored from $archive"
+  systemctl start "$agents_unit"
+  wait_agents_ready
+  store_after=$(stat -c %s "$store_file" 2>/dev/null || echo 0)
+  ckpt_after=$(stat -c %s "$ckpt_file" 2>/dev/null || echo 0)
+  if langgraph_store_reset "$store_before" "$store_after" "$store_file"; then
+    echo "langgraph restore attempt $archive failed (before=$store_before after=$store_after ckpt=$ckpt_after)"
+    exit 1
+  fi
+else
+  echo "langgraph store preserved (before=$store_before after=$store_after)"
+fi
 
 systemctl restart "$web_unit"
 web_ok=0
@@ -289,6 +364,32 @@ tar czf "$archive" -C "$app_dir" \
   .
 chmod 600 "$archive"
 REMOTE_ARCHIVE
+}
+
+prune_rollbacks() {
+  local keep="${OSS_DEV_ROLLBACKS_KEEP:-5}"
+  [[ "$keep" =~ ^[1-9][0-9]*$ ]] || die "OSS_DEV_ROLLBACKS_KEEP must be a positive integer (got ${keep})"
+  ssh_remote bash -s -- "$remote_app_dir" "$keep" <<'REMOTE_PRUNE'
+set -Eeuo pipefail
+app_dir="$1"
+keep="$2"
+rollback_dir="$app_dir/.rollbacks"
+shopt -s nullglob
+archives=("$rollback_dir"/*.tgz)
+count="${#archives[@]}"
+if (( count <= keep )); then
+  echo "rollback retention ok (newest ${count} kept)"
+  exit 0
+fi
+find "$rollback_dir" -maxdepth 1 -name '*.tgz' -printf '%T@ %p\0' \
+  | sort -znr \
+  | cut -zd' ' -f2- \
+  | tail -z -n +"$((keep + 1))" \
+  | while IFS= read -r -d '' path; do
+      rm -f -- "$path"
+    done
+echo "pruned $((count - keep)) old rollback archive(s), keeping newest ${keep}"
+REMOTE_PRUNE
 }
 
 deploy() {
@@ -347,6 +448,7 @@ deploy() {
   rollback_archive="$rollback_dir/${deploy_id}-pre-deploy.tgz"
   log "Archiving the current VPS app"
   archive_current_app "$rollback_archive"
+  prune_rollbacks
 
   log "Uploading application"
   scp_remote "$package_file" "$vps_user@$vps_host:/tmp/$package_name"
@@ -450,6 +552,7 @@ REMOTE_INSTALL
 
   log "Restarting and verifying"
   restart_and_verify "$build_id" "$catalog_revision"
+  prune_rollbacks
   echo "DEPLOY_OK build=$build_id catalog=${catalog_revision:-unchanged}"
 }
 
@@ -484,8 +587,10 @@ chmod 600 "$pre_rollback"
 tar xzf "$selected" -C "$app_dir"
 echo "rolled back from $selected"
 REMOTE_ROLLBACK
+  prune_rollbacks
 
   restart_and_verify
+  prune_rollbacks
   echo "ROLLBACK_OK target=$target"
 }
 

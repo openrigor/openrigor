@@ -4,6 +4,8 @@ export * from "./types.js";
 // Re-export constants
 export * from "./constants.js";
 
+export * from "./ai-mode.js";
+
 // Re-export models
 export * from "./models.js";
 

@@ -1,8 +1,18 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { AIMessage } from "@langchain/core/messages";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import { CheckCircle2, ExternalLink, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContentComposerChatInterface } from "@/components/canvas/content-composer";
@@ -25,11 +35,12 @@ import type {
 import { WorkspaceItemBanner } from "./workspace-item-banner";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
 import { workspaceItemTitle } from "@/lib/workspace/display";
+import { findLatestFormUpdate } from "./form-markdown";
 
 type EvidenceStatus = "draft" | "submitting" | "submitted" | "filed";
 type EvidenceValue = string | number | null;
 
-type EvidencePayload = {
+export type EvidencePayload = {
   threadId: string;
   status: EvidenceStatus;
   pullRequestUrl?: string;
@@ -67,11 +78,75 @@ export function evidenceEditableValues(
   );
 }
 
+export function latestEvidenceFormUpdate<
+  T extends { getType?: () => string; content: unknown },
+>(
+  messages: T[],
+  fields: Record<string, FormFieldDefinition>
+):
+  | { message: T; updates: Record<string, FormValue>; cleanContent: string }
+  | undefined {
+  const result = findLatestFormUpdate(messages, fields);
+  if (!result) return undefined;
+  const updates = Object.fromEntries(
+    Object.entries(result.parsed.updates).filter(
+      ([fieldId]) => fields[fieldId]?.readOnly !== true
+    )
+  );
+  return {
+    message: result.message,
+    updates,
+    cleanContent: result.parsed.cleanContent,
+  };
+}
+
+export function evidenceFormUpdates<
+  T extends { getType?: () => string; content: unknown },
+>(
+  messages: T[],
+  fields: Record<string, FormFieldDefinition>
+): {
+  apply: { message: T; updates: Record<string, FormValue> } | undefined;
+  clean: { message: T; content: string }[];
+} {
+  const result = latestEvidenceFormUpdate(messages, fields);
+  const clean: { message: T; content: string }[] = [];
+  for (const message of messages) {
+    if (message.getType?.() !== "ai") continue;
+    const parsed = findLatestFormUpdate([message], fields);
+    if (!parsed) continue;
+    clean.push({
+      message,
+      content:
+        parsed.parsed.cleanContent.trim() ||
+        "Updated the evidence contribution.",
+    });
+  }
+  return {
+    apply: result
+      ? { message: result.message, updates: result.updates }
+      : undefined,
+    clean,
+  };
+}
+
 function markEvidencePlaceholders(markdown: string): string {
   return markdown.replace(
     /\{\{([a-z][a-z0-9_-]*)\}\}/g,
     (_token, fieldId: string) => `[{{${fieldId}}}](#evidence-field-${fieldId})`
   );
+}
+
+export function unplacedEditableFieldIds(
+  fields: Record<string, FormFieldDefinition>,
+  layoutMarkdown: string
+): string[] {
+  return Object.entries(fields)
+    .filter(
+      ([fieldId, field]) =>
+        field.readOnly !== true && !layoutMarkdown.includes(`{{${fieldId}}}`)
+    )
+    .map(([fieldId]) => fieldId);
 }
 
 export function EvidenceFieldControl({
@@ -93,8 +168,12 @@ export function EvidenceFieldControl({
 }) {
   const id = `evidence-field-${field.id}`;
   const locked = field.readOnly === true || disabled === true;
+  const baseClassName =
+    "mx-1 inline-flex rounded-md border border-slate-300 bg-white px-2 py-1 align-middle text-sm text-slate-900 shadow-sm outline-none focus:border-[#2c3e56] focus:ring-2 focus:ring-[#2c3e56]/20 disabled:bg-slate-100";
   const className =
-    "mx-1 inline-flex min-w-[12ch] rounded-md border border-slate-300 bg-white px-2 py-1 align-middle text-sm text-slate-900 shadow-sm outline-none focus:border-[#2c3e56] focus:ring-2 focus:ring-[#2c3e56]/20 disabled:bg-slate-100";
+    field.type === "textarea"
+      ? `${baseClassName} w-full`
+      : `${baseClassName} min-w-[12ch]`;
   const common = {
     id,
     ref: register,
@@ -130,14 +209,24 @@ export function EvidenceFieldControl({
       />
     );
   return (
-    <span className="my-1 inline-flex flex-col align-middle">
+    <span className="my-1 flex w-full flex-col align-middle">
       <label htmlFor={id} className="sr-only">
         {field.label}
       </label>
-      <span className="inline-flex items-center">
+      <span
+        className="flex w-full items-start"
+        style={field.type === "textarea" ? { position: "relative" } : undefined}
+      >
         {control}
         {field.required && (
-          <span className="text-xs font-semibold text-rose-600" aria-hidden>
+          <span
+            className={
+              field.type === "textarea"
+                ? "absolute -right-3 top-1 text-xs font-semibold text-rose-600"
+                : "text-xs font-semibold text-rose-600"
+            }
+            aria-hidden
+          >
             *
           </span>
         )}
@@ -199,7 +288,71 @@ export function EvidenceStatusDisplay({
   );
 }
 
-function EvidenceMarkdown({
+type EvidenceMarkdownContextValue = {
+  fields: Record<string, FormFieldDefinition>;
+  values: Record<string, EvidenceValue | FormValue>;
+  errors: Record<string, string>;
+  onChange: (fieldId: string, value: string) => void;
+  register: (
+    fieldId: string,
+    node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
+  ) => void;
+  locked: boolean;
+};
+
+const EvidenceMarkdownContext =
+  createContext<EvidenceMarkdownContextValue | null>(null);
+
+function EvidenceMarkdownAnchor({ href, children }: React.ComponentProps<"a">) {
+  const context = useContext(EvidenceMarkdownContext);
+  const fieldId = href?.match(/^#evidence-field-([a-z][a-z0-9_-]*)$/)?.[1];
+  const field = fieldId ? context?.fields[fieldId] : undefined;
+
+  if (!context || !field || !fieldId) {
+    return <a href={href}>{children}</a>;
+  }
+
+  return (
+    <EvidenceFieldControl
+      field={field}
+      value={context.values[fieldId]}
+      error={context.errors[fieldId]}
+      onChange={(value) => context.onChange(fieldId, value)}
+      register={(node) => context.register(fieldId, node)}
+      disabled={context.locked}
+    />
+  );
+}
+
+const EVIDENCE_MARKDOWN_COMPONENTS: Components = {
+  a: EvidenceMarkdownAnchor,
+  h1: ({ children }) => (
+    <h1 className="mb-5 text-3xl font-bold text-slate-900">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mb-4 mt-7 text-2xl font-semibold text-slate-900">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mb-3 mt-6 text-xl font-semibold text-slate-900">
+      {children}
+    </h3>
+  ),
+  p: ({ children }) => (
+    <p className="mb-4 leading-7 text-slate-700">{children}</p>
+  ),
+  ul: ({ children }) => (
+    <ul className="mb-4 list-disc space-y-1 pl-6 text-slate-700">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-4 list-decimal space-y-1 pl-6 text-slate-700">
+      {children}
+    </ol>
+  ),
+};
+
+export function EvidenceMarkdown({
   payload,
   values,
   errors,
@@ -217,60 +370,62 @@ function EvidenceMarkdown({
   ) => void;
   locked: boolean;
 }) {
-  const components = useMemo(
-    () => ({
-      a: ({ href, children }: React.ComponentProps<"a">) => {
-        const fieldId = href?.match(
-          /^#evidence-field-([a-z][a-z0-9_-]*)$/
-        )?.[1];
-        const field = fieldId ? payload.fields[fieldId] : undefined;
-        if (!field || !fieldId) {
-          return <a href={href}>{children}</a>;
-        }
-        return (
-          <EvidenceFieldControl
-            field={field}
-            value={values[fieldId]}
-            error={errors[fieldId]}
-            onChange={(value) => onChange(fieldId, value)}
-            register={(node) => register(fieldId, node)}
-            disabled={locked}
-          />
-        );
-      },
-      h1: ({ children }: React.ComponentProps<"h1">) => (
-        <h1 className="mb-5 text-3xl font-bold text-slate-900">{children}</h1>
-      ),
-      h2: ({ children }: React.ComponentProps<"h2">) => (
-        <h2 className="mb-4 mt-7 text-2xl font-semibold text-slate-900">
-          {children}
-        </h2>
-      ),
-      h3: ({ children }: React.ComponentProps<"h3">) => (
-        <h3 className="mb-3 mt-6 text-xl font-semibold text-slate-900">
-          {children}
-        </h3>
-      ),
-      p: ({ children }: React.ComponentProps<"p">) => (
-        <p className="mb-4 leading-7 text-slate-700">{children}</p>
-      ),
-      ul: ({ children }: React.ComponentProps<"ul">) => (
-        <ul className="mb-4 list-disc space-y-1 pl-6 text-slate-700">
-          {children}
-        </ul>
-      ),
-      ol: ({ children }: React.ComponentProps<"ol">) => (
-        <ol className="mb-4 list-decimal space-y-1 pl-6 text-slate-700">
-          {children}
-        </ol>
-      ),
-    }),
-    [errors, locked, onChange, payload.fields, register, values]
+  const unplacedIds = useMemo(
+    () => unplacedEditableFieldIds(payload.fields, payload.layoutMarkdown),
+    [payload.fields, payload.layoutMarkdown]
   );
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-      {markEvidencePlaceholders(payload.layoutMarkdown)}
-    </ReactMarkdown>
+    <>
+      <EvidenceMarkdownContext.Provider
+        value={{
+          fields: payload.fields,
+          values,
+          errors,
+          onChange,
+          register,
+          locked,
+        }}
+      >
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={EVIDENCE_MARKDOWN_COMPONENTS}
+        >
+          {markEvidencePlaceholders(payload.layoutMarkdown)}
+        </ReactMarkdown>
+      </EvidenceMarkdownContext.Provider>
+      {unplacedIds.length > 0 && (
+        <section
+          className="mt-8 border-t border-slate-200 pt-6"
+          aria-labelledby="evidence-unplaced-fields-heading"
+        >
+          <h2
+            id="evidence-unplaced-fields-heading"
+            className="mb-4 text-2xl font-semibold text-slate-900"
+          >
+            Additional fields
+          </h2>
+          {unplacedIds.map((fieldId) => {
+            const field = payload.fields[fieldId];
+            if (!field) return null;
+            return (
+              <div key={fieldId} className="mb-4">
+                <p className="mb-1 text-sm font-medium text-slate-800">
+                  {field.label}
+                </p>
+                <EvidenceFieldControl
+                  field={field}
+                  value={values[fieldId]}
+                  error={errors[fieldId]}
+                  onChange={(value) => onChange(fieldId, value)}
+                  register={(node) => register(fieldId, node)}
+                  disabled={locked}
+                />
+              </div>
+            );
+          })}
+        </section>
+      )}
+    </>
   );
 }
 
@@ -322,6 +477,7 @@ export function EvidenceCanvas({
   const [isAbandoning, setIsAbandoning] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(false);
+  const lastAppliedUpdate = useRef<object | null>(null);
 
   useEffect(() => {
     setThreadId(threadId);
@@ -440,6 +596,48 @@ export function EvidenceCanvas({
       formContext: graphData.formContext,
     };
   }, [graphData.formContext, payload, values]);
+
+  useEffect(() => {
+    if (
+      !payload ||
+      payload.status !== "draft" ||
+      graphData.isStreaming ||
+      !graphData.messages.length
+    )
+      return;
+    const { apply, clean } = evidenceFormUpdates(
+      graphData.messages,
+      payload.fields
+    );
+    if (!clean.length) return;
+    if (apply && lastAppliedUpdate.current !== apply.message) {
+      lastAppliedUpdate.current = apply.message;
+      if (Object.keys(apply.updates).length > 0) {
+        setValues((current) => ({ ...current, ...apply.updates }));
+      }
+    }
+    const cleanByMessage = new Map(
+      clean.map((entry) => [entry.message, entry.content])
+    );
+    graphData.setMessages((messages) =>
+      messages.map((message) => {
+        const content = cleanByMessage.get(message);
+        return content !== undefined
+          ? new AIMessage({
+              id: message.id,
+              content,
+              additional_kwargs: message.additional_kwargs,
+            })
+          : message;
+      })
+    );
+  }, [
+    payload?.fields,
+    payload?.status,
+    graphData.isStreaming,
+    graphData.messages,
+    graphData.setMessages,
+  ]);
 
   const register = useCallback(
     (

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { OpenCanvasGraphAnnotation } from "./state.js";
 import { AIMessage } from "@langchain/core/messages";
 import { cleanState } from "./index.js";
+import { DEFAULT_INPUTS } from "@opencanvas/shared/constants";
 
 vi.mock("pdf-parse", () => ({ default: vi.fn() }));
 
@@ -47,8 +48,6 @@ describe("Teaching state persistence", () => {
   it("cleanState should NOT reset phase_state or thesis", () => {
     // cleanState returns { ...DEFAULT_INPUTS }
     // DEFAULT_INPUTS should NOT include phase_state or thesis
-    const { DEFAULT_INPUTS } = require("@opencanvas/shared/constants");
-
     expect(DEFAULT_INPUTS).not.toHaveProperty("phase_state");
     expect(DEFAULT_INPUTS).not.toHaveProperty("thesis");
   });

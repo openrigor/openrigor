@@ -39,5 +39,7 @@ environment must already contain `EVALUCHAT_WORKSPACE_ASSISTANT_ID`.
 The script does not perform Supabase auth migration, role-claim changes,
 teaching-data changes, or production deployment. Those are separate reviewed
 operations. The previous app archive is kept in
-`/opt/evaluchat-oss/.rollbacks/`; catalog releases remain under
+`/opt/evaluchat-oss/.rollbacks/`. That directory keeps only the newest 5 app
+archives (configurable via `OSS_DEV_ROLLBACKS_KEEP`) and is pruned
+automatically after each deploy or rollback. Catalog releases remain under
 `/opt/evaluchat-catalog/releases/`.

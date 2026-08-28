@@ -1,5 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("react-markdown", () => ({ default: () => null }));
@@ -41,10 +42,56 @@ import {
   EvidenceFieldControl,
   EvidenceStatusDisplay,
   evidenceEditableValues,
+  evidenceFormUpdates,
   evidenceSubmitRequest,
+  latestEvidenceFormUpdate,
+  unplacedEditableFieldIds,
 } from "./evidence-canvas";
 
 describe("evidence canvas controls", () => {
+  it("renders multi-line fields at full text-column width", () => {
+    const field = renderToStaticMarkup(
+      React.createElement(EvidenceFieldControl, {
+        field: {
+          id: "observations",
+          label: "Observations",
+          type: "textarea",
+          required: true,
+          displayLines: 5,
+        },
+        value: "",
+        onChange: () => undefined,
+        register: () => undefined,
+      })
+    );
+
+    expect(field).toContain('class="my-1 flex w-full flex-col align-middle"');
+    expect(field).toContain('class="flex w-full items-start"');
+    expect(field).toMatch(/<textarea[^>]+class="[^"]*w-full/);
+    expect(field).not.toMatch(/<textarea[^>]+min-w-\[/);
+    expect(field).toContain('rows="5"');
+  });
+
+  it("keeps single-line fields inline-sized", () => {
+    const field = renderToStaticMarkup(
+      React.createElement(EvidenceFieldControl, {
+        field: {
+          id: "method_name",
+          label: "Method name",
+          type: "text",
+          required: false,
+        },
+        value: "",
+        onChange: () => undefined,
+        register: () => undefined,
+      })
+    );
+
+    expect(field).toMatch(
+      /<input[^>]+class="[^"]*inline-flex[^"]*min-w-\[12ch\]/
+    );
+  });
+
   it("renders frozen fields disabled and displays a filed PR", () => {
     const field = renderToStaticMarkup(
       React.createElement(EvidenceFieldControl, {
@@ -117,5 +164,166 @@ describe("evidence canvas controls", () => {
         { method_id: "server-value", narrative: "owner value" }
       )
     ).toEqual({ narrative: "owner value" });
+  });
+
+  it("lists editable fields whose layout placeholder is absent", () => {
+    const fields = {
+      method_id: {
+        id: "method_id",
+        label: "Method ID",
+        type: "text" as const,
+        required: true,
+        readOnly: true,
+      },
+      publication_authorisation: {
+        id: "publication_authorisation",
+        label: "Publication authorisation",
+        type: "select" as const,
+        required: true,
+      },
+      observations: {
+        id: "observations",
+        label: "Observations",
+        type: "textarea" as const,
+        required: true,
+      },
+      optional_note: {
+        id: "optional_note",
+        label: "Optional note",
+        type: "text" as const,
+        required: false,
+      },
+    };
+    const layoutMarkdown =
+      "Confirm {{publication_authorisation}} and {{anonymisation_status}}.";
+
+    expect(unplacedEditableFieldIds(fields, layoutMarkdown)).toEqual([
+      "observations",
+      "optional_note",
+    ]);
+    expect(
+      unplacedEditableFieldIds(fields, `${layoutMarkdown}\n{{observations}}`)
+    ).toEqual(["optional_note"]);
+    expect(unplacedEditableFieldIds(fields, "{{optional_note}}")).toEqual([
+      "publication_authorisation",
+      "observations",
+    ]);
+  });
+});
+
+describe("latestEvidenceFormUpdate", () => {
+  const fields = {
+    observations: {
+      id: "observations",
+      label: "Observations",
+      type: "textarea" as const,
+      required: true,
+    },
+    run_id: {
+      id: "run_id",
+      label: "Run id",
+      type: "text" as const,
+      required: true,
+      readOnly: true,
+    },
+  };
+
+  it("returns the latest AI message updates with the block stripped", () => {
+    const older = new AIMessage({
+      content: 'Earlier. <form-updates>{"observations":"stale"}</form-updates>',
+    });
+    const latest = new AIMessage({
+      content:
+        'Applied notes.\n<form-updates>{"observations":"fresh notes"}</form-updates>',
+    });
+    const human = new HumanMessage({ content: "Please fill observations." });
+
+    const result = latestEvidenceFormUpdate([older, human, latest], fields);
+
+    expect(result?.message).toBe(latest);
+    expect(result?.updates).toEqual({ observations: "fresh notes" });
+    expect(result?.cleanContent).toBe("Applied notes.\n");
+  });
+
+  it("regression: applies only the newest of two historical updates and cleans both", () => {
+    const older = new AIMessage({
+      content: 'Earlier. <form-updates>{"observations":"stale"}</form-updates>',
+    });
+    const latest = new AIMessage({
+      content:
+        'Applied notes.\n<form-updates>{"observations":"fresh notes"}</form-updates>',
+    });
+    const human = new HumanMessage({ content: "Please fill observations." });
+
+    let applied: Record<string, unknown> = {};
+    let messages: (AIMessage | HumanMessage)[] = [older, human, latest];
+
+    const pass1 = evidenceFormUpdates(messages, fields);
+    expect(pass1.apply?.message).toBe(latest);
+    expect(pass1.apply?.updates).toEqual({ observations: "fresh notes" });
+    expect(pass1.clean.map((entry) => entry.message)).toEqual([older, latest]);
+    if (pass1.apply) applied = { ...applied, ...pass1.apply.updates };
+    messages = messages.map((message) => {
+      const entry = pass1.clean.find(
+        (candidate) => candidate.message === message
+      );
+      return entry
+        ? new AIMessage({
+            id: message.id,
+            content: entry.content,
+            additional_kwargs: message.additional_kwargs,
+          })
+        : message;
+    });
+
+    // A second pass over the cleaned history must not re-apply the stale older block.
+    const pass2 = evidenceFormUpdates(messages, fields);
+    expect(pass2.apply).toBeUndefined();
+    expect(pass2.clean).toHaveLength(0);
+    expect(applied.observations).toBe("fresh notes");
+  });
+
+  it("skips readOnly fields and keeps editable ones", () => {
+    const message = new AIMessage({
+      content:
+        'Done. <form-updates>{"observations":"keep me","run_id":"do-not-overwrite"}</form-updates>',
+    });
+
+    const result = latestEvidenceFormUpdate([message], fields);
+
+    expect(result?.updates).toEqual({ observations: "keep me" });
+    expect(result?.cleanContent).toBe("Done. ");
+  });
+
+  it("returns undefined when no update block is present", () => {
+    const result = latestEvidenceFormUpdate(
+      [new AIMessage({ content: "No machine block here." })],
+      fields
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it("ignores malformed and partial update blocks", () => {
+    expect(
+      latestEvidenceFormUpdate(
+        [
+          new AIMessage({
+            content: 'Partial. <form-updates>{"observations":"',
+          }),
+        ],
+        fields
+      )
+    ).toBeUndefined();
+    const malformed = latestEvidenceFormUpdate(
+      [
+        new AIMessage({
+          content: "Broken. <form-updates>{not json}</form-updates>",
+        }),
+      ],
+      fields
+    );
+    expect(malformed?.updates).toEqual({});
+    expect(malformed?.cleanContent).toBe("Broken. ");
   });
 });

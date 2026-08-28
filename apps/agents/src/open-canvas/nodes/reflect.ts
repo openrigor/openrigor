@@ -17,6 +17,7 @@ export const reflectNode = async (
     };
     const reflectionConfig = {
       configurable: {
+        ...config.configurable,
         // Ensure we pass in the current graph's assistant ID as this is
         // how we fetch & store the memories.
         open_canvas_assistant_id: config.configurable?.assistant_id,

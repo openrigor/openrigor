@@ -26,6 +26,12 @@ export function shouldShowRepositoryConnect(
   );
 }
 
+function repositoryConnectLabel(status: RepositoryStatus | undefined): string {
+  return status?.reason === "authorization_required"
+    ? "Re-authorize GitHub"
+    : "Reconnect GitHub";
+}
+
 function statusLabel(status: RepositoryStatus): string {
   return status.reason
     ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
@@ -47,6 +53,7 @@ export function ResearchRepositoryStatus({
     Promise.all([
       fetch(`/api/workspace/items/${encodeURIComponent(item.id)}/repository`, {
         credentials: "include",
+        cache: "no-store",
       }),
       fetch("/api/workspace/github/repositories", {
         credentials: "include",
@@ -72,9 +79,10 @@ export function ResearchRepositoryStatus({
         if (!cancelled) {
           setStatus(statusBody.status);
           setRepositoryName(
-            repositoriesBody?.repositories?.find(
-              (repository) => repository.id === item.binding.repositoryId
-            )?.nameWithOwner
+            statusBody.status.repositoryFullName ??
+              repositoriesBody?.repositories?.find(
+                (repository) => repository.id === item.binding.repositoryId
+              )?.nameWithOwner
           );
         }
       })
@@ -92,11 +100,14 @@ export function ResearchRepositoryStatus({
   if (unavailable) return null;
 
   const headCommitSha = status?.headCommitSha ?? item.binding.headCommitSha;
+  const fullName =
+    repositoryName ??
+    status?.repositoryFullName ??
+    item.binding.repositoryFullName ??
+    `Repository #${item.binding.repositoryId}`;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-600">
-      <span className="font-medium text-slate-800">
-        {repositoryName ?? `Repository #${item.binding.repositoryId}`}
-      </span>
+      <span className="font-medium text-slate-800">{fullName}</span>
       <span>{item.binding.branch}</span>
       <code className="rounded bg-slate-100 px-1.5 py-0.5">
         {shortRepositoryCommit(headCommitSha)}
@@ -112,7 +123,9 @@ export function ResearchRepositoryStatus({
       </span>
       {shouldShowRepositoryConnect(status) && (
         <Button asChild variant="outline" size="sm" className="h-7">
-          <a href="/api/workspace/github/authorize">Connect GitHub</a>
+          <a href="/api/workspace/github/authorize">
+            {repositoryConnectLabel(status)}
+          </a>
         </Button>
       )}
     </div>
