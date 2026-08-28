@@ -6,8 +6,10 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { AIMessage } from "@langchain/core/messages";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -33,6 +35,7 @@ import type {
 import { WorkspaceItemBanner } from "./workspace-item-banner";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
 import { workspaceItemTitle } from "@/lib/workspace/display";
+import { findLatestFormUpdate } from "./form-markdown";
 
 type EvidenceStatus = "draft" | "submitting" | "submitted" | "filed";
 type EvidenceValue = string | number | null;
@@ -73,6 +76,28 @@ export function evidenceEditableValues(
       .filter(([, field]) => field.readOnly !== true)
       .map(([fieldId]) => [fieldId, displayValue(values[fieldId])])
   );
+}
+
+export function latestEvidenceFormUpdate<
+  T extends { getType?: () => string; content: unknown },
+>(
+  messages: T[],
+  fields: Record<string, FormFieldDefinition>
+):
+  | { message: T; updates: Record<string, FormValue>; cleanContent: string }
+  | undefined {
+  const result = findLatestFormUpdate(messages, fields);
+  if (!result) return undefined;
+  const updates = Object.fromEntries(
+    Object.entries(result.parsed.updates).filter(
+      ([fieldId]) => fields[fieldId]?.readOnly !== true
+    )
+  );
+  return {
+    message: result.message,
+    updates,
+    cleanContent: result.parsed.cleanContent,
+  };
 }
 
 function markEvidencePlaceholders(markdown: string): string {
@@ -422,6 +447,7 @@ export function EvidenceCanvas({
   const [isAbandoning, setIsAbandoning] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(false);
+  const lastAppliedUpdate = useRef<object | null>(null);
 
   useEffect(() => {
     setThreadId(threadId);
@@ -540,6 +566,36 @@ export function EvidenceCanvas({
       formContext: graphData.formContext,
     };
   }, [graphData.formContext, payload, values]);
+
+  useEffect(() => {
+    if (!payload || graphData.isStreaming || !graphData.messages.length) return;
+    const result = latestEvidenceFormUpdate(graphData.messages, payload.fields);
+    if (!result) return;
+    if (lastAppliedUpdate.current === result.message) return;
+
+    lastAppliedUpdate.current = result.message;
+    if (Object.keys(result.updates).length > 0) {
+      setValues((current) => ({ ...current, ...result.updates }));
+    }
+    const cleanContent =
+      result.cleanContent.trim() || "Updated the evidence contribution.";
+    graphData.setMessages((messages) =>
+      messages.map((message) =>
+        message === result.message
+          ? new AIMessage({
+              id: message.id,
+              content: cleanContent,
+              additional_kwargs: message.additional_kwargs,
+            })
+          : message
+      )
+    );
+  }, [
+    payload?.fields,
+    graphData.isStreaming,
+    graphData.messages,
+    graphData.setMessages,
+  ]);
 
   const register = useCallback(
     (

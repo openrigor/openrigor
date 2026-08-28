@@ -1,5 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("react-markdown", () => ({ default: () => null }));
@@ -42,6 +43,7 @@ import {
   EvidenceStatusDisplay,
   evidenceEditableValues,
   evidenceSubmitRequest,
+  latestEvidenceFormUpdate,
   unplacedEditableFieldIds,
 } from "./evidence-canvas";
 
@@ -205,5 +207,84 @@ describe("evidence canvas controls", () => {
       "publication_authorisation",
       "observations",
     ]);
+  });
+});
+
+describe("latestEvidenceFormUpdate", () => {
+  const fields = {
+    observations: {
+      id: "observations",
+      label: "Observations",
+      type: "textarea" as const,
+      required: true,
+    },
+    run_id: {
+      id: "run_id",
+      label: "Run id",
+      type: "text" as const,
+      required: true,
+      readOnly: true,
+    },
+  };
+
+  it("returns the latest AI message updates with the block stripped", () => {
+    const older = new AIMessage({
+      content: 'Earlier. <form-updates>{"observations":"stale"}</form-updates>',
+    });
+    const latest = new AIMessage({
+      content:
+        'Applied notes.\n<form-updates>{"observations":"fresh notes"}</form-updates>',
+    });
+    const human = new HumanMessage({ content: "Please fill observations." });
+
+    const result = latestEvidenceFormUpdate([older, human, latest], fields);
+
+    expect(result?.message).toBe(latest);
+    expect(result?.updates).toEqual({ observations: "fresh notes" });
+    expect(result?.cleanContent).toBe("Applied notes.\n");
+  });
+
+  it("skips readOnly fields and keeps editable ones", () => {
+    const message = new AIMessage({
+      content:
+        'Done. <form-updates>{"observations":"keep me","run_id":"do-not-overwrite"}</form-updates>',
+    });
+
+    const result = latestEvidenceFormUpdate([message], fields);
+
+    expect(result?.updates).toEqual({ observations: "keep me" });
+    expect(result?.cleanContent).toBe("Done. ");
+  });
+
+  it("returns undefined when no update block is present", () => {
+    const result = latestEvidenceFormUpdate(
+      [new AIMessage({ content: "No machine block here." })],
+      fields
+    );
+
+    expect(result).toBeUndefined();
+  });
+
+  it("ignores malformed and partial update blocks", () => {
+    expect(
+      latestEvidenceFormUpdate(
+        [
+          new AIMessage({
+            content: 'Partial. <form-updates>{"observations":"',
+          }),
+        ],
+        fields
+      )
+    ).toBeUndefined();
+    const malformed = latestEvidenceFormUpdate(
+      [
+        new AIMessage({
+          content: "Broken. <form-updates>{not json}</form-updates>",
+        }),
+      ],
+      fields
+    );
+    expect(malformed?.updates).toEqual({});
+    expect(malformed?.cleanContent).toBe("Broken. ");
   });
 });
