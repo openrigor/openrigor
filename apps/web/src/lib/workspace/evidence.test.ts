@@ -15,6 +15,7 @@ import {
   validateEvidenceSubmission,
   type EvidenceSnapshot,
 } from "./evidence";
+import { identifyRepositoryArtifactPath } from "./research-repository/layout";
 import type { MethodWorkspaceItem } from "./types";
 
 const template = (overrides: Partial<ApparatusEvidenceTemplate> = {}) =>
@@ -438,6 +439,15 @@ describe("Evidence runtime", () => {
     expect(evidenceFilePath("ai-assisted-essay", timestampSlug)).toBe(
       `methods/ai-assisted-essay/evidence/${timestampSlug}.en.md`
     );
+  });
+
+  it("emits a layout-valid lowercase evidence timestamp slug", () => {
+    const slug = evidenceTimestampSlug(new Date("2026-08-28T07:01:36.123Z"));
+    expect(slug).toMatch(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/);
+    const artifact = identifyRepositoryArtifactPath(
+      evidenceFilePath("synthetic-method", slug)
+    );
+    expect(artifact).toEqual(expect.objectContaining({ kind: "evidence" }));
   });
 
   it("only auto-merges documented experience with every integrity gate", () => {

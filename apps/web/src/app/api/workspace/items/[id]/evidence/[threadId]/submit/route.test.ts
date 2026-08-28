@@ -80,7 +80,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
     harness.evidenceFilePath.mockReset();
     harness.evidenceTimestampSlug
       .mockReset()
-      .mockReturnValue("2026-08-18T12-34-56Z");
+      .mockReturnValue("2026-08-18t12-34-56z");
     harness.openEvidencePullRequest.mockReset();
     harness.commitPrivateMethodEvidence.mockReset();
     harness.findExistingEvidencePullRequest
@@ -88,7 +88,7 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       .mockResolvedValue(undefined);
     harness.claimEvidenceSubmission.mockResolvedValue({
       status: "submitting",
-      submissionKey: "2026-08-18T12-34-56Z",
+      submissionKey: "2026-08-18t12-34-56z",
     });
   });
 

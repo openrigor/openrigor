@@ -654,14 +654,18 @@ function safeMethodPathSegment(value: string): string {
 
 export function evidenceTimestampSlug(value: string | Date): string {
   const iso = (value instanceof Date ? value : new Date(value)).toISOString();
-  return iso.replace(/\.\d{3}Z$/, "Z").replace(/:/g, "-");
+  return iso
+    .replace(/\.\d{3}Z$/, "Z")
+    .replace(/:/g, "-")
+    .toLowerCase();
 }
 
 export function evidenceFilePath(
   methodId: string,
   timestampSlug: string
 ): string {
-  return `methods/${safeMethodPathSegment(methodId)}/evidence/${timestampSlug}.en.md`;
+  const safeSlug = timestampSlug.toLowerCase().replace(/[^a-zA-Z0-9._-]/g, "-");
+  return `methods/${safeMethodPathSegment(methodId)}/evidence/${safeSlug}.en.md`;
 }
 
 export type EvidenceAssemblyInput = {
