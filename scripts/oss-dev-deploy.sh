@@ -296,11 +296,24 @@ if langgraph_store_reset "$store_before" "$store_after" "$store_file"; then
     exit 1
   fi
   systemctl stop "$agents_unit" || true
-  if ! tar xzf "$archive" -C "$app_dir"; then
+  restore_dir="$app_dir/.rollbacks/langgraph-restore-$(date -u +%Y%m%dT%H%M%SZ)"
+  mkdir -p "$restore_dir"
+  if ! tar xzf "$archive" -C "$restore_dir"; then
     echo "langgraph restore extract failed for $archive" >&2
+    rm -rf "$restore_dir"
     systemctl start "$agents_unit" || true
     exit 1
   fi
+  restored_store="$restore_dir/.langgraph_api/.langgraphjs_api.store.json"
+  if [[ ! -s "$restored_store" ]] || ! grep -q '"workspace_items' "$restored_store"; then
+    echo "langgraph restore validation failed for $archive" >&2
+    rm -rf "$restore_dir"
+    systemctl start "$agents_unit" || true
+    exit 1
+  fi
+  rm -rf "$lg_dir"
+  mv "$restore_dir/.langgraph_api" "$lg_dir"
+  rm -rf "$restore_dir"
   echo "langgraph store reset detected; restored from $archive"
   systemctl start "$agents_unit"
   wait_agents_ready
