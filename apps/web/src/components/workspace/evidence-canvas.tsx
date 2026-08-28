@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import { CheckCircle2, ExternalLink, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContentComposerChatInterface } from "@/components/canvas/content-composer";
@@ -29,7 +37,7 @@ import { workspaceItemTitle } from "@/lib/workspace/display";
 type EvidenceStatus = "draft" | "submitting" | "submitted" | "filed";
 type EvidenceValue = string | number | null;
 
-type EvidencePayload = {
+export type EvidencePayload = {
   threadId: string;
   status: EvidenceStatus;
   pullRequestUrl?: string;
@@ -105,8 +113,12 @@ export function EvidenceFieldControl({
 }) {
   const id = `evidence-field-${field.id}`;
   const locked = field.readOnly === true || disabled === true;
+  const baseClassName =
+    "mx-1 inline-flex rounded-md border border-slate-300 bg-white px-2 py-1 align-middle text-sm text-slate-900 shadow-sm outline-none focus:border-[#2c3e56] focus:ring-2 focus:ring-[#2c3e56]/20 disabled:bg-slate-100";
   const className =
-    "mx-1 inline-flex min-w-[12ch] rounded-md border border-slate-300 bg-white px-2 py-1 align-middle text-sm text-slate-900 shadow-sm outline-none focus:border-[#2c3e56] focus:ring-2 focus:ring-[#2c3e56]/20 disabled:bg-slate-100";
+    field.type === "textarea"
+      ? `${baseClassName} w-full`
+      : `${baseClassName} min-w-[12ch]`;
   const common = {
     id,
     ref: register,
@@ -142,14 +154,24 @@ export function EvidenceFieldControl({
       />
     );
   return (
-    <span className="my-1 inline-flex flex-col align-middle">
+    <span className="my-1 flex w-full flex-col align-middle">
       <label htmlFor={id} className="sr-only">
         {field.label}
       </label>
-      <span className="inline-flex items-center">
+      <span
+        className="flex w-full items-start"
+        style={field.type === "textarea" ? { position: "relative" } : undefined}
+      >
         {control}
         {field.required && (
-          <span className="text-xs font-semibold text-rose-600" aria-hidden>
+          <span
+            className={
+              field.type === "textarea"
+                ? "absolute -right-3 top-1 text-xs font-semibold text-rose-600"
+                : "text-xs font-semibold text-rose-600"
+            }
+            aria-hidden
+          >
             *
           </span>
         )}
@@ -211,7 +233,71 @@ export function EvidenceStatusDisplay({
   );
 }
 
-function EvidenceMarkdown({
+type EvidenceMarkdownContextValue = {
+  fields: Record<string, FormFieldDefinition>;
+  values: Record<string, EvidenceValue | FormValue>;
+  errors: Record<string, string>;
+  onChange: (fieldId: string, value: string) => void;
+  register: (
+    fieldId: string,
+    node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
+  ) => void;
+  locked: boolean;
+};
+
+const EvidenceMarkdownContext =
+  createContext<EvidenceMarkdownContextValue | null>(null);
+
+function EvidenceMarkdownAnchor({ href, children }: React.ComponentProps<"a">) {
+  const context = useContext(EvidenceMarkdownContext);
+  const fieldId = href?.match(/^#evidence-field-([a-z][a-z0-9_-]*)$/)?.[1];
+  const field = fieldId ? context?.fields[fieldId] : undefined;
+
+  if (!context || !field || !fieldId) {
+    return <a href={href}>{children}</a>;
+  }
+
+  return (
+    <EvidenceFieldControl
+      field={field}
+      value={context.values[fieldId]}
+      error={context.errors[fieldId]}
+      onChange={(value) => context.onChange(fieldId, value)}
+      register={(node) => context.register(fieldId, node)}
+      disabled={context.locked}
+    />
+  );
+}
+
+const EVIDENCE_MARKDOWN_COMPONENTS: Components = {
+  a: EvidenceMarkdownAnchor,
+  h1: ({ children }) => (
+    <h1 className="mb-5 text-3xl font-bold text-slate-900">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mb-4 mt-7 text-2xl font-semibold text-slate-900">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mb-3 mt-6 text-xl font-semibold text-slate-900">
+      {children}
+    </h3>
+  ),
+  p: ({ children }) => (
+    <p className="mb-4 leading-7 text-slate-700">{children}</p>
+  ),
+  ul: ({ children }) => (
+    <ul className="mb-4 list-disc space-y-1 pl-6 text-slate-700">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mb-4 list-decimal space-y-1 pl-6 text-slate-700">
+      {children}
+    </ol>
+  ),
+};
+
+export function EvidenceMarkdown({
   payload,
   values,
   errors,
@@ -229,65 +315,29 @@ function EvidenceMarkdown({
   ) => void;
   locked: boolean;
 }) {
-  const components = useMemo(
-    () => ({
-      a: ({ href, children }: React.ComponentProps<"a">) => {
-        const fieldId = href?.match(
-          /^#evidence-field-([a-z][a-z0-9_-]*)$/
-        )?.[1];
-        const field = fieldId ? payload.fields[fieldId] : undefined;
-        if (!field || !fieldId) {
-          return <a href={href}>{children}</a>;
-        }
-        return (
-          <EvidenceFieldControl
-            field={field}
-            value={values[fieldId]}
-            error={errors[fieldId]}
-            onChange={(value) => onChange(fieldId, value)}
-            register={(node) => register(fieldId, node)}
-            disabled={locked}
-          />
-        );
-      },
-      h1: ({ children }: React.ComponentProps<"h1">) => (
-        <h1 className="mb-5 text-3xl font-bold text-slate-900">{children}</h1>
-      ),
-      h2: ({ children }: React.ComponentProps<"h2">) => (
-        <h2 className="mb-4 mt-7 text-2xl font-semibold text-slate-900">
-          {children}
-        </h2>
-      ),
-      h3: ({ children }: React.ComponentProps<"h3">) => (
-        <h3 className="mb-3 mt-6 text-xl font-semibold text-slate-900">
-          {children}
-        </h3>
-      ),
-      p: ({ children }: React.ComponentProps<"p">) => (
-        <p className="mb-4 leading-7 text-slate-700">{children}</p>
-      ),
-      ul: ({ children }: React.ComponentProps<"ul">) => (
-        <ul className="mb-4 list-disc space-y-1 pl-6 text-slate-700">
-          {children}
-        </ul>
-      ),
-      ol: ({ children }: React.ComponentProps<"ol">) => (
-        <ol className="mb-4 list-decimal space-y-1 pl-6 text-slate-700">
-          {children}
-        </ol>
-      ),
-    }),
-    [errors, locked, onChange, payload.fields, register, values]
-  );
   const unplacedIds = useMemo(
     () => unplacedEditableFieldIds(payload.fields, payload.layoutMarkdown),
     [payload.fields, payload.layoutMarkdown]
   );
   return (
     <>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {markEvidencePlaceholders(payload.layoutMarkdown)}
-      </ReactMarkdown>
+      <EvidenceMarkdownContext.Provider
+        value={{
+          fields: payload.fields,
+          values,
+          errors,
+          onChange,
+          register,
+          locked,
+        }}
+      >
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={EVIDENCE_MARKDOWN_COMPONENTS}
+        >
+          {markEvidencePlaceholders(payload.layoutMarkdown)}
+        </ReactMarkdown>
+      </EvidenceMarkdownContext.Provider>
       {unplacedIds.length > 0 && (
         <section
           className="mt-8 border-t border-slate-200 pt-6"

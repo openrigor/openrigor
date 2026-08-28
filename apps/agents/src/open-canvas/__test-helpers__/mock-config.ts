@@ -8,7 +8,7 @@ import { AIMessage, HumanMessage } from "@langchain/core/messages";
  */
 export class MockModel {
   private toolCallResponses: Map<string, any> = new Map();
-  private textContent: string = "Mock response";
+  private textContent = "Mock response";
 
   constructor() {
     this.invoke = vi.fn().mockImplementation(async (_messages) => {
