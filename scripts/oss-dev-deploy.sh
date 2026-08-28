@@ -295,9 +295,10 @@ if langgraph_store_reset "$store_before" "$store_after" "$store_file"; then
     echo "langgraph restore failed: no archive (before=$store_before after=$store_after ckpt=$ckpt_after)"
     exit 1
   fi
+  systemctl stop "$agents_unit" || true
   tar xzf "$archive" -C "$app_dir"
   echo "langgraph store reset detected; restored from $archive"
-  systemctl restart "$agents_unit"
+  systemctl start "$agents_unit"
   wait_agents_ready
   store_after=$(stat -c %s "$store_file" 2>/dev/null || echo 0)
   ckpt_after=$(stat -c %s "$ckpt_file" 2>/dev/null || echo 0)
