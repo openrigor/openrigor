@@ -552,6 +552,7 @@ REMOTE_INSTALL
 
   log "Restarting and verifying"
   restart_and_verify "$build_id" "$catalog_revision"
+  prune_rollbacks
   echo "DEPLOY_OK build=$build_id catalog=${catalog_revision:-unchanged}"
 }
 
@@ -589,6 +590,7 @@ REMOTE_ROLLBACK
   prune_rollbacks
 
   restart_and_verify
+  prune_rollbacks
   echo "ROLLBACK_OK target=$target"
 }
 
