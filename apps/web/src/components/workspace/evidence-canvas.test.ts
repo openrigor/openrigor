@@ -42,6 +42,7 @@ import {
   EvidenceFieldControl,
   EvidenceStatusDisplay,
   evidenceEditableValues,
+  evidenceFormUpdates,
   evidenceSubmitRequest,
   latestEvidenceFormUpdate,
   unplacedEditableFieldIds,
@@ -242,6 +243,44 @@ describe("latestEvidenceFormUpdate", () => {
     expect(result?.message).toBe(latest);
     expect(result?.updates).toEqual({ observations: "fresh notes" });
     expect(result?.cleanContent).toBe("Applied notes.\n");
+  });
+
+  it("regression: applies only the newest of two historical updates and cleans both", () => {
+    const older = new AIMessage({
+      content: 'Earlier. <form-updates>{"observations":"stale"}</form-updates>',
+    });
+    const latest = new AIMessage({
+      content:
+        'Applied notes.\n<form-updates>{"observations":"fresh notes"}</form-updates>',
+    });
+    const human = new HumanMessage({ content: "Please fill observations." });
+
+    let applied: Record<string, unknown> = {};
+    let messages: (AIMessage | HumanMessage)[] = [older, human, latest];
+
+    const pass1 = evidenceFormUpdates(messages, fields);
+    expect(pass1.apply?.message).toBe(latest);
+    expect(pass1.apply?.updates).toEqual({ observations: "fresh notes" });
+    expect(pass1.clean.map((entry) => entry.message)).toEqual([older, latest]);
+    if (pass1.apply) applied = { ...applied, ...pass1.apply.updates };
+    messages = messages.map((message) => {
+      const entry = pass1.clean.find(
+        (candidate) => candidate.message === message
+      );
+      return entry
+        ? new AIMessage({
+            id: message.id,
+            content: entry.content,
+            additional_kwargs: message.additional_kwargs,
+          })
+        : message;
+    });
+
+    // A second pass over the cleaned history must not re-apply the stale older block.
+    const pass2 = evidenceFormUpdates(messages, fields);
+    expect(pass2.apply).toBeUndefined();
+    expect(pass2.clean).toHaveLength(0);
+    expect(applied.observations).toBe("fresh notes");
   });
 
   it("skips readOnly fields and keeps editable ones", () => {

@@ -100,6 +100,36 @@ export function latestEvidenceFormUpdate<
   };
 }
 
+export function evidenceFormUpdates<
+  T extends { getType?: () => string; content: unknown },
+>(
+  messages: T[],
+  fields: Record<string, FormFieldDefinition>
+): {
+  apply: { message: T; updates: Record<string, FormValue> } | undefined;
+  clean: { message: T; content: string }[];
+} {
+  const result = latestEvidenceFormUpdate(messages, fields);
+  const clean: { message: T; content: string }[] = [];
+  for (const message of messages) {
+    if (message.getType?.() !== "ai") continue;
+    const parsed = findLatestFormUpdate([message], fields);
+    if (!parsed) continue;
+    clean.push({
+      message,
+      content:
+        parsed.parsed.cleanContent.trim() ||
+        "Updated the evidence contribution.",
+    });
+  }
+  return {
+    apply: result
+      ? { message: result.message, updates: result.updates }
+      : undefined,
+    clean,
+  };
+}
+
 function markEvidencePlaceholders(markdown: string): string {
   return markdown.replace(
     /\{\{([a-z][a-z0-9_-]*)\}\}/g,
@@ -568,30 +598,42 @@ export function EvidenceCanvas({
   }, [graphData.formContext, payload, values]);
 
   useEffect(() => {
-    if (!payload || graphData.isStreaming || !graphData.messages.length) return;
-    const result = latestEvidenceFormUpdate(graphData.messages, payload.fields);
-    if (!result) return;
-    if (lastAppliedUpdate.current === result.message) return;
-
-    lastAppliedUpdate.current = result.message;
-    if (Object.keys(result.updates).length > 0) {
-      setValues((current) => ({ ...current, ...result.updates }));
+    if (
+      !payload ||
+      payload.status !== "draft" ||
+      graphData.isStreaming ||
+      !graphData.messages.length
+    )
+      return;
+    const { apply, clean } = evidenceFormUpdates(
+      graphData.messages,
+      payload.fields
+    );
+    if (!clean.length) return;
+    if (apply && lastAppliedUpdate.current !== apply.message) {
+      lastAppliedUpdate.current = apply.message;
+      if (Object.keys(apply.updates).length > 0) {
+        setValues((current) => ({ ...current, ...apply.updates }));
+      }
     }
-    const cleanContent =
-      result.cleanContent.trim() || "Updated the evidence contribution.";
+    const cleanByMessage = new Map(
+      clean.map((entry) => [entry.message, entry.content])
+    );
     graphData.setMessages((messages) =>
-      messages.map((message) =>
-        message === result.message
+      messages.map((message) => {
+        const content = cleanByMessage.get(message);
+        return content !== undefined
           ? new AIMessage({
               id: message.id,
-              content: cleanContent,
+              content,
               additional_kwargs: message.additional_kwargs,
             })
-          : message
-      )
+          : message;
+      })
     );
   }, [
     payload?.fields,
+    payload?.status,
     graphData.isStreaming,
     graphData.messages,
     graphData.setMessages,
