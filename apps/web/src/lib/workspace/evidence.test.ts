@@ -7,6 +7,7 @@ import {
   buildEvidenceSnapshotFromMarker,
   evidenceFilePath,
   evidenceTimestampSlug,
+  canonicalizeEvidenceSubmissionKey,
   isAutoMergeEligibleStage,
   normalizeEvidenceTemplate,
   resolveEvidenceFieldValues,
@@ -448,6 +449,27 @@ describe("Evidence runtime", () => {
       evidenceFilePath("synthetic-method", slug)
     );
     expect(artifact).toEqual(expect.objectContaining({ kind: "evidence" }));
+  });
+
+  it("keeps millisecond precision so same-second submissions stay distinct", () => {
+    const first = evidenceTimestampSlug(new Date("2026-08-28T07:01:36.123Z"));
+    const second = evidenceTimestampSlug(new Date("2026-08-28T07:01:36.987Z"));
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/);
+    expect(second).toMatch(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/);
+  });
+
+  it("canonicalizes legacy stored submission keys into layout-valid paths", () => {
+    const legacy = "2026-08-28T07-01-36Z";
+    const canonical = canonicalizeEvidenceSubmissionKey(legacy);
+    expect(canonical).toBe("2026-08-28t07-01-36z");
+    const artifact = identifyRepositoryArtifactPath(
+      evidenceFilePath("synthetic-method", legacy)
+    );
+    expect(artifact).toEqual(expect.objectContaining({ kind: "evidence" }));
+    // A key that cannot be canonicalized fails closed instead of writing an
+    // unmanaged artifact.
+    expect(() => canonicalizeEvidenceSubmissionKey("...")).toThrow();
   });
 
   it("only auto-merges documented experience with every integrity gate", () => {
