@@ -19,6 +19,7 @@ import {
   type GithubCommitAuthor,
   type GithubRepositoryCoordinates,
 } from "./git-adapter";
+import { repositoryLayoutPrefix } from "./layout";
 
 const SNAPSHOT_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -39,14 +40,28 @@ const SEAL_INPUT_KINDS = new Set(["method", "evidence", "finding", "ledger"]);
  */
 const SEAL_OUTPUT_PREFIX = "ledger/seals/";
 
+function layoutRelativePath(
+  path: string,
+  layoutVersion: string
+): string | undefined {
+  const prefix = repositoryLayoutPrefix(layoutVersion);
+  if (prefix && !path.startsWith(prefix)) return undefined;
+  return prefix ? path.slice(prefix.length) : path;
+}
+
 function isSealRenderPath(
   path: string,
-  artifacts: readonly RepositoryArtifactRef[]
+  artifacts: readonly RepositoryArtifactRef[],
+  layoutVersion: string
 ): boolean {
-  if (path.startsWith(SEAL_OUTPUT_PREFIX)) return true;
-  const match = METHOD_SEAL_RENDER_PATH.exec(path);
+  const relativePath = layoutRelativePath(path, layoutVersion);
+  if (!relativePath) return false;
+  if (relativePath.startsWith(SEAL_OUTPUT_PREFIX)) return true;
+  const match = METHOD_SEAL_RENDER_PATH.exec(relativePath);
   if (!match) return false;
-  const manifestPath = `methods/${match[1]}/evidence/ledgers/${match[2]}.seal.yml`;
+  const manifestPath = `${repositoryLayoutPrefix(
+    layoutVersion
+  )}methods/${match[1]}/evidence/ledgers/${match[2]}.seal.yml`;
   return artifacts.some((artifact) => artifact.path === manifestPath);
 }
 
@@ -123,30 +138,38 @@ function assertSnapshotId(snapshotId: string): void {
   }
 }
 
-export function sealLedgerPath(snapshotId: string): string {
+export function sealLedgerPath(
+  snapshotId: string,
+  layoutVersion = "1.0"
+): string {
   assertSnapshotId(snapshotId);
-  return `ledger/seals/${snapshotId}.en.md`;
+  return `${repositoryLayoutPrefix(layoutVersion)}${SEAL_OUTPUT_PREFIX}${snapshotId}.en.md`;
 }
 
-export function sealManifestPath(snapshotId: string): string {
+export function sealManifestPath(
+  snapshotId: string,
+  layoutVersion = "1.0"
+): string {
   assertSnapshotId(snapshotId);
-  return `ledger/seals/${snapshotId}.seal.yml`;
+  return `${repositoryLayoutPrefix(layoutVersion)}${SEAL_OUTPUT_PREFIX}${snapshotId}.seal.yml`;
 }
 
 export function methodSealLedgerPath(
   methodId: string,
-  snapshotId: string
+  snapshotId: string,
+  layoutVersion = "1.0"
 ): string {
   assertSnapshotId(snapshotId);
-  return `methods/${methodId}/evidence/ledgers/${snapshotId}.en.md`;
+  return `${repositoryLayoutPrefix(layoutVersion)}methods/${methodId}/evidence/ledgers/${snapshotId}.en.md`;
 }
 
 export function methodSealManifestPath(
   methodId: string,
-  snapshotId: string
+  snapshotId: string,
+  layoutVersion = "1.0"
 ): string {
   assertSnapshotId(snapshotId);
-  return `methods/${methodId}/evidence/ledgers/${snapshotId}.seal.yml`;
+  return `${repositoryLayoutPrefix(layoutVersion)}methods/${methodId}/evidence/ledgers/${snapshotId}.seal.yml`;
 }
 
 /**
@@ -312,16 +335,34 @@ function ledgerSnapshot(
 
 function sealRefs(
   artifacts: RepositoryArtifactRef[],
-  methodId?: string
+  methodId: string | undefined,
+  layoutVersion: string
 ): RepositoryArtifactRef[] {
-  return artifacts.filter(
-    (artifact) =>
-      artifact.kind === "ledger_seal" &&
-      (methodId
-        ? artifact.path.startsWith(`methods/${methodId}/evidence/ledgers/`) &&
-          METHOD_SEAL_MANIFEST_PATH.test(artifact.path)
-        : SEAL_MANIFEST_PATH.test(artifact.path))
-  );
+  return artifacts.filter((artifact) => {
+    if (artifact.kind !== "ledger_seal") return false;
+    const relativePath = layoutRelativePath(artifact.path, layoutVersion);
+    if (!relativePath) return false;
+    return methodId
+      ? relativePath.startsWith(`methods/${methodId}/evidence/ledgers/`) &&
+          METHOD_SEAL_MANIFEST_PATH.test(relativePath)
+      : SEAL_MANIFEST_PATH.test(relativePath);
+  });
+}
+
+async function readArtifactAtBindingLayout(
+  access: RepositorySealAccess,
+  path: string
+) {
+  const { installationId, branch, layoutVersion } = access.binding;
+  return layoutVersion === "1.0"
+    ? readArtifactBlob(installationId, access.repository, branch, path)
+    : readArtifactBlob(
+        installationId,
+        access.repository,
+        branch,
+        path,
+        layoutVersion
+      );
 }
 
 async function sealManifestsFromArtifacts(
@@ -331,18 +372,15 @@ async function sealManifestsFromArtifacts(
   methodId?: string
 ): Promise<LedgerSealManifestV1[]> {
   return Promise.all(
-    sealRefs(artifacts, methodId).map(async (artifact) => {
-      const blob = await readArtifactBlob(
-        access.binding.installationId,
-        access.repository,
-        access.binding.branch,
-        artifact.path
-      );
-      if (blob.commitSha !== expectedCommitSha) {
-        throw new StaleRepositoryError(blob.commitSha);
+    sealRefs(artifacts, methodId, access.binding.layoutVersion).map(
+      async (artifact) => {
+        const blob = await readArtifactAtBindingLayout(access, artifact.path);
+        if (blob.commitSha !== expectedCommitSha) {
+          throw new StaleRepositoryError(blob.commitSha);
+        }
+        return parseSealManifest(blob.content);
       }
-      return parseSealManifest(blob.content);
-    })
+    )
   );
 }
 
@@ -403,19 +441,31 @@ export async function previewSealSnapshot(
     );
   }
   if (
-    sealRefs(listed.artifacts, options.methodId).some(
+    sealRefs(
+      listed.artifacts,
+      options.methodId,
+      access.binding.layoutVersion
+    ).some(
       (artifact) =>
         artifact.path ===
         (options.methodId
-          ? methodSealManifestPath(options.methodId, snapshotId)
-          : sealManifestPath(snapshotId))
+          ? methodSealManifestPath(
+              options.methodId,
+              snapshotId,
+              access.binding.layoutVersion
+            )
+          : sealManifestPath(snapshotId, access.binding.layoutVersion))
     ) ||
     listed.artifacts.some(
       (artifact) =>
         artifact.path ===
         (options.methodId
-          ? methodSealLedgerPath(options.methodId, snapshotId)
-          : sealLedgerPath(snapshotId))
+          ? methodSealLedgerPath(
+              options.methodId,
+              snapshotId,
+              access.binding.layoutVersion
+            )
+          : sealLedgerPath(snapshotId, access.binding.layoutVersion))
     )
   ) {
     throw new SealSnapshotError(
@@ -438,15 +488,21 @@ export async function previewSealSnapshot(
     ? listed.artifacts.filter(
         (artifact) =>
           artifact.path ===
-            `methods/${options.methodId}/${options.methodId}.en.md` ||
-          artifact.path.startsWith(`methods/${options.methodId}/evidence/`)
+            `${repositoryLayoutPrefix(access.binding.layoutVersion)}methods/${options.methodId}/${options.methodId}.en.md` ||
+          artifact.path.startsWith(
+            `${repositoryLayoutPrefix(access.binding.layoutVersion)}methods/${options.methodId}/evidence/`
+          )
       )
     : listed.artifacts;
   const artifacts = scopedArtifacts
     .filter(
       (artifact) =>
         SEAL_INPUT_KINDS.has(artifact.kind) &&
-        !isSealRenderPath(artifact.path, listed.artifacts)
+        !isSealRenderPath(
+          artifact.path,
+          listed.artifacts,
+          access.binding.layoutVersion
+        )
     )
     .sort((left, right) => compare(left.path, right.path));
   if (!artifacts.length) {
@@ -459,12 +515,7 @@ export async function previewSealSnapshot(
   const contents = new Map<string, string>();
   const inputs = await Promise.all(
     artifacts.map(async (artifact) => {
-      const blob = await readArtifactBlob(
-        access.binding.installationId,
-        access.repository,
-        access.binding.branch,
-        artifact.path
-      );
+      const blob = await readArtifactAtBindingLayout(access, artifact.path);
       if (blob.commitSha !== listed.commitSha) {
         throw new StaleRepositoryError(blob.commitSha);
       }
@@ -540,11 +591,19 @@ export async function previewSealSnapshot(
   return {
     ...manifest,
     ledgerPath: options.methodId
-      ? methodSealLedgerPath(options.methodId, snapshotId)
-      : sealLedgerPath(snapshotId),
+      ? methodSealLedgerPath(
+          options.methodId,
+          snapshotId,
+          access.binding.layoutVersion
+        )
+      : sealLedgerPath(snapshotId, access.binding.layoutVersion),
     sealPath: options.methodId
-      ? methodSealManifestPath(options.methodId, snapshotId)
-      : sealManifestPath(snapshotId),
+      ? methodSealManifestPath(
+          options.methodId,
+          snapshotId,
+          access.binding.layoutVersion
+        )
+      : sealManifestPath(snapshotId, access.binding.layoutVersion),
     ledgerMarkdown,
     manifestYaml,
     inputArtifactIds: artifacts.map((artifact) => artifact.artifactId),
@@ -562,18 +621,22 @@ export async function commitSealSnapshot(
   snapshotId: string;
   provenance: ReturnType<typeof repositoryCommitProvenance>;
 }> {
+  const layoutVersion = access.binding.layoutVersion;
   const parsed = LedgerSealManifestV1Schema.parse(sealManifestFile(preview));
   const methodLedgerPath = methodSealLedgerPath(
     parsed.method.id,
-    parsed.snapshotId
+    parsed.snapshotId,
+    layoutVersion
   );
   const methodManifestPath = methodSealManifestPath(
     parsed.method.id,
-    parsed.snapshotId
+    parsed.snapshotId,
+    layoutVersion
   );
   const pathsMatch =
-    (preview.ledgerPath === sealLedgerPath(parsed.snapshotId) &&
-      preview.sealPath === sealManifestPath(parsed.snapshotId)) ||
+    (preview.ledgerPath === sealLedgerPath(parsed.snapshotId, layoutVersion) &&
+      preview.sealPath ===
+        sealManifestPath(parsed.snapshotId, layoutVersion)) ||
     (preview.ledgerPath === methodLedgerPath &&
       preview.sealPath === methodManifestPath);
   if (
@@ -619,6 +682,7 @@ export async function commitSealSnapshot(
         { path: preview.ledgerPath, content: preview.ledgerMarkdown },
         { path: preview.sealPath, content: preview.manifestYaml },
       ],
+      ...(layoutVersion === "1.0" ? {} : { layoutVersion }),
     }
   );
   return {

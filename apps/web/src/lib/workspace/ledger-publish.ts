@@ -69,13 +69,18 @@ export function renderLedgerMarkdown(
  */
 export function validateLedgerPublicationDeclarations(
   snapshot: LedgerSnapshotData,
-  rawValues: unknown
+  rawValues: unknown,
+  layoutVersion = "1.0"
 ) {
   const evidenceSnapshot: EvidenceSnapshot = {
     kind: "evidence",
     templateId: "evidence-template",
     templateVersion: snapshot.templateVersion,
-    sourcePath: ledgerEvidenceFilePath(snapshot.ledgerId, snapshot.methodId),
+    sourcePath: ledgerEvidenceFilePath(
+      snapshot.ledgerId,
+      snapshot.methodId,
+      layoutVersion
+    ),
     guidance: "",
     layoutMarkdown: "",
     fields: {

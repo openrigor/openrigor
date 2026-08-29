@@ -87,7 +87,10 @@ import {
   getGithubInstallationRepository,
   getGithubRepositoryBranchHead,
 } from "./research-repository/github-app";
-import type { RepositoryLayoutVersion } from "./research-repository/layout";
+import {
+  repositoryLayoutPrefix,
+  type RepositoryLayoutVersion,
+} from "./research-repository/layout";
 import {
   discoverPrivateMethods,
   ensureMethodHostIndex,
@@ -1383,7 +1386,8 @@ export async function createPrivateMethodWorkspaceItem(
     privateEvidenceTemplate: privateEvidenceTemplateSnapshot(
       definition.evidenceTemplateMarkdown,
       definition.id,
-      commitSha
+      commitSha,
+      repositoryItem.binding.layoutVersion
     ),
   };
 
@@ -1501,17 +1505,26 @@ function loadedLedgerSourceFromSeal(
   preview: SealSnapshotPreview
 ): LoadedLedgerSource {
   const config = ledgerConfigFromSeal(preview);
+  // The seal preview is the immutable source of the repository paths. This
+  // keeps v2 path projection correct even when the binding itself is not part
+  // of the persisted ledger item.
+  const layoutVersion: RepositoryLayoutVersion = preview.ledgerPath.startsWith(
+    repositoryLayoutPrefix("2.0")
+  )
+    ? "2.0"
+    : "1.0";
+  const prefix = repositoryLayoutPrefix(layoutVersion);
   const template = {
     id: "evidence-template" as const,
     version: config.templateVersion,
-    path: `methods/${config.methodId}/evidence-template.en.md`,
+    path: `${prefix}methods/${config.methodId}/evidence-template.en.md`,
     dimensions: [],
   };
   return {
     method: {
       id: config.methodId,
       version: config.methodVersion,
-      path: `methods/${config.methodId}/${config.methodId}.en.md`,
+      path: `${prefix}methods/${config.methodId}/${config.methodId}.en.md`,
       evidenceTemplate: template,
     },
     template,

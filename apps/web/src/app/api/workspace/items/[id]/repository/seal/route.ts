@@ -253,10 +253,19 @@ function matchesPreview(
  */
 function assertSealDeclarations(
   preview: SealSnapshotPreview,
-  declared: SealDeclarations
+  declared: SealDeclarations,
+  layoutVersion = "1.0"
 ): void {
   try {
-    validateLedgerPublicationDeclarations(preview.snapshotData, declared);
+    if (layoutVersion === "1.0") {
+      validateLedgerPublicationDeclarations(preview.snapshotData, declared);
+    } else {
+      validateLedgerPublicationDeclarations(
+        preview.snapshotData,
+        declared,
+        layoutVersion
+      );
+    }
   } catch (error) {
     if (error instanceof FormValidationError) {
       throw new SealSnapshotError(
@@ -475,7 +484,10 @@ export async function POST(request: Request, context: RouteContext) {
       repositoryId: item.binding.repositoryId,
       branch: item.binding.branch,
       expectedHeadSha: item.binding.headCommitSha,
-      files: [sealLedgerPath(snapshotId), sealManifestPath(snapshotId)],
+      files: [
+        sealLedgerPath(snapshotId, item.binding.layoutVersion),
+        sealManifestPath(snapshotId, item.binding.layoutVersion),
+      ],
     });
     access = { binding: item.binding, credentials, repository };
   } catch (error) {
@@ -512,7 +524,11 @@ export async function POST(request: Request, context: RouteContext) {
           "The accepted preview no longer matches the repository inputs"
         );
       }
-      assertSealDeclarations(preview, body.declarations);
+      assertSealDeclarations(
+        preview,
+        body.declarations,
+        item.binding.layoutVersion
+      );
       ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,
@@ -524,7 +540,11 @@ export async function POST(request: Request, context: RouteContext) {
         supersedes: body.supersedes,
         expectedHeadCommitSha: operation.baseCommitSha,
       });
-      assertSealDeclarations(preview, body.declarations);
+      assertSealDeclarations(
+        preview,
+        body.declarations,
+        item.binding.layoutVersion
+      );
       ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,

@@ -137,7 +137,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
           supersedes: preview.latestSnapshotId,
         });
       }
-      validateLedgerPublicationDeclarations(preview.snapshotData, body.values);
+      if (
+        access.binding.layoutVersion === "1.0" ||
+        access.binding.layoutVersion === undefined
+      ) {
+        validateLedgerPublicationDeclarations(
+          preview.snapshotData,
+          body.values
+        );
+      } else {
+        validateLedgerPublicationDeclarations(
+          preview.snapshotData,
+          body.values,
+          access.binding.layoutVersion
+        );
+      }
       const { commitSha, snapshotId, provenance } = await commitSealSnapshot(
         access,
         preview,

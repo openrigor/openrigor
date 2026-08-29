@@ -8,6 +8,7 @@ import type {
   MethodWorkspaceItem,
 } from "./types";
 import { parseMarkdownFrontmatter } from "./ledger-reference";
+import { repositoryLayoutPrefix } from "./research-repository/layout";
 
 export const EVIDENCE_PRODUCER = "canvas-evidence-runtime/0.1";
 export const NOT_RECORDED = "not recorded — unavailable in runtime snapshot";
@@ -174,7 +175,8 @@ function privateEvidenceField(
 export function privateEvidenceTemplateSnapshot(
   markdown: string,
   methodId: string,
-  commitSha: string
+  commitSha: string,
+  layoutVersion = "1.0"
 ): Omit<EvidenceTemplateSnapshot, "frozenValues"> {
   let parsed: ReturnType<typeof parseMarkdownFrontmatter> = {
     frontmatter: {},
@@ -287,7 +289,7 @@ export function privateEvidenceTemplateSnapshot(
     defaultStage:
       optionalString(parsed.frontmatter.default_stage) ??
       "documented-experience",
-    sourcePath: `methods/${methodId}/evidence-template.en.md`,
+    sourcePath: `${repositoryLayoutPrefix(layoutVersion)}methods/${methodId}/evidence-template.en.md`,
     guidance: PRIVATE_EVIDENCE_GUIDANCE,
     layoutMarkdown: `${body}\n\n${declarationLayout}\n`,
     fields: canonicalizePrivateEvidenceFields(fields),
@@ -687,10 +689,11 @@ export function canonicalizeEvidenceSubmissionKey(value: string): string {
 
 export function evidenceFilePath(
   methodId: string,
-  timestampSlug: string
+  timestampSlug: string,
+  layoutVersion = "1.0"
 ): string {
   const safeSlug = canonicalizeEvidenceSubmissionKey(timestampSlug);
-  return `methods/${safeMethodPathSegment(methodId)}/evidence/${safeSlug}.en.md`;
+  return `${repositoryLayoutPrefix(layoutVersion)}methods/${safeMethodPathSegment(methodId)}/evidence/${safeSlug}.en.md`;
 }
 
 export type EvidenceAssemblyInput = {

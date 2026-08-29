@@ -19,6 +19,8 @@ import {
   GITHUB_RESEARCH_APP_COMMITTER,
   listRepositoryArtifactRefs,
   probeMethodHostInitialization,
+  readArtifactBlob,
+  resolveArtifactBlobSha,
   repositoryCommitProvenance,
   StaleRepositoryError,
 } from "./git-adapter";
@@ -701,5 +703,150 @@ describe("GitHub repository Git Data adapter", () => {
     });
     expect(harness.getHead).not.toHaveBeenCalled();
     expect(harness.request).not.toHaveBeenCalled();
+  });
+
+  it("reads only v2-prefixed managed blobs and ignores legacy-root blobs", async () => {
+    const externalBlobSha = "1".repeat(40);
+    harness.request.mockImplementation(
+      async (route: string, input?: { file_sha?: string }) => {
+        if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+          return { data: { tree: { sha: baseTreeSha } } };
+        }
+        if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+          return {
+            data: {
+              tree: [
+                {
+                  path: "openrigor/index.md",
+                  mode: "100644",
+                  type: "blob",
+                  sha: blobSha,
+                },
+                {
+                  path: "index.md",
+                  mode: "100644",
+                  type: "blob",
+                  sha: externalBlobSha,
+                },
+              ],
+            },
+          };
+        }
+        if (route === "GET /repos/{owner}/{repo}/git/blobs/{file_sha}") {
+          expect(input?.file_sha).toBe(blobSha);
+          return {
+            data: {
+              content: Buffer.from("# v2 index\n").toString("base64"),
+              encoding: "base64",
+            },
+          };
+        }
+        throw new Error(`Unexpected route ${route}`);
+      }
+    );
+
+    await expect(
+      listRepositoryArtifactRefs(99, repository, "openrigor/workspace", "2.0")
+    ).resolves.toMatchObject({
+      artifacts: [{ artifactId: "index", path: "openrigor/index.md" }],
+    });
+    expect(harness.request).not.toHaveBeenCalledWith(
+      "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+      expect.objectContaining({ file_sha: externalBlobSha })
+    );
+  });
+
+  it("fails closed before any GitHub fetch for an outside-prefix v2 read", async () => {
+    await expect(
+      readArtifactBlob(99, repository, "openrigor/workspace", "index.md", "2.0")
+    ).rejects.toMatchObject<Partial<RepositoryLayoutError>>({
+      code: "INVALID_ARTIFACT_TYPE",
+    });
+    expect(harness.getHead).not.toHaveBeenCalled();
+    expect(harness.request).not.toHaveBeenCalled();
+  });
+
+  it("resolves only a managed v2 path and rejects a legacy-root path", async () => {
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+        return { data: { tree: { sha: baseTreeSha } } };
+      }
+      if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+        return {
+          data: {
+            tree: [
+              {
+                path: "openrigor/index.md",
+                mode: "100644",
+                type: "blob",
+                sha: blobSha,
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      resolveArtifactBlobSha(
+        99,
+        repository,
+        "openrigor/workspace",
+        "openrigor/index.md",
+        "2.0"
+      )
+    ).resolves.toBe(blobSha);
+    await expect(
+      resolveArtifactBlobSha(
+        99,
+        repository,
+        "openrigor/workspace",
+        "index.md",
+        "2.0"
+      )
+    ).rejects.toMatchObject<Partial<RepositoryLayoutError>>({
+      code: "INVALID_ARTIFACT_TYPE",
+    });
+  });
+
+  it("commits v2 artifacts under the designated prefix", async () => {
+    harness.request.mockImplementation(
+      async (route: string, input?: { tree?: unknown }) => {
+        if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+          return { data: { tree: { sha: baseTreeSha } } };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/blobs") {
+          return { data: { sha: blobSha } };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/trees") {
+          expect(input?.tree).toEqual([
+            {
+              path: "openrigor/index.md",
+              mode: "100644",
+              type: "blob",
+              sha: blobSha,
+            },
+          ]);
+          return { data: { sha: treeSha } };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/commits") {
+          return { data: { sha: commitSha } };
+        }
+        if (route === "PATCH /repos/{owner}/{repo}/git/refs/{ref}") {
+          return { data: {} };
+        }
+        throw new Error(`Unexpected route ${route}`);
+      }
+    );
+
+    await expect(
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
+        message: "Update v2 index",
+        baseSha,
+        layoutVersion: "2.0",
+        files: [{ path: "openrigor/index.md", content: "# v2\n" }],
+      })
+    ).resolves.toBe(commitSha);
   });
 });
