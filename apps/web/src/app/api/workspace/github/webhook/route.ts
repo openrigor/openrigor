@@ -39,12 +39,13 @@ type WebhookPayload = {
   ref?: unknown;
   before?: unknown;
   after?: unknown;
+  deleted?: boolean;
   commits?: unknown;
 };
 
 const MANAGED_REPOSITORY_PREFIX = "openrigor/";
 const MANAGED_BRANCH_REF = "refs/heads/openrigor/workspace";
-const MAX_PUSH_COMMITS = 20;
+const GITHUB_PUSH_COMMITS_LIMIT = 2048;
 const MAX_PUSH_PATHS = 2000;
 
 function repositoryIds(value: unknown): number[] {
@@ -76,9 +77,9 @@ function pushPathScope(payload: WebhookPayload): GithubPushPathScope {
   if (!Array.isArray(payload.commits) || payload.commits.length === 0) {
     return "unknown";
   }
-  // GitHub includes at most 20 commits in a push payload. A full page can be
-  // truncated, so treat the cap as unknown and advance the binding safely.
-  if (payload.commits.length >= MAX_PUSH_COMMITS) return "unknown";
+  // GitHub includes at most 2048 commits in a push payload. A full page can
+  // be truncated, so treat the cap as unknown and advance the binding safely.
+  if (payload.commits.length >= GITHUB_PUSH_COMMITS_LIMIT) return "unknown";
 
   let changedPathCount = 0;
   for (const commit of payload.commits) {
@@ -111,6 +112,7 @@ async function updateResearchRepositoryHeads(
 ): Promise<void> {
   const after = payload.after;
   if (
+    payload.deleted === true ||
     scope === "outside" ||
     payload.ref !== MANAGED_BRANCH_REF ||
     !commitSha(after)
@@ -136,9 +138,12 @@ async function updateResearchRepositoryHeads(
           item.binding.installationId === installation &&
           item.binding.repositoryId === repositoryId
       )
-      .map((item) =>
-        updateResearchRepositoryBindingHead(userId, item.id, after)
-      )
+      .map((item) => {
+        if (item.binding.headCommitSha !== payload.before) {
+          return Promise.resolve();
+        }
+        return updateResearchRepositoryBindingHead(userId, item.id, after);
+      })
   );
 }
 

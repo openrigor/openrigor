@@ -199,7 +199,7 @@ function BoundRepositoryPanel({
             <span>{item.binding.branch}</span>
             <span>
               {item.binding.layoutVersion === "2.0"
-                ? REPOSITORY_LAYOUT_V2_COPY
+                ? "Layout 2.0"
                 : `Layout ${item.binding.layoutVersion}`}
             </span>
             <code className="rounded bg-slate-100 px-1.5 py-0.5">

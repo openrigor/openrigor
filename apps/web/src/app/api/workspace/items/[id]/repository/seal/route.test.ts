@@ -269,7 +269,33 @@ describe("POST repository seal", () => {
       message:
         "This repository uses the previous layout; it is readable but no longer writable.",
     });
+    expect(harness.claim).not.toHaveBeenCalled();
+    expect(harness.fail).not.toHaveBeenCalled();
     expect(harness.commit).not.toHaveBeenCalled();
+  });
+
+  it("returns the same read-only 403 on a repeated legacy seal", async () => {
+    harness.getItem.mockResolvedValue({
+      ...item,
+      binding: { ...item.binding, layoutVersion: "1.0" },
+    });
+    const body = {
+      action: "seal",
+      preview,
+      declarations: confirmedDeclarations,
+    };
+
+    const first = await POST(request(body), context);
+    const second = await POST(request(body), context);
+
+    expect(first.status).toBe(403);
+    expect(second.status).toBe(403);
+    expect(await first.json()).toMatchObject({ error: "REPOSITORY_READ_ONLY" });
+    expect(await second.json()).toMatchObject({
+      error: "REPOSITORY_READ_ONLY",
+    });
+    expect(harness.claim).not.toHaveBeenCalled();
+    expect(harness.fail).not.toHaveBeenCalled();
   });
 
   it("does not call GitHub after authorization is revoked", async () => {
