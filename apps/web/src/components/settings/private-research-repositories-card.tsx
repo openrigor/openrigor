@@ -27,7 +27,6 @@ type GithubRepositoriesResponse = {
   connected: boolean;
   installationId?: number;
   repositories: GithubRepositoryOption[];
-  createFromTemplateUrl?: string;
 };
 
 type PrivateMethodsResponse = {
@@ -477,28 +476,6 @@ export function PrivateResearchRepositoriesCard() {
               </>
             ) : (
               <>
-                {githubRepositories.createFromTemplateUrl && (
-                  <div className="rounded-lg border bg-white p-3">
-                    <p className="text-sm text-slate-600">
-                      Start a new private repository, then reconnect GitHub to
-                      refresh this list.
-                    </p>
-                    <Button
-                      asChild
-                      className="mt-3"
-                      size="sm"
-                      variant="outline"
-                    >
-                      <a
-                        href={githubRepositories.createFromTemplateUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Create from template
-                      </a>
-                    </Button>
-                  </div>
-                )}
                 {githubRepositories.repositories.length === 0 ? (
                   <div className="rounded-lg border bg-white p-3">
                     <p className="text-sm text-slate-600">
