@@ -27,6 +27,9 @@ const TextRenderer = React.lazy(() =>
 const PrintView = React.lazy(() =>
   import("./PrintView").then((m) => ({ default: m.PrintView }))
 );
+
+const PRINT_READINESS_FALLBACK_MS = 10_000;
+const PRINT_CLEANUP_DELAY_MS = 1_000;
 import { CustomQuickActions } from "./actions_toolbar/custom";
 import { getArtifactContent } from "@opencanvas/shared/utils/artifacts";
 import { ArtifactLoading } from "./ArtifactLoading";
@@ -98,6 +101,8 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
   const [scrollTick, setScrollTick] = useState(0);
   // Print functionality
   const [showPrintView, setShowPrintView] = useState(false);
+  const [isPrintViewReady, setIsPrintViewReady] = useState(false);
+  const printStartedRef = useRef(false);
 
   const handleMouseUp = useCallback(() => {
     if (!showCanvasActions) return;
@@ -209,15 +214,45 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
     const currentArtifactContent = getArtifactContent(artifact);
     if (currentArtifactContent.type !== "text") return;
 
+    printStartedRef.current = false;
+    setIsPrintViewReady(false);
     setShowPrintView(true);
-
-    // Wait for next tick to ensure PrintView is rendered
-    setTimeout(() => {
-      window.print();
-      // Clean up after print dialog closes (estimated delay)
-      setTimeout(() => setShowPrintView(false), 1000);
-    }, 100);
   }, [artifact]);
+
+  const handlePrintViewReady = useCallback(() => {
+    setIsPrintViewReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showPrintView || isPrintViewReady) return;
+
+    const fallbackTimer = window.setTimeout(() => {
+      console.warn(
+        "[print] PrintView did not signal readiness before the fallback; printing the current content."
+      );
+      setIsPrintViewReady(true);
+    }, PRINT_READINESS_FALLBACK_MS);
+
+    return () => window.clearTimeout(fallbackTimer);
+  }, [isPrintViewReady, showPrintView]);
+
+  useEffect(() => {
+    if (!showPrintView || !isPrintViewReady || printStartedRef.current) {
+      return;
+    }
+
+    printStartedRef.current = true;
+    window.print();
+
+    // Clean up after print dialog closes (estimated delay).
+    const cleanupTimer = window.setTimeout(() => {
+      setShowPrintView(false);
+      setIsPrintViewReady(false);
+      printStartedRef.current = false;
+    }, PRINT_CLEANUP_DELAY_MS);
+
+    return () => window.clearTimeout(cleanupTimer);
+  }, [isPrintViewReady, showPrintView]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -511,7 +546,10 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
         currentArtifactContent.type === "text" &&
         createPortal(
           <Suspense fallback={<div>Loading print view...</div>}>
-            <PrintView markdown={currentArtifactContent.fullMarkdown} />
+            <PrintView
+              markdown={currentArtifactContent.fullMarkdown}
+              onReady={handlePrintViewReady}
+            />
           </Suspense>,
           document.body
         )}
