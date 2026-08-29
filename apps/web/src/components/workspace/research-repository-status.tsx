@@ -6,6 +6,10 @@ import type {
   ResearchRepositoryWorkspaceItem,
 } from "@opencanvas/shared/research-repository";
 import { Button } from "@/components/ui/button";
+import {
+  REPOSITORY_LAYOUT_READ_ONLY_COPY,
+  REPOSITORY_LAYOUT_V2_COPY,
+} from "@/components/research-repository/copy";
 
 type RepositoryListResponse = {
   connected?: boolean;
@@ -32,7 +36,13 @@ function repositoryConnectLabel(status: RepositoryStatus | undefined): string {
     : "Reconnect GitHub";
 }
 
-function statusLabel(status: RepositoryStatus): string {
+export function statusLabel(status: RepositoryStatus): string {
+  if (status.state === "read_only" && status.layoutVersion === "1.0") {
+    return REPOSITORY_LAYOUT_READ_ONLY_COPY;
+  }
+  if (status.state === "ready" && status.layoutVersion === "2.0") {
+    return `ready · ${REPOSITORY_LAYOUT_V2_COPY}`;
+  }
   return status.reason
     ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
     : status.state.replace("_", " ");

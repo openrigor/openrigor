@@ -114,7 +114,7 @@ const LOCK_KEY = "lock";
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
 export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
 export const RESEARCH_REPOSITORY_LAYOUT_VERSION: RepositoryLayoutVersion =
-  "1.0";
+  "2.0";
 const PRIVATE_METHOD_DEFAULT_TEMPLATE_ID = "evaluchat-assignment-brief";
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */
@@ -2735,8 +2735,9 @@ export async function getWorkspaceItem(
 export async function updateResearchRepositoryBindingHead(
   userId: string,
   itemId: string,
-  headCommitSha: string
-): Promise<ResearchRepositoryWorkspaceItem> {
+  headCommitSha: string,
+  expectedBefore?: string
+): Promise<ResearchRepositoryWorkspaceItem | null> {
   return withUserLock(userId, async () => {
     const manifest = await readManifest(userId);
     const item = manifest.items[itemId];
@@ -2747,6 +2748,12 @@ export async function updateResearchRepositoryBindingHead(
       item.status !== "active"
     ) {
       throw new WorkspaceItemNotFoundError();
+    }
+    if (
+      expectedBefore !== undefined &&
+      item.binding.headCommitSha !== expectedBefore
+    ) {
+      return null;
     }
     const updated = ResearchRepositoryWorkspaceItemSchema.parse({
       ...item,

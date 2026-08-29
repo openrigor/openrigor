@@ -1,6 +1,7 @@
 import { getGithubInstallationRepository } from "./github-app";
 import { getRepositoryBranchHead } from "./git-adapter";
 import { githubErrorStatus } from "./github-error-status";
+import { isRepositoryLayoutVersionWritable } from "./layout";
 
 export { githubErrorStatus } from "./github-error-status";
 
@@ -13,6 +14,8 @@ export const REPOSITORY_UNAVAILABLE_MESSAGE =
   "Repository unavailable (deleted or access removed).";
 export const REPOSITORY_READ_ONLY_MESSAGE =
   "Repository became public — writes disabled.";
+export const REPOSITORY_LAYOUT_READ_ONLY_MESSAGE =
+  "This repository uses the previous layout; it is readable but no longer writable.";
 export const REPOSITORY_DISCONNECTED_MESSAGE =
   "Research repository is disconnected";
 
@@ -87,9 +90,17 @@ export async function assertRepositoryWriteAccess(input: {
   repositoryId: number;
   branch: string;
   expectedHeadSha: string;
+  layoutVersion: string;
   files?: string[];
 }) {
   const files = input.files ?? [];
+  if (!isRepositoryLayoutVersionWritable(input.layoutVersion)) {
+    throw new RepositoryAccessError(
+      REPOSITORY_READ_ONLY,
+      REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+      files
+    );
+  }
   const repository = await loadInstallationRepository(
     input.installationId,
     input.repositoryId

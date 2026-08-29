@@ -14,6 +14,8 @@ import {
   type GithubCommitAuthor,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
+  REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+  REPOSITORY_READ_ONLY,
   RepositoryAccessError,
   assertRepositoryPrivate,
   assertRepositoryWriteAccess,
@@ -21,7 +23,10 @@ import {
   repositoryAccessBody,
   repositoryAccessHttpStatus,
 } from "@/lib/workspace/research-repository/access";
-import { RepositoryLayoutError } from "@/lib/workspace/research-repository/layout";
+import {
+  RepositoryLayoutError,
+  isRepositoryLayoutVersionWritable,
+} from "@/lib/workspace/research-repository/layout";
 import {
   claimRepositoryOperation,
   completeRepositoryOperation,
@@ -298,6 +303,17 @@ export async function POST(request: Request, context: RouteContext) {
   if (!item || item.kind !== "research_repository") {
     return json({ error: "Research repository not found" }, 404);
   }
+  if (!isRepositoryLayoutVersionWritable(item.binding.layoutVersion)) {
+    return json(
+      repositoryAccessBody(
+        new RepositoryAccessError(
+          REPOSITORY_READ_ONLY,
+          REPOSITORY_LAYOUT_READ_ONLY_MESSAGE
+        )
+      ),
+      repositoryAccessHttpStatus(REPOSITORY_READ_ONLY)
+    );
+  }
 
   if (body.action === "preview") {
     try {
@@ -484,6 +500,7 @@ export async function POST(request: Request, context: RouteContext) {
       repositoryId: item.binding.repositoryId,
       branch: item.binding.branch,
       expectedHeadSha: item.binding.headCommitSha,
+      layoutVersion: item.binding.layoutVersion,
       files: [
         sealLedgerPath(snapshotId, item.binding.layoutVersion),
         sealManifestPath(snapshotId, item.binding.layoutVersion),

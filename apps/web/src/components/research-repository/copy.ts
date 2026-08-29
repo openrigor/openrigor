@@ -7,6 +7,12 @@ export const REPOSITORY_UNAVAILABLE_COPY =
 export const REPOSITORY_PUBLIC_COPY =
   "Read-only: repository is public. Writes are disabled until the repository is private again.";
 
+export const REPOSITORY_LAYOUT_READ_ONLY_COPY =
+  "Read-only: this repository uses the previous layout; it is readable but no longer writable.";
+
+export const REPOSITORY_LAYOUT_V2_COPY =
+  "Managed repository files live under openrigor/.";
+
 export const REPOSITORY_AUTHORIZATION_COPY =
   "GitHub authorization is required. Re-authorize GitHub to restore repository access. Current-session local content is not synced / last locally available state.";
 

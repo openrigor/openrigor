@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { RepositoryStatusSchema } from "@opencanvas/shared/research-repository";
 import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
 import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
 import {
+  getResearchRepositoryStatus,
   getWorkspaceItem,
   updateResearchRepositoryBindingHead,
 } from "@/lib/workspace/store";
@@ -49,6 +49,7 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   let operation;
+  let operationCompleted = false;
   try {
     const credentials = await readGithubResearchCredentials(auth.user.id);
     if (
@@ -85,25 +86,8 @@ export async function POST(_request: Request, context: RouteContext) {
       operation,
       result.commitSha
     );
-    const status = repository.private
-      ? RepositoryStatusSchema.parse({
-          workspaceId: item.id,
-          repositoryId: item.binding.repositoryId,
-          state: "ready",
-          layoutVersion: item.binding.layoutVersion,
-          headCommitSha: result.commitSha,
-          checkedAt: new Date().toISOString(),
-        })
-      : RepositoryStatusSchema.parse({
-          workspaceId: item.id,
-          repositoryId: item.binding.repositoryId,
-          state: "read_only",
-          reason: "repository_public",
-          readonlyReason: "repository_public",
-          layoutVersion: item.binding.layoutVersion,
-          headCommitSha: result.commitSha,
-          checkedAt: new Date().toISOString(),
-        });
+    operationCompleted = true;
+    const status = await getResearchRepositoryStatus(auth.user.id, item);
     return json({
       status,
       artifacts: result.artifacts,
@@ -112,7 +96,7 @@ export async function POST(_request: Request, context: RouteContext) {
         : {}),
     });
   } catch (error) {
-    if (operation) {
+    if (operation && !operationCompleted) {
       try {
         await failRepositoryOperation(
           auth.user.id,
