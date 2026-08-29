@@ -9,6 +9,11 @@ const indexEntry = {
   type: "blob",
   sha: "index",
 };
+const v2IndexEntry = {
+  path: "openrigor/methods/index.md",
+  type: "blob",
+  sha: "v2-index",
+};
 
 function methodEntries(
   id: string,
@@ -32,15 +37,30 @@ function methodEntries(
   ];
 }
 
+function v2MethodEntries(
+  id: string,
+  options: { evidenceTemplate?: boolean } = {}
+): MethodHostTreeEntry[] {
+  return methodEntries(id, options).map((entry) => ({
+    ...entry,
+    path: `openrigor/${entry.path}`,
+  }));
+}
+
 function markdown(frontmatter: string): string {
   return `---\n${frontmatter}\n---\n# Method\n`;
 }
 
 async function discover(
   tree: MethodHostTreeEntry[],
-  blobs: Record<string, string>
+  blobs: Record<string, string>,
+  layoutVersion = "1.0"
 ) {
-  return discoverPrivateMethodsFromTree(tree, async (sha) => blobs[sha] ?? "");
+  return discoverPrivateMethodsFromTree(
+    tree,
+    async (sha) => blobs[sha] ?? "",
+    layoutVersion
+  );
 }
 
 describe("private Method-host discovery conformance", () => {
@@ -113,6 +133,43 @@ describe("private Method-host discovery conformance", () => {
       initialization: {
         initialized: false,
         initializationFailureReason: "methods_index_missing",
+      },
+      methods: [],
+    });
+  });
+
+  it("discovers Methods below the v2 designated root", async () => {
+    const id = "designated-method";
+    await expect(
+      discover(
+        [v2IndexEntry, ...v2MethodEntries(id)],
+        {
+          [`method-${id}`]: markdown(
+            `type: Method\nid: ${id}\ntitle: Designated method`
+          ),
+        },
+        "2.0"
+      )
+    ).resolves.toEqual({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id,
+          title: "Designated method",
+          profiles: [],
+          evidenceTemplateMarkdown: "",
+        },
+      ],
+    });
+  });
+
+  it("does not discover a v1 Methods tree while probing v2", async () => {
+    await expect(
+      discover([indexEntry, ...methodEntries("outside")], {}, "2.0")
+    ).resolves.toEqual({
+      initialization: {
+        initialized: false,
+        initializationFailureReason: "methods_directory_missing",
       },
       methods: [],
     });

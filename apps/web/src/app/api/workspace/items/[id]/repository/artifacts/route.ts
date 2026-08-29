@@ -75,12 +75,21 @@ export async function GET(request: Request, context: RouteContext) {
       );
       let result;
       try {
-        result = await readArtifactBlob(
-          item.binding.installationId,
-          repository,
-          item.binding.branch,
-          identity.path
-        );
+        result =
+          item.binding.layoutVersion === "2.0"
+            ? await readArtifactBlob(
+                item.binding.installationId,
+                repository,
+                item.binding.branch,
+                identity.path,
+                item.binding.layoutVersion
+              )
+            : await readArtifactBlob(
+                item.binding.installationId,
+                repository,
+                item.binding.branch,
+                identity.path
+              );
       } catch (error) {
         if (errorStatus(error) === 404) {
           return json({ error: "Artifact not found" }, 404);

@@ -29,10 +29,37 @@ export class RepositoryLayoutError extends Error {
 const COMPONENT = /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/;
 const ARTIFACT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
 
+export type RepositoryLayoutVersion = "1.0" | "2.0";
+export type RepositoryLayoutSupportOptions =
+  | "read"
+  | "write"
+  | boolean
+  | {
+      mode?: "read" | "write";
+      operation?: "read" | "write";
+      writable?: boolean;
+    };
+
 export function isRepositoryLayoutVersionSupported(
+  layoutVersion: string,
+  options: RepositoryLayoutSupportOptions = "read"
+): boolean {
+  const writable =
+    options === "write" ||
+    options === true ||
+    (typeof options === "object" &&
+      (options.writable === true ||
+        options.mode === "write" ||
+        options.operation === "write"));
+  return writable
+    ? layoutVersion === "2.0"
+    : layoutVersion === "1.0" || layoutVersion === "2.0";
+}
+
+export function isRepositoryLayoutVersionWritable(
   layoutVersion: string
 ): boolean {
-  return layoutVersion === "1.0";
+  return isRepositoryLayoutVersionSupported(layoutVersion, "write");
 }
 
 const FIXED_ARTIFACTS = new Map<string, RepositoryArtifactIdentity>([
@@ -56,8 +83,69 @@ const FIXED_ARTIFACTS = new Map<string, RepositoryArtifactIdentity>([
   ],
 ]);
 
+const FIXED_ARTIFACTS_V2 = new Map<string, RepositoryArtifactIdentity>([
+  ["index", { artifactId: "index", kind: "index", path: "openrigor/index.md" }],
+  [
+    "readme",
+    { artifactId: "readme", kind: "readme", path: "openrigor/README.md" },
+  ],
+  [
+    "citation",
+    {
+      artifactId: "citation",
+      kind: "citation",
+      path: "openrigor/CITATION.cff",
+    },
+  ],
+  [
+    "gitignore",
+    {
+      artifactId: "gitignore",
+      kind: "gitignore",
+      path: "openrigor/.gitignore",
+    },
+  ],
+]);
+
+type RepositoryLayoutTable = {
+  prefix: string;
+  fixedArtifacts: Map<string, RepositoryArtifactIdentity>;
+};
+
+const REPOSITORY_LAYOUTS: Record<
+  RepositoryLayoutVersion,
+  RepositoryLayoutTable
+> = {
+  "1.0": { prefix: "", fixedArtifacts: FIXED_ARTIFACTS },
+  "2.0": { prefix: "openrigor/", fixedArtifacts: FIXED_ARTIFACTS_V2 },
+};
+
+function layoutTable(layoutVersion: string): RepositoryLayoutTable | undefined {
+  return isRepositoryLayoutVersionSupported(layoutVersion)
+    ? REPOSITORY_LAYOUTS[layoutVersion as RepositoryLayoutVersion]
+    : undefined;
+}
+
+export function repositoryLayoutPrefix(layoutVersion = "1.0"): string {
+  const table = layoutTable(layoutVersion);
+  if (!table) {
+    throw new RepositoryLayoutError(
+      "UNSUPPORTED_LAYOUT",
+      `Unsupported research repository layout ${layoutVersion}`
+    );
+  }
+  return table.prefix;
+}
+
+export function isRepositoryMethodHostIndexPath(
+  path: string,
+  layoutVersion = "1.0"
+): boolean {
+  return path === `${repositoryLayoutPrefix(layoutVersion)}methods/index.md`;
+}
+
 function assertLayoutVersion(layoutVersion: string): void {
-  if (!isRepositoryLayoutVersionSupported(layoutVersion)) {
+  if (!layoutTable(layoutVersion)) {
     throw new RepositoryLayoutError(
       "UNSUPPORTED_LAYOUT",
       `Unsupported research repository layout ${layoutVersion}`
@@ -114,12 +202,19 @@ export function identifyRepositoryArtifactPath(
   layoutVersion = "1.0"
 ): RepositoryArtifactIdentity | undefined {
   assertLayoutVersion(layoutVersion);
+  const table = REPOSITORY_LAYOUTS[layoutVersion as RepositoryLayoutVersion];
+  const relativePath = table.prefix
+    ? path.startsWith(table.prefix)
+      ? path.slice(table.prefix.length)
+      : undefined
+    : path;
+  if (relativePath === undefined) return undefined;
 
-  for (const artifact of FIXED_ARTIFACTS.values()) {
+  for (const artifact of table.fixedArtifacts.values()) {
     if (artifact.path === path) return artifact;
   }
 
-  let match = /^theory\/([^/]+)\.en\.md$/.exec(path);
+  let match = /^theory\/([^/]+)\.en\.md$/.exec(relativePath);
   if (match && COMPONENT.test(match[1])) {
     return {
       artifactId: `theory.${match[1]}`,
@@ -128,7 +223,7 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^methods\/([^/]+)\/\1\.en\.md$/.exec(path);
+  match = /^methods\/([^/]+)\/\1\.en\.md$/.exec(relativePath);
   if (match && COMPONENT.test(match[1])) {
     return {
       artifactId: `method.${match[1]}`,
@@ -137,7 +232,7 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^methods\/([^/]+)\/evidence-template\.en\.md$/.exec(path);
+  match = /^methods\/([^/]+)\/evidence-template\.en\.md$/.exec(relativePath);
   if (match && COMPONENT.test(match[1])) {
     return {
       artifactId: `evidence-template.${match[1]}`,
@@ -146,7 +241,7 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^methods\/([^/]+)\/evidence\/([^/]+)\.en\.md$/.exec(path);
+  match = /^methods\/([^/]+)\/evidence\/([^/]+)\.en\.md$/.exec(relativePath);
   if (match && COMPONENT.test(match[1]) && COMPONENT.test(match[2])) {
     return {
       artifactId: `evidence.${match[1]}.${match[2]}`,
@@ -155,7 +250,9 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^methods\/([^/]+)\/evidence\/ledgers\/([^/]+)\.en\.md$/.exec(path);
+  match = /^methods\/([^/]+)\/evidence\/ledgers\/([^/]+)\.en\.md$/.exec(
+    relativePath
+  );
   if (match && COMPONENT.test(match[1]) && COMPONENT.test(match[2])) {
     return {
       artifactId: `ledger.${match[1]}.${match[2]}`,
@@ -165,7 +262,7 @@ export function identifyRepositoryArtifactPath(
   }
 
   match = /^methods\/([^/]+)\/evidence\/ledgers\/([^/]+)\.seal\.yml$/.exec(
-    path
+    relativePath
   );
   if (match && COMPONENT.test(match[1]) && COMPONENT.test(match[2])) {
     return {
@@ -175,7 +272,7 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^ledger\/seals\/([^/]+)\.en\.md$/.exec(path);
+  match = /^ledger\/seals\/([^/]+)\.en\.md$/.exec(relativePath);
   if (match && COMPONENT.test(match[1])) {
     return {
       artifactId: `ledger.${match[1]}`,
@@ -184,7 +281,7 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^ledger\/seals\/([^/]+)\.seal\.yml$/.exec(path);
+  match = /^ledger\/seals\/([^/]+)\.seal\.yml$/.exec(relativePath);
   if (match && COMPONENT.test(match[1])) {
     return {
       artifactId: `ledger-seal.${match[1]}`,
@@ -193,7 +290,7 @@ export function identifyRepositoryArtifactPath(
     };
   }
 
-  match = /^findings\/([^/]+)\.en\.md$/.exec(path);
+  match = /^findings\/([^/]+)\.en\.md$/.exec(relativePath);
   if (match && COMPONENT.test(match[1])) {
     return {
       artifactId: `finding.${match[1]}`,
@@ -211,6 +308,7 @@ export function resolveRepositoryArtifactPath(
   layoutVersion = "1.0"
 ): RepositoryArtifactIdentity {
   assertLayoutVersion(layoutVersion);
+  const table = REPOSITORY_LAYOUTS[layoutVersion as RepositoryLayoutVersion];
   if (!ARTIFACT_ID.test(artifactId) || artifactId.length > 128) {
     throw new RepositoryLayoutError(
       "INVALID_ARTIFACT_ID",
@@ -218,7 +316,7 @@ export function resolveRepositoryArtifactPath(
     );
   }
 
-  const fixed = FIXED_ARTIFACTS.get(artifactId);
+  const fixed = table.fixedArtifacts.get(artifactId);
   if (fixed) return fixed;
 
   const parts = artifactId.split(".");
@@ -256,10 +354,13 @@ export function resolveRepositoryArtifactPath(
   if (!path) {
     throw new RepositoryLayoutError(
       "INVALID_ARTIFACT_ID",
-      "Artifact id is not part of research repository layout 1.0"
+      `Artifact id is not part of research repository layout ${layoutVersion}`
     );
   }
-  const artifact = identifyRepositoryArtifactPath(path, layoutVersion);
+  const artifact = identifyRepositoryArtifactPath(
+    `${table.prefix}${path}`,
+    layoutVersion
+  );
   if (!artifact || artifact.artifactId !== artifactId) {
     throw new RepositoryLayoutError(
       "INVALID_ARTIFACT_ID",
@@ -271,10 +372,14 @@ export function resolveRepositoryArtifactPath(
 
 export function validateRepositoryArtifactContent(
   path: string,
-  content: string
+  content: string,
+  layoutVersion = "1.0"
 ): void {
   assertSafeRepositoryArtifactPath(path);
-  if (!identifyRepositoryArtifactPath(path)) {
+  if (
+    !identifyRepositoryArtifactPath(path, layoutVersion) &&
+    !isRepositoryMethodHostIndexPath(path, layoutVersion)
+  ) {
     throw new RepositoryLayoutError(
       "INVALID_ARTIFACT_TYPE",
       "Only managed Markdown, YAML, CFF, and gitignore artifacts are allowed"

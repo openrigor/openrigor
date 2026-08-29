@@ -87,8 +87,10 @@ import {
   getGithubInstallationRepository,
   getGithubRepositoryBranchHead,
 } from "./research-repository/github-app";
+import type { RepositoryLayoutVersion } from "./research-repository/layout";
 import {
   discoverPrivateMethods,
+  ensureMethodHostIndex,
   probeMethodHostInitialization,
 } from "./research-repository/git-adapter";
 import {
@@ -108,7 +110,8 @@ const LOCK_KEY = "lock";
 /** Store SDK TTL is in minutes (see @langchain/langgraph-sdk StoreClient.putItem). */
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
 export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
-export const RESEARCH_REPOSITORY_LAYOUT_VERSION = "1.0" as const;
+export const RESEARCH_REPOSITORY_LAYOUT_VERSION: RepositoryLayoutVersion =
+  "1.0";
 const PRIVATE_METHOD_DEFAULT_TEMPLATE_ID = "evaluchat-assignment-brief";
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */
@@ -705,9 +708,10 @@ async function loadResearchRepositoryForBinding(
   return repository;
 }
 
-async function prepareResearchRepositoryBinding(
+export async function prepareResearchRepositoryBinding(
   input: { repositoryId: number; installationId: number },
-  repository: Awaited<ReturnType<typeof getGithubInstallationRepository>>
+  repository: Awaited<ReturnType<typeof getGithubInstallationRepository>>,
+  layoutVersion: RepositoryLayoutVersion = RESEARCH_REPOSITORY_LAYOUT_VERSION
 ) {
   let headCommitSha: string;
   try {
@@ -753,13 +757,51 @@ async function prepareResearchRepositoryBinding(
       ));
   }
 
+  if (layoutVersion === "2.0") {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        headCommitSha = (
+          await ensureMethodHostIndex(
+            input.installationId,
+            repository,
+            RESEARCH_REPOSITORY_BRANCH,
+            headCommitSha,
+            layoutVersion
+          )
+        ).commitSha;
+        break;
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          error.name !== "StaleRepositoryError"
+        ) {
+          throw error;
+        }
+        if (attempt === 2) throw error;
+        headCommitSha = await getGithubRepositoryBranchHead(
+          input.installationId,
+          repository,
+          RESEARCH_REPOSITORY_BRANCH
+        );
+      }
+    }
+  }
+
   return {
     headCommitSha,
-    initialization: await probeMethodHostInitialization(
-      input.installationId,
-      repository,
-      headCommitSha
-    ),
+    initialization:
+      layoutVersion === "2.0"
+        ? await probeMethodHostInitialization(
+            input.installationId,
+            repository,
+            headCommitSha,
+            layoutVersion
+          )
+        : await probeMethodHostInitialization(
+            input.installationId,
+            repository,
+            headCommitSha
+          ),
   };
 }
 
@@ -851,11 +893,19 @@ export async function refreshResearchRepositoryBindings(
             repository,
             item.binding.branch
           );
-          const initialization = await probeMethodHostInitialization(
-            item.binding.installationId,
-            repository,
-            headCommitSha
-          );
+          const initialization =
+            item.binding.layoutVersion === "2.0"
+              ? await probeMethodHostInitialization(
+                  item.binding.installationId,
+                  repository,
+                  headCommitSha,
+                  item.binding.layoutVersion
+                )
+              : await probeMethodHostInitialization(
+                  item.binding.installationId,
+                  repository,
+                  headCommitSha
+                );
           return { itemId: item.id, headCommitSha, initialization };
         } catch (error) {
           console.error(
@@ -1143,11 +1193,19 @@ async function resolvePrivateMethodHost(
     repository,
     repositoryItem.binding.branch
   );
-  const discovery = await discoverPrivateMethods(
-    repositoryItem.binding.installationId,
-    repository,
-    commitSha
-  );
+  const discovery =
+    repositoryItem.binding.layoutVersion === "2.0"
+      ? await discoverPrivateMethods(
+          repositoryItem.binding.installationId,
+          repository,
+          commitSha,
+          repositoryItem.binding.layoutVersion
+        )
+      : await discoverPrivateMethods(
+          repositoryItem.binding.installationId,
+          repository,
+          commitSha
+        );
   return { commitSha, credentials, repository, discovery };
 }
 

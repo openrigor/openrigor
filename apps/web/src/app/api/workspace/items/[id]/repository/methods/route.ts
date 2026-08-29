@@ -55,11 +55,18 @@ async function discover(userId: string, item: ResearchRepositoryWorkspaceItem) {
     item.binding.branch
   );
   return {
-    ...(await discoverPrivateMethods(
-      item.binding.installationId,
-      repository,
-      headCommitSha
-    )),
+    ...(item.binding.layoutVersion === "2.0"
+      ? await discoverPrivateMethods(
+          item.binding.installationId,
+          repository,
+          headCommitSha,
+          item.binding.layoutVersion
+        )
+      : await discoverPrivateMethods(
+          item.binding.installationId,
+          repository,
+          headCommitSha
+        )),
     headCommitSha,
   };
 }

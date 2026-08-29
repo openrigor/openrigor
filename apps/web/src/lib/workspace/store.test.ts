@@ -98,6 +98,7 @@ const harness = vi.hoisted(() => {
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
+    ensureMethodHostIndex: vi.fn(),
     probeMethodHostInitialization: vi.fn(),
     discoverPrivateMethods: vi.fn(),
     previewSealSnapshot: vi.fn(),
@@ -130,6 +131,7 @@ vi.mock("./research-repository/git-adapter", async (importOriginal) => {
     await importOriginal<typeof import("./research-repository/git-adapter")>();
   return {
     ...actual,
+    ensureMethodHostIndex: harness.ensureMethodHostIndex,
     probeMethodHostInitialization: harness.probeMethodHostInitialization,
     discoverPrivateMethods: harness.discoverPrivateMethods,
   };
@@ -142,6 +144,7 @@ vi.mock("./research-repository/seals", async (importOriginal) => {
 
 import {
   createResearchRepositoryItem,
+  prepareResearchRepositoryBinding,
   createPrivateMethodWorkspaceItem,
   createPrivateLedgerWorkspaceItem,
   createLedgerSnapshotItem,
@@ -483,6 +486,7 @@ describe("research repository workspace items", () => {
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
+    harness.ensureMethodHostIndex.mockReset();
     harness.probeMethodHostInitialization.mockReset();
     harness.discoverPrivateMethods.mockReset();
     harness.readGithubResearchCredentials.mockResolvedValue(
@@ -542,6 +546,90 @@ describe("research repository workspace items", () => {
       workspaceBranchSha
     );
     expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("prepares a v2 binding by creating the Method-host sentinel once", async () => {
+    const v2Head = "c".repeat(40);
+    harness.ensureMethodHostIndex.mockResolvedValue({
+      commitSha: v2Head,
+      created: true,
+    });
+
+    await expect(
+      prepareResearchRepositoryBinding(
+        { repositoryId: 101, installationId: 99 },
+        {
+          id: 101,
+          name: "private",
+          nameWithOwner: "octocat/private",
+          owner: "octocat",
+          private: true,
+          defaultBranch: "main",
+        },
+        "2.0"
+      )
+    ).resolves.toMatchObject({
+      headCommitSha: v2Head,
+      initialization: { initialized: true },
+    });
+    expect(harness.ensureMethodHostIndex).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      "openrigor/workspace",
+      workspaceBranchSha,
+      "2.0"
+    );
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      v2Head,
+      "2.0"
+    );
+  });
+
+  it("re-reads the head when a concurrent v2 sentinel create loses CAS", async () => {
+    const racedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead
+      .mockResolvedValueOnce(workspaceBranchSha)
+      .mockResolvedValueOnce(racedHead);
+    harness.ensureMethodHostIndex
+      .mockRejectedValueOnce(
+        Object.assign(new Error("The research repository head has changed"), {
+          name: "StaleRepositoryError",
+        })
+      )
+      .mockResolvedValueOnce({ commitSha: racedHead, created: false });
+
+    await expect(
+      prepareResearchRepositoryBinding(
+        { repositoryId: 101, installationId: 99 },
+        {
+          id: 101,
+          name: "private",
+          nameWithOwner: "octocat/private",
+          owner: "octocat",
+          private: true,
+          defaultBranch: "main",
+        },
+        "2.0"
+      )
+    ).resolves.toMatchObject({ headCommitSha: racedHead });
+    expect(harness.ensureMethodHostIndex).toHaveBeenNthCalledWith(
+      1,
+      99,
+      expect.anything(),
+      "openrigor/workspace",
+      workspaceBranchSha,
+      "2.0"
+    );
+    expect(harness.ensureMethodHostIndex).toHaveBeenNthCalledWith(
+      2,
+      99,
+      expect.anything(),
+      "openrigor/workspace",
+      racedHead,
+      "2.0"
+    );
   });
 
   it("persists the initialization failure reason without rejecting the binding", async () => {
