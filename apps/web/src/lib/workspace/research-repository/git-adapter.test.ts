@@ -327,6 +327,48 @@ describe("GitHub repository Git Data adapter", () => {
     expect(harness.getHead).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects a symlink blob at the v2 sentinel path without writing", async () => {
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+        return { data: { tree: { sha: baseTreeSha } } };
+      }
+      if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+        return {
+          data: {
+            tree: [
+              {
+                path: "openrigor/methods/index.md",
+                mode: "120000",
+                type: "blob",
+                sha: blobSha,
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      ensureMethodHostIndex(
+        99,
+        repository,
+        "openrigor/workspace",
+        baseSha,
+        "2.0"
+      )
+    ).rejects.toMatchObject<Partial<RepositoryLayoutError>>({
+      code: "INVALID_ARTIFACT_PATH",
+    });
+    expect(harness.request).toHaveBeenCalledTimes(2);
+    expect(
+      harness.request.mock.calls.some(([route]) =>
+        String(route).startsWith("POST /repos/{owner}/{repo}/git/")
+      )
+    ).toBe(false);
+    expect(harness.getHead).toHaveBeenCalledTimes(1);
+  });
+
   it("creates blob, tree, commit, and a non-forced CAS ref update", async () => {
     harness.request.mockImplementation(async (route: string) => {
       if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {

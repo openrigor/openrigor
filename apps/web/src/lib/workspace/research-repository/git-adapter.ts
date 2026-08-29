@@ -271,13 +271,16 @@ export async function ensureMethodHostIndex(
   }
   const tree = await repositoryTree(installationId, repository, baseSha);
   const existing = tree.find((entry) => entry.path === path);
-  if (existing?.type === "blob") {
+  if (
+    existing?.type === "blob" &&
+    (existing.mode === "100644" || existing.mode === "100755")
+  ) {
     return { commitSha: baseSha, created: false };
   }
   if (existing) {
     throw new RepositoryLayoutError(
       "INVALID_ARTIFACT_PATH",
-      "The Method host index path is occupied by a non-blob entry and the scaffold will not overwrite it"
+      "The Method host index path is occupied by an entry that is not a regular file and the scaffold will not overwrite it"
     );
   }
   const commitSha = await commitArtifactBlobs(
