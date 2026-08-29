@@ -8,6 +8,7 @@ import type {
 export type MethodHostTreeEntry = {
   path: string;
   type: string;
+  mode: string;
   sha: string;
 };
 
@@ -41,7 +42,8 @@ export function inspectMethodHostInitialization(
     !tree.some(
       (entry) =>
         entry.path === methodHostIndexPath(layoutVersion) &&
-        entry.type === "blob"
+        entry.type === "blob" &&
+        (entry.mode === "100644" || entry.mode === "100755")
     )
   ) {
     return {

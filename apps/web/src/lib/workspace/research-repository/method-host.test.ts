@@ -1,17 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   discoverPrivateMethodsFromTree,
+  inspectMethodHostInitialization,
   type MethodHostTreeEntry,
 } from "./method-host";
 
 const indexEntry = {
   path: "methods/index.md",
   type: "blob",
+  mode: "100644",
   sha: "index",
 };
 const v2IndexEntry = {
   path: "openrigor/methods/index.md",
   type: "blob",
+  mode: "100644",
   sha: "v2-index",
 };
 
@@ -23,6 +26,7 @@ function methodEntries(
     {
       path: `methods/${id}/${id}.en.md`,
       type: "blob",
+      mode: "100644",
       sha: `method-${id}`,
     },
     ...(options.evidenceTemplate === false
@@ -31,6 +35,7 @@ function methodEntries(
           {
             path: `methods/${id}/evidence-template.en.md`,
             type: "blob",
+            mode: "100644",
             sha: `evidence-${id}`,
           },
         ]),
@@ -113,7 +118,10 @@ describe("private Method-host discovery conformance", () => {
 
   it("reports a repository without methods/ as uninitialized", async () => {
     await expect(
-      discover([{ path: "README.md", type: "blob", sha: "readme" }], {})
+      discover(
+        [{ path: "README.md", type: "blob", mode: "100644", sha: "readme" }],
+        {}
+      )
     ).resolves.toEqual({
       initialization: {
         initialized: false,
@@ -160,6 +168,25 @@ describe("private Method-host discovery conformance", () => {
           evidenceTemplateMarkdown: "",
         },
       ],
+    });
+  });
+
+  it("does not treat a symlink blob at the index path as initialized", () => {
+    expect(
+      inspectMethodHostInitialization([
+        {
+          path: "methods/index.md",
+          type: "blob",
+          mode: "120000",
+          sha: "symlink-index",
+        },
+      ])
+    ).toEqual({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+    expect(inspectMethodHostInitialization([indexEntry])).toEqual({
+      initialized: true,
     });
   });
 
