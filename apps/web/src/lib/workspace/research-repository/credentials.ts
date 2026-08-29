@@ -19,6 +19,8 @@ const IDENTIFIER_HMAC_DOMAIN = "github-research-identifier-hmac";
 const SEARCH_PAGE_SIZE = 100;
 export const MAX_CREDENTIAL_SEARCH_PAGES = 100;
 
+export type GithubPushPathScope = "inside" | "outside" | "unknown";
+
 export class CredentialOwnerSearchTruncatedError extends Error {
   constructor(public readonly installationId: number) {
     super(
@@ -45,6 +47,7 @@ export type GithubResearchCredentialRecord = {
     refHash?: string;
     beforeHash?: string;
     afterHash?: string;
+    pathScope?: GithubPushPathScope;
     receivedAt: string;
   };
 };
@@ -652,6 +655,7 @@ export async function recordGithubPush(
     ref?: string;
     before?: string;
     after?: string;
+    pathScope?: GithubPushPathScope;
   }
 ): Promise<void> {
   await updateCredentialRecord(userId, (record) => ({
@@ -667,6 +671,7 @@ export async function recordGithubPush(
       afterHash: input.after
         ? hashGithubCredentialIdentifier(input.after)
         : undefined,
+      pathScope: input.pathScope ?? "unknown",
       receivedAt: new Date().toISOString(),
     },
   }));

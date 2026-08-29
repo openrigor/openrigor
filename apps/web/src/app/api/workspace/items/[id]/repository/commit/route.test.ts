@@ -82,7 +82,7 @@ const item = {
     installationId: 99,
     repositoryId: 101,
     branch: "openrigor/workspace",
-    layoutVersion: "1.0",
+    layoutVersion: "2.0",
     headCommitSha: baseCommitSha,
   },
 };
@@ -204,6 +204,23 @@ describe("POST repository artifact commit", () => {
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
+  it("rejects commits from a legacy layout with the read-only access code", async () => {
+    harness.getWorkspaceItem.mockResolvedValue({
+      ...item,
+      binding: { ...item.binding, layoutVersion: "1.0" },
+    });
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: "REPOSITORY_READ_ONLY",
+      message:
+        "This repository uses the previous layout; it is readable but no longer writable.",
+    });
+    expect(harness.commitArtifacts).not.toHaveBeenCalled();
+  });
+
   it("commits an authorable artifact with valid front-matter", async () => {
     const response = await POST(
       request({
@@ -222,7 +239,7 @@ describe("POST repository artifact commit", () => {
       expect.objectContaining({
         files: [
           {
-            path: "methods/synthetic-method/synthetic-method.en.md",
+            path: "openrigor/methods/synthetic-method/synthetic-method.en.md",
             content: validMethodContent,
           },
         ],
@@ -287,7 +304,7 @@ describe("POST repository artifact commit", () => {
       provenance: {
         repository: "octocat/private",
         branch: "openrigor/workspace",
-        path: "index.md",
+        path: "openrigor/index.md",
         revision: resultCommitSha,
       },
     });
@@ -310,7 +327,7 @@ describe("POST repository artifact commit", () => {
         baseSha: baseCommitSha,
         files: [
           {
-            path: "index.md",
+            path: "openrigor/index.md",
             content: "unique file text that must not enter Store",
           },
         ],
@@ -565,7 +582,7 @@ describe("POST repository artifact commit", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
       error: "REPOSITORY_CHANGED",
-      files: ["index.md"],
+      files: ["openrigor/index.md"],
     });
     expect(harness.claimOperation).toHaveBeenCalledOnce();
     expect(harness.commitArtifacts).not.toHaveBeenCalled();

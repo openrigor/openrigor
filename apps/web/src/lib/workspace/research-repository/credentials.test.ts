@@ -366,14 +366,17 @@ describe("GitHub research credential Store", () => {
     await Promise.all([
       updateGithubInstallationRepositories("user-1", [102], []),
       updateGithubInstallationRepositories("user-1", [103], []),
-      recordGithubPush("user-1", { repositoryId: 103 }),
+      recordGithubPush("user-1", {
+        repositoryId: 103,
+        pathScope: "inside",
+      }),
     ]);
 
     await expect(
       readGithubResearchCredentialRecord("user-1")
     ).resolves.toMatchObject({
       repositoryIds: [101, 102, 103],
-      lastPush: { repositoryId: 103 },
+      lastPush: { repositoryId: 103, pathScope: "inside" },
     });
   });
 

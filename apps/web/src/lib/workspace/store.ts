@@ -114,7 +114,7 @@ const LOCK_KEY = "lock";
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
 export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
 export const RESEARCH_REPOSITORY_LAYOUT_VERSION: RepositoryLayoutVersion =
-  "1.0";
+  "2.0";
 const PRIVATE_METHOD_DEFAULT_TEMPLATE_ID = "evaluchat-assignment-brief";
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */

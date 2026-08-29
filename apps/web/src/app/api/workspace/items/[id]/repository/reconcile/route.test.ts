@@ -4,6 +4,7 @@ const harness = vi.hoisted(() => ({
   enabled: vi.fn(),
   verifyUserAuthenticated: vi.fn(),
   getWorkspaceItem: vi.fn(),
+  getResearchRepositoryStatus: vi.fn(),
   readCredentials: vi.fn(),
   updateHead: vi.fn(),
   getRepository: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/lib/supabase/verify_user_server", () => ({
 }));
 vi.mock("@/lib/workspace/store", () => ({
   getWorkspaceItem: harness.getWorkspaceItem,
+  getResearchRepositoryStatus: harness.getResearchRepositoryStatus,
   updateResearchRepositoryBindingHead: harness.updateHead,
 }));
 vi.mock("@/lib/workspace/research-repository/credentials", () => ({
@@ -44,7 +46,7 @@ import { POST } from "./route";
 import { RepositoryLayoutError } from "@/lib/workspace/research-repository/layout";
 
 const headCommitSha = "b".repeat(40);
-const artifacts = [{ artifactId: "index", path: "index.md" }];
+const artifacts = [{ artifactId: "index", path: "openrigor/index.md" }];
 const context = { params: Promise.resolve({ id: "workspace-one" }) };
 const item = {
   id: "workspace-one",
@@ -53,7 +55,7 @@ const item = {
     installationId: 99,
     repositoryId: 101,
     branch: "openrigor/workspace",
-    layoutVersion: "1.0",
+    layoutVersion: "2.0",
   },
 };
 const operation = {
@@ -71,6 +73,14 @@ describe("POST repository reconcile", () => {
       user: { id: "user-1" },
     });
     harness.getWorkspaceItem.mockResolvedValue(item);
+    harness.getResearchRepositoryStatus.mockResolvedValue({
+      workspaceId: "workspace-one",
+      repositoryId: 101,
+      state: "ready",
+      layoutVersion: "2.0",
+      headCommitSha,
+      checkedAt: "2026-08-30T00:00:00.000Z",
+    });
     harness.readCredentials.mockResolvedValue({
       installationId: 99,
       repositoryIds: [101],
@@ -111,7 +121,7 @@ describe("POST repository reconcile", () => {
       99,
       { owner: "octocat", name: "private", private: true },
       "openrigor/workspace",
-      "1.0"
+      "2.0"
     );
     expect(harness.claimOperation).toHaveBeenCalledWith(
       "user-1",
@@ -130,6 +140,10 @@ describe("POST repository reconcile", () => {
       "user-1",
       runningOperation,
       headCommitSha
+    );
+    expect(harness.getResearchRepositoryStatus).toHaveBeenCalledWith(
+      "user-1",
+      item
     );
     expect(await response.json()).toMatchObject({
       status: {

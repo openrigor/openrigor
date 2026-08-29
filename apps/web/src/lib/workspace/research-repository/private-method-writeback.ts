@@ -8,12 +8,10 @@ import {
   REPOSITORY_DISCONNECTED,
   REPOSITORY_UNAVAILABLE,
   RepositoryAccessError,
-  assertRepositoryPrivate,
-  loadInstallationRepository,
+  assertRepositoryWriteAccess,
 } from "./access";
 import {
   commitArtifactBlobs,
-  getRepositoryBranchHead,
   repositoryCommitProvenance,
   type GithubCommitAuthor,
 } from "./git-adapter";
@@ -65,16 +63,14 @@ export async function privateMethodRepositoryAccess(
       "Research repository is disconnected"
     );
   }
-  const repository = await loadInstallationRepository(
-    item.binding.installationId,
-    item.binding.repositoryId
-  );
-  assertRepositoryPrivate(repository);
-  const headCommitSha = await getRepositoryBranchHead(
-    item.binding.installationId,
-    repository,
-    item.binding.branch
-  );
+  const { repository, currentHead: headCommitSha } =
+    await assertRepositoryWriteAccess({
+      installationId: item.binding.installationId,
+      repositoryId: item.binding.repositoryId,
+      branch: item.binding.branch,
+      expectedHeadSha: item.binding.headCommitSha,
+      layoutVersion: item.binding.layoutVersion,
+    });
   return {
     repositoryItemId: item.id,
     access: {

@@ -16,6 +16,8 @@ const harness = vi.hoisted(() => ({
   updateInstallation: vi.fn(),
   updateRepositories: vi.fn(),
   recordPush: vi.fn(),
+  listItems: vi.fn(),
+  updateHead: vi.fn(),
 }));
 
 vi.mock("@octokit/webhooks", () => ({ Webhooks: harness.Webhooks }));
@@ -32,6 +34,10 @@ vi.mock("@/lib/workspace/research-repository/credentials", () => ({
   updateGithubInstallation: harness.updateInstallation,
   updateGithubInstallationRepositories: harness.updateRepositories,
   recordGithubPush: harness.recordPush,
+}));
+vi.mock("@/lib/workspace/store", () => ({
+  listWorkspaceItems: harness.listItems,
+  updateResearchRepositoryBindingHead: harness.updateHead,
 }));
 
 import { POST } from "./route";
@@ -65,6 +71,8 @@ describe("POST /api/workspace/github/webhook", () => {
     harness.claimDelivery.mockResolvedValue(true);
     harness.releaseDelivery.mockResolvedValue(undefined);
     harness.revokeAuthorization.mockResolvedValue(undefined);
+    harness.listItems.mockResolvedValue([]);
+    harness.updateHead.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -132,9 +140,138 @@ describe("POST /api/workspace/github/webhook", () => {
       ref: "refs/heads/main",
       before: "abc",
       after: "def",
+      pathScope: "unknown",
     });
     expect(JSON.stringify(harness.recordPush.mock.calls)).not.toContain(
       "must not be persisted"
+    );
+  });
+
+  it("leaves the binding head unchanged for an outside-only push", async () => {
+    harness.listItems.mockResolvedValue([
+      {
+        id: "workspace-one",
+        kind: "research_repository",
+        binding: {
+          installationId: 99,
+          repositoryId: 101,
+          layoutVersion: "1.0",
+        },
+      },
+    ]);
+    const after = "b".repeat(40);
+
+    const response = await POST(
+      request({
+        installation: { id: 99 },
+        repository: { id: 101 },
+        ref: "refs/heads/openrigor/workspace",
+        after,
+        commits: [{ added: ["docs/readme.md"], removed: [], modified: [] }],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(harness.recordPush).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ repositoryId: 101, pathScope: "outside" })
+    );
+    expect(harness.updateHead).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "a managed path",
+      [{ added: ["openrigor/index.md"], removed: [], modified: [] }],
+      "inside",
+    ],
+    [
+      "a mixed path set",
+      [
+        {
+          added: ["docs/readme.md"],
+          removed: [],
+          modified: ["openrigor/index.md"],
+        },
+      ],
+      "inside",
+    ],
+    ["an unknown path set", undefined, "unknown"],
+  ] as const)(
+    "advances the binding for %s",
+    async (_name, commits, pathScope) => {
+      const item = {
+        id: "workspace-one",
+        kind: "research_repository",
+        binding: {
+          installationId: 99,
+          repositoryId: 101,
+          layoutVersion: "1.0",
+        },
+      };
+      harness.listItems.mockResolvedValue([item]);
+      const after = "c".repeat(40);
+
+      const response = await POST(
+        request({
+          installation: { id: 99 },
+          repository: { id: 101 },
+          ref: "refs/heads/openrigor/workspace",
+          after,
+          ...(commits === undefined ? {} : { commits }),
+        })
+      );
+
+      expect(response.status).toBe(200);
+      expect(harness.recordPush).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({ pathScope })
+      );
+      expect(harness.updateHead).toHaveBeenCalledWith(
+        "user-1",
+        "workspace-one",
+        after
+      );
+    }
+  );
+
+  it("treats a capped commit list as unknown and advances safely", async () => {
+    harness.listItems.mockResolvedValue([
+      {
+        id: "workspace-one",
+        kind: "research_repository",
+        binding: {
+          installationId: 99,
+          repositoryId: 101,
+          layoutVersion: "2.0",
+        },
+      },
+    ]);
+    const after = "d".repeat(40);
+    const commits = Array.from({ length: 20 }, () => ({
+      added: ["docs/readme.md"],
+      removed: [],
+      modified: [],
+    }));
+
+    await POST(
+      request({
+        installation: { id: 99 },
+        repository: { id: 101 },
+        ref: "refs/heads/openrigor/workspace",
+        after,
+        commits,
+      })
+    );
+
+    expect(harness.recordPush).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ pathScope: "unknown" })
+    );
+    expect(harness.updateHead).toHaveBeenCalledWith(
+      "user-1",
+      "workspace-one",
+      after
     );
   });
 

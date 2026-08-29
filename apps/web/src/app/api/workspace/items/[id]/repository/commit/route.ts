@@ -274,6 +274,7 @@ export async function POST(request: Request, context: RouteContext) {
         repositoryId: item.binding.repositoryId,
         branch: item.binding.branch,
         expectedHeadSha: item.binding.headCommitSha,
+        layoutVersion: item.binding.layoutVersion,
         files: [artifact.path],
       });
       repositoryForCommit = access.repository;

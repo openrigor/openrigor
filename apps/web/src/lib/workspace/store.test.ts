@@ -454,7 +454,7 @@ function connectedGithubCredentials(repositoryIds = [101]) {
   };
 }
 
-function repositoryWorkspaceItem(layoutVersion = "1.0") {
+function repositoryWorkspaceItem(layoutVersion = "2.0") {
   const now = "2026-08-22T10:00:00.000Z";
   return {
     id: "wi_repository",
@@ -501,6 +501,10 @@ describe("research repository workspace items", () => {
       defaultBranch: "main",
     });
     harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
+    harness.ensureMethodHostIndex.mockResolvedValue({
+      commitSha: workspaceBranchSha,
+      created: false,
+    });
     harness.probeMethodHostInitialization.mockResolvedValue({
       initialized: true,
     });
@@ -528,7 +532,7 @@ describe("research repository workspace items", () => {
         repositoryId: 101,
         installationId: 99,
         branch: "openrigor/workspace",
-        layoutVersion: "1.0",
+        layoutVersion: "2.0",
         headCommitSha: workspaceBranchSha,
         initialized: true,
       },
@@ -543,7 +547,8 @@ describe("research repository workspace items", () => {
     expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
       99,
       expect.objectContaining({ owner: "octocat", name: "private" }),
-      workspaceBranchSha
+      workspaceBranchSha,
+      "2.0"
     );
     expect(harness.state.manifest.items[item.id]).toEqual(item);
   });
@@ -668,7 +673,8 @@ describe("research repository workspace items", () => {
     expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
       99,
       expect.objectContaining({ owner: "octocat", name: "private" }),
-      refreshedHead
+      refreshedHead,
+      "2.0"
     );
     expect(harness.state.manifest.items[item.id].binding).toMatchObject({
       headCommitSha: refreshedHead,
@@ -755,6 +761,10 @@ describe("research repository workspace items", () => {
         )
         .mockResolvedValueOnce(repositorySha)
         .mockResolvedValueOnce(rereadSha);
+      harness.ensureMethodHostIndex.mockResolvedValue({
+        commitSha: rereadSha,
+        created: false,
+      });
       harness.createGithubRepositoryBranch.mockRejectedValue(
         Object.assign(new Error("Branch already exists"), { status })
       );
@@ -892,6 +902,10 @@ describe("research repository workspace items", () => {
       defaultBranch: "main",
     });
     harness.getGithubRepositoryBranchHead.mockResolvedValue("d".repeat(40));
+    harness.ensureMethodHostIndex.mockResolvedValue({
+      commitSha: "d".repeat(40),
+      created: false,
+    });
 
     const replaced = await replaceResearchRepositoryBinding(
       "user-1",
@@ -979,7 +993,7 @@ describe("research repository workspace items", () => {
       workspaceId: "wi_repository",
       repositoryId: 101,
       state: "ready",
-      layoutVersion: "1.0",
+      layoutVersion: "2.0",
       headCommitSha: workspaceBranchSha,
     });
   });
@@ -1624,15 +1638,15 @@ describe("research repository workspace items", () => {
     });
   });
 
-  it("opens an unsupported layout read-only", async () => {
+  it("opens a legacy layout read-only", async () => {
     harness.getGithubRepositoryBranchHead.mockResolvedValue(workspaceBranchSha);
 
     await expect(
-      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem("1.1"))
+      getResearchRepositoryStatus("user-1", repositoryWorkspaceItem("1.0"))
     ).resolves.toMatchObject({
       state: "read_only",
-      reason: "unsupported_layout_minor",
-      layoutVersion: "1.1",
+      reason: "unsupported_layout_major",
+      layoutVersion: "1.0",
       headCommitSha: workspaceBranchSha,
     });
   });
