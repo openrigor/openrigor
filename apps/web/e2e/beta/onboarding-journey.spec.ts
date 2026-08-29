@@ -272,8 +272,11 @@ test.describe("@beta-release public-beta onboarding journey", () => {
       let privateMethod: CatalogResultWire | undefined;
       const catalogDeadline = Date.now() + TIMEOUTS.pageLoad;
       while (!privateMethod && Date.now() < catalogDeadline) {
+        const remaining = catalogDeadline - Date.now();
+        if (remaining <= 0) break;
         const catalogResponse = await page.request.get(
-          `${baseUrl()}/api/workspace/catalog?kind=method&q=${encodeURIComponent(method.id)}`
+          `${baseUrl()}/api/workspace/catalog?kind=method&q=${encodeURIComponent(method.id)}`,
+          { timeout: remaining }
         );
         expect(catalogResponse.status()).toBe(200);
         const catalogBody = (await catalogResponse.json()) as {
@@ -285,7 +288,8 @@ test.describe("@beta-release public-beta onboarding journey", () => {
             result.private === true &&
             result.repositoryItemId === repositoryItemId
         );
-        if (!privateMethod) await page.waitForTimeout(1000);
+        if (!privateMethod)
+          await page.waitForTimeout(Math.min(1000, remaining));
       }
       expect(privateMethod).toBeTruthy();
       expect(privateMethod?.commitSha).toMatch(/^[a-f0-9]{40}$/i);
