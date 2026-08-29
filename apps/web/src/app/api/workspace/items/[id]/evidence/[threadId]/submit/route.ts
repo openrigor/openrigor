@@ -99,7 +99,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({
         status: "filed",
         commitSha,
-        filePath,
+        filePath: provenance?.path ?? filePath,
         id: submissionKey,
         stage: validated.stage,
         private: true,

@@ -325,8 +325,13 @@ export async function resolveArtifactBlobSha(
   installationId: number,
   repository: GithubRepositoryCoordinates,
   branch: string,
-  path: string
+  path: string,
+  layoutVersion = "1.0"
 ): Promise<string | undefined> {
+  // Validate the server-owned path before resolving the head or tree. In
+  // particular, a v2 caller must never be able to turn an outside-prefix path
+  // into a blob lookup by supplying a path from the legacy root.
+  validateRepositoryArtifactContent(path, "", layoutVersion);
   const commitSha = await getGithubRepositoryBranchHead(
     installationId,
     repository,
@@ -574,6 +579,9 @@ export async function readArtifactBlob(
   path: string,
   layoutVersion = "1.0"
 ): Promise<{ content: string; blobSha: string; commitSha: string }> {
+  // Fail closed before fetching the repository tree or blob. This prevents a
+  // caller with a v2 binding from probing or fetching a legacy-root blob.
+  validateRepositoryArtifactContent(path, "", layoutVersion);
   const commitSha = await getGithubRepositoryBranchHead(
     installationId,
     repository,

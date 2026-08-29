@@ -177,4 +177,41 @@ describe("private Method repository write-back authorization", () => {
       committedSha
     );
   });
+
+  it("prefixes evidence write-back for a v2 repository binding", async () => {
+    harness.getWorkspaceItem.mockResolvedValue({
+      ...repositoryItem,
+      binding: { ...repositoryItem.binding, layoutVersion: "2.0" },
+    });
+
+    const filePath = "methods/essay-review/evidence/2026-08-24T12-00-00Z.en.md";
+    await commitPrivateMethodEvidence({
+      userId: "user-1",
+      provenance,
+      methodId: "essay-review",
+      filePath,
+      markdown: "---\ntype: Evidence\n---\n",
+    });
+
+    expect(harness.commitArtifacts).toHaveBeenCalledWith(
+      99,
+      { id: 101, owner: "researcher", name: "private-methods", private: true },
+      "openrigor/workspace",
+      expect.objectContaining({
+        layoutVersion: "2.0",
+        files: [
+          {
+            path: `openrigor/${filePath}`,
+            content: "---\ntype: Evidence\n---\n",
+          },
+        ],
+      })
+    );
+    expect(harness.commitProvenance).toHaveBeenCalledWith(
+      expect.anything(),
+      "openrigor/workspace",
+      `openrigor/${filePath}`,
+      committedSha
+    );
+  });
 });
