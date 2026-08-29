@@ -270,7 +270,7 @@ export async function ensureMethodHostIndex(
     throw new StaleRepositoryError(currentHead);
   }
   const tree = await repositoryTree(installationId, repository, baseSha);
-  if (tree.some((entry) => entry.path === path)) {
+  if (tree.some((entry) => entry.path === path && entry.type === "blob")) {
     return { commitSha: baseSha, created: false };
   }
   const commitSha = await commitArtifactBlobs(
