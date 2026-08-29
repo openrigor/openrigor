@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   assertSafeRepositoryArtifactPath,
   identifyRepositoryArtifactPath,
+  isRepositoryLayoutVersionSupported,
+  isRepositoryLayoutVersionWritable,
   RepositoryLayoutError,
   resolveRepositoryArtifactPath,
   validateRepositoryArtifactContent,
@@ -140,14 +142,106 @@ describe("research repository layout 1.0", () => {
     expect(() => resolveRepositoryArtifactPath("index", "1.1")).toThrow(
       RepositoryLayoutError
     );
-    expect(() => resolveRepositoryArtifactPath("index", "2.0")).toThrow(
-      RepositoryLayoutError
-    );
+    expect(() =>
+      resolveRepositoryArtifactPath("workspace-manifest", "2.0")
+    ).toThrow(RepositoryLayoutError);
   });
 
   it("refuses gitlink/submodule modes", () => {
     expect(() => validateRepositoryArtifactMode("index.md", "160000")).toThrow(
       /non-executable/
     );
+  });
+});
+
+describe("research repository layout 2.0", () => {
+  it.each([
+    ["index", "openrigor/index.md", "index"],
+    ["theory.question-one", "openrigor/theory/question-one.en.md", "theory"],
+    [
+      "method.synthetic-method",
+      "openrigor/methods/synthetic-method/synthetic-method.en.md",
+      "method",
+    ],
+    [
+      "evidence-template.synthetic-method",
+      "openrigor/methods/synthetic-method/evidence-template.en.md",
+      "evidence_template",
+    ],
+    [
+      "evidence.synthetic-method.source-one",
+      "openrigor/methods/synthetic-method/evidence/source-one.en.md",
+      "evidence",
+    ],
+    [
+      "ledger.synthetic-method.snapshot-one",
+      "openrigor/methods/synthetic-method/evidence/ledgers/snapshot-one.en.md",
+      "ledger",
+    ],
+    [
+      "ledger-seal.synthetic-method.snapshot-one",
+      "openrigor/methods/synthetic-method/evidence/ledgers/snapshot-one.seal.yml",
+      "ledger_seal",
+    ],
+    [
+      "ledger.11111111-1111-4111-8111-111111111111",
+      "openrigor/ledger/seals/11111111-1111-4111-8111-111111111111.en.md",
+      "ledger",
+    ],
+    [
+      "ledger-seal.11111111-1111-4111-8111-111111111111",
+      "openrigor/ledger/seals/11111111-1111-4111-8111-111111111111.seal.yml",
+      "ledger_seal",
+    ],
+    ["finding.result-one", "openrigor/findings/result-one.en.md", "finding"],
+    ["readme", "openrigor/README.md", "readme"],
+    ["citation", "openrigor/CITATION.cff", "citation"],
+    ["gitignore", "openrigor/.gitignore", "gitignore"],
+  ])("resolves %s inside the designated root", (artifactId, path, kind) => {
+    expect(resolveRepositoryArtifactPath(artifactId, "2.0")).toEqual({
+      artifactId,
+      path,
+      kind,
+    });
+    expect(identifyRepositoryArtifactPath(path, "2.0")).toEqual({
+      artifactId,
+      path,
+      kind,
+    });
+  });
+
+  it("confines managed artifacts to openrigor/ and has no v2 manifest", () => {
+    expect(identifyRepositoryArtifactPath("index.md", "2.0")).toBeUndefined();
+    expect(
+      identifyRepositoryArtifactPath("methods/example/example.en.md", "2.0")
+    ).toBeUndefined();
+    expect(
+      identifyRepositoryArtifactPath(
+        "openrigor/openrigor/methods/example/example.en.md",
+        "2.0"
+      )
+    ).toBeUndefined();
+    expect(
+      identifyRepositoryArtifactPath("openrigor/workspace.yml", "2.0")
+    ).toBeUndefined();
+    expect(() =>
+      resolveRepositoryArtifactPath("workspace-manifest", "2.0")
+    ).toThrow(RepositoryLayoutError);
+  });
+
+  it("supports both layouts for reading and only v2 for writing", () => {
+    expect(isRepositoryLayoutVersionSupported("1.0")).toBe(true);
+    expect(isRepositoryLayoutVersionSupported("2.0")).toBe(true);
+    expect(isRepositoryLayoutVersionSupported("1.1")).toBe(false);
+    expect(isRepositoryLayoutVersionSupported("1.0", { writable: true })).toBe(
+      false
+    );
+    expect(isRepositoryLayoutVersionSupported("2.0", { writable: true })).toBe(
+      true
+    );
+    expect(isRepositoryLayoutVersionSupported("1.0", "write")).toBe(false);
+    expect(isRepositoryLayoutVersionSupported("2.0", "write")).toBe(true);
+    expect(isRepositoryLayoutVersionWritable("1.0")).toBe(false);
+    expect(isRepositoryLayoutVersionWritable("2.0")).toBe(true);
   });
 });

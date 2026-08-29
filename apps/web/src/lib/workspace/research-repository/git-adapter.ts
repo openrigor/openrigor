@@ -9,6 +9,8 @@ import {
 import { githubErrorStatus } from "./github-error-status";
 import {
   discoverPrivateMethodsFromTree,
+  methodHostIndexPath,
+  METHOD_HOST_INDEX_CONTENT,
   inspectMethodHostInitialization,
 } from "./method-host";
 import type {
@@ -218,16 +220,18 @@ async function repositoryTree(
 export async function probeMethodHostInitialization(
   installationId: number,
   repository: GithubRepositoryCoordinates,
-  commitSha: string
+  commitSha: string,
+  layoutVersion = "1.0"
 ): Promise<MethodHostInitialization> {
   const tree = await repositoryTree(installationId, repository, commitSha);
-  return inspectMethodHostInitialization(tree);
+  return inspectMethodHostInitialization(tree, layoutVersion);
 }
 
 export async function discoverPrivateMethods(
   installationId: number,
   repository: GithubRepositoryCoordinates,
-  commitSha: string
+  commitSha: string,
+  layoutVersion = "1.0"
 ): Promise<{
   initialization: MethodHostInitialization;
   methods: PrivateMethodDefinition[];
@@ -240,7 +244,57 @@ export async function discoverPrivateMethods(
         "utf8"
       )
   );
-  return discoverPrivateMethodsFromTree(tree, readBlob);
+  return discoverPrivateMethodsFromTree(tree, readBlob, layoutVersion);
+}
+
+/**
+ * Create the v2 Method-host sentinel only when it is absent at the supplied
+ * head. The non-forced ref update in commitArtifactBlobs is the CAS boundary;
+ * callers can re-read the head after a StaleRepositoryError and observe the
+ * winner's sentinel commit.
+ */
+export async function ensureMethodHostIndex(
+  installationId: number,
+  repository: GithubRepositoryCoordinates,
+  branch: string,
+  baseSha: string,
+  layoutVersion = "1.0"
+): Promise<{ commitSha: string; created: boolean }> {
+  const path = methodHostIndexPath(layoutVersion);
+  const currentHead = await getGithubRepositoryBranchHead(
+    installationId,
+    repository,
+    branch
+  );
+  if (currentHead !== baseSha) {
+    throw new StaleRepositoryError(currentHead);
+  }
+  const tree = await repositoryTree(installationId, repository, baseSha);
+  const existing = tree.find((entry) => entry.path === path);
+  if (
+    existing?.type === "blob" &&
+    (existing.mode === "100644" || existing.mode === "100755")
+  ) {
+    return { commitSha: baseSha, created: false };
+  }
+  if (existing) {
+    throw new RepositoryLayoutError(
+      "INVALID_ARTIFACT_PATH",
+      "The Method host index path is occupied by an entry that is not a regular file and the scaffold will not overwrite it"
+    );
+  }
+  const commitSha = await commitArtifactBlobs(
+    installationId,
+    repository,
+    branch,
+    {
+      message: "Initialize OpenRigor Method host",
+      baseSha,
+      layoutVersion,
+      files: [{ path, content: METHOD_HOST_INDEX_CONTENT }],
+    }
+  );
+  return { commitSha, created: true };
 }
 
 async function readBlobBuffer(
@@ -320,7 +374,7 @@ export async function listRepositoryArtifactRefs(
         entry.sha
       );
       const content = buffer.toString("utf8");
-      validateRepositoryArtifactContent(entry.path, content);
+      validateRepositoryArtifactContent(entry.path, content, layoutVersion);
       return RepositoryArtifactRefSchema.parse({
         ...artifact,
         commitSha,
@@ -347,6 +401,7 @@ export async function commitArtifactBlobs(
     message: string;
     /** Null only for a repository with no branch head yet. */
     baseSha: string | null;
+    layoutVersion?: string;
     files: Array<{ path: string; content: string }>;
   }
 ): Promise<string> {
@@ -357,9 +412,10 @@ export async function commitArtifactBlobs(
     throw new Error("A commit message and at least one artifact are required");
   }
   validateRepositoryArtifactCount(input.files.length);
+  const layoutVersion = input.layoutVersion ?? "1.0";
   const paths = new Set<string>();
   for (const file of input.files) {
-    validateRepositoryArtifactContent(file.path, file.content);
+    validateRepositoryArtifactContent(file.path, file.content, layoutVersion);
     if (paths.has(file.path))
       throw new RepositoryLayoutError(
         "INVALID_ARTIFACT_PATH",
@@ -515,7 +571,8 @@ export async function readArtifactBlob(
   installationId: number,
   repository: GithubRepositoryCoordinates,
   branch: string,
-  path: string
+  path: string,
+  layoutVersion = "1.0"
 ): Promise<{ content: string; blobSha: string; commitSha: string }> {
   const commitSha = await getGithubRepositoryBranchHead(
     installationId,
@@ -532,6 +589,6 @@ export async function readArtifactBlob(
   const content = (
     await readBlobBuffer(installationId, repository, entry.sha)
   ).toString("utf8");
-  validateRepositoryArtifactContent(path, content);
+  validateRepositoryArtifactContent(path, content, layoutVersion);
   return { content, blobSha: entry.sha, commitSha };
 }

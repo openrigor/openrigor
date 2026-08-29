@@ -14,6 +14,8 @@ vi.mock("./github-app", () => ({
 import { createHash } from "node:crypto";
 import {
   commitArtifactBlobs,
+  discoverPrivateMethods,
+  ensureMethodHostIndex,
   GITHUB_RESEARCH_APP_COMMITTER,
   listRepositoryArtifactRefs,
   probeMethodHostInitialization,
@@ -110,6 +112,261 @@ describe("GitHub repository Git Data adapter", () => {
       probeMethodHostInitialization(99, repository, baseSha)
     ).resolves.toEqual(expected);
     expect(harness.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("probes and discovers the Method host below the v2 designated root", async () => {
+    const methodId = "designated-method";
+    const methodSource = `---\ntype: Method\nid: ${methodId}\ntitle: Designated method\n---\n# Method\n`;
+    harness.request.mockImplementation(
+      async (
+        route: string,
+        input?: { file_sha?: string; content?: string; base_tree?: string }
+      ) => {
+        if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+          return { data: { tree: { sha: baseTreeSha } } };
+        }
+        if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+          return {
+            data: {
+              tree: [
+                {
+                  path: "openrigor/methods",
+                  mode: "040000",
+                  type: "tree",
+                  sha: treeSha,
+                },
+                {
+                  path: "openrigor/methods/index.md",
+                  mode: "100644",
+                  type: "blob",
+                  sha: blobSha,
+                },
+                {
+                  path: `openrigor/methods/${methodId}/${methodId}.en.md`,
+                  mode: "100644",
+                  type: "blob",
+                  sha: "1".repeat(40),
+                },
+                {
+                  path: `openrigor/methods/${methodId}/evidence-template.en.md`,
+                  mode: "100644",
+                  type: "blob",
+                  sha: "2".repeat(40),
+                },
+              ],
+            },
+          };
+        }
+        if (route === "GET /repos/{owner}/{repo}/git/blobs/{file_sha}") {
+          const sha = input?.file_sha;
+          return {
+            data: {
+              content: Buffer.from(
+                sha === "1".repeat(40) ? methodSource : ""
+              ).toString("base64"),
+              encoding: "base64",
+            },
+          };
+        }
+        throw new Error(`Unexpected route ${route}`);
+      }
+    );
+
+    await expect(
+      probeMethodHostInitialization(99, repository, baseSha, "2.0")
+    ).resolves.toEqual({ initialized: true });
+    await expect(
+      discoverPrivateMethods(99, repository, baseSha, "2.0")
+    ).resolves.toMatchObject({
+      initialization: { initialized: true },
+      methods: [{ id: methodId, title: "Designated method" }],
+    });
+  });
+
+  it("creates the v2 Method-host sentinel with a head-bound CAS", async () => {
+    harness.request.mockImplementation(
+      async (
+        route: string,
+        input?: {
+          content?: string;
+          encoding?: string;
+          base_tree?: string;
+          tree?: unknown;
+          sha?: string;
+          force?: boolean;
+        }
+      ) => {
+        if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+          return { data: { tree: { sha: baseTreeSha } } };
+        }
+        if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+          return { data: { tree: [] } };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/blobs") {
+          expect(input).toEqual(
+            expect.objectContaining({
+              content: "# Methods\n",
+              encoding: "utf-8",
+            })
+          );
+          return { data: { sha: blobSha } };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/trees") {
+          expect(input).toEqual(
+            expect.objectContaining({
+              base_tree: baseTreeSha,
+              tree: [
+                {
+                  path: "openrigor/methods/index.md",
+                  mode: "100644",
+                  type: "blob",
+                  sha: blobSha,
+                },
+              ],
+            })
+          );
+          return { data: { sha: treeSha } };
+        }
+        if (route === "POST /repos/{owner}/{repo}/git/commits") {
+          return { data: { sha: commitSha } };
+        }
+        if (route === "PATCH /repos/{owner}/{repo}/git/refs/{ref}") {
+          expect(input).toEqual(
+            expect.objectContaining({ sha: commitSha, force: false })
+          );
+          return { data: {} };
+        }
+        throw new Error(`Unexpected route ${route}`);
+      }
+    );
+
+    await expect(
+      ensureMethodHostIndex(
+        99,
+        repository,
+        "openrigor/workspace",
+        baseSha,
+        "2.0"
+      )
+    ).resolves.toEqual({ commitSha, created: true });
+  });
+
+  it("does not create a duplicate v2 sentinel when the path is present", async () => {
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+        return { data: { tree: { sha: baseTreeSha } } };
+      }
+      if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+        return {
+          data: {
+            tree: [
+              {
+                path: "openrigor/methods/index.md",
+                mode: "100644",
+                type: "blob",
+                sha: blobSha,
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      ensureMethodHostIndex(
+        99,
+        repository,
+        "openrigor/workspace",
+        baseSha,
+        "2.0"
+      )
+    ).resolves.toEqual({ commitSha: baseSha, created: false });
+    expect(harness.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a non-blob entry at the v2 sentinel path without writing", async () => {
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+        return { data: { tree: { sha: baseTreeSha } } };
+      }
+      if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+        return {
+          data: {
+            tree: [
+              {
+                path: "openrigor/methods/index.md",
+                mode: "040000",
+                type: "tree",
+                sha: "2".repeat(40),
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      ensureMethodHostIndex(
+        99,
+        repository,
+        "openrigor/workspace",
+        baseSha,
+        "2.0"
+      )
+    ).rejects.toMatchObject<Partial<RepositoryLayoutError>>({
+      code: "INVALID_ARTIFACT_PATH",
+    });
+    expect(harness.request).toHaveBeenCalledTimes(2);
+    expect(
+      harness.request.mock.calls.some(([route]) =>
+        String(route).startsWith("POST /repos/{owner}/{repo}/git/")
+      )
+    ).toBe(false);
+    expect(harness.getHead).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a symlink blob at the v2 sentinel path without writing", async () => {
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "GET /repos/{owner}/{repo}/git/commits/{commit_sha}") {
+        return { data: { tree: { sha: baseTreeSha } } };
+      }
+      if (route === "GET /repos/{owner}/{repo}/git/trees/{tree_sha}") {
+        return {
+          data: {
+            tree: [
+              {
+                path: "openrigor/methods/index.md",
+                mode: "120000",
+                type: "blob",
+                sha: blobSha,
+              },
+            ],
+          },
+        };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      ensureMethodHostIndex(
+        99,
+        repository,
+        "openrigor/workspace",
+        baseSha,
+        "2.0"
+      )
+    ).rejects.toMatchObject<Partial<RepositoryLayoutError>>({
+      code: "INVALID_ARTIFACT_PATH",
+    });
+    expect(harness.request).toHaveBeenCalledTimes(2);
+    expect(
+      harness.request.mock.calls.some(([route]) =>
+        String(route).startsWith("POST /repos/{owner}/{repo}/git/")
+      )
+    ).toBe(false);
+    expect(harness.getHead).toHaveBeenCalledTimes(1);
   });
 
   it("creates blob, tree, commit, and a non-forced CAS ref update", async () => {
