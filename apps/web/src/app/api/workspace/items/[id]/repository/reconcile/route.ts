@@ -49,6 +49,7 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   let operation;
+  let operationCompleted = false;
   try {
     const credentials = await readGithubResearchCredentials(auth.user.id);
     if (
@@ -85,6 +86,7 @@ export async function POST(_request: Request, context: RouteContext) {
       operation,
       result.commitSha
     );
+    operationCompleted = true;
     const status = await getResearchRepositoryStatus(auth.user.id, item);
     return json({
       status,
@@ -94,7 +96,7 @@ export async function POST(_request: Request, context: RouteContext) {
         : {}),
     });
   } catch (error) {
-    if (operation) {
+    if (operation && !operationCompleted) {
       try {
         await failRepositoryOperation(
           auth.user.id,

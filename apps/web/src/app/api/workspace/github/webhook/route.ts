@@ -138,11 +138,17 @@ async function updateResearchRepositoryHeads(
           item.binding.installationId === installation &&
           item.binding.repositoryId === repositoryId
       )
-      .map((item) => {
-        if (item.binding.headCommitSha !== payload.before) {
-          return Promise.resolve();
+      .map(async (item) => {
+        if (!commitSha(payload.before)) return;
+        const updated = await updateResearchRepositoryBindingHead(
+          userId,
+          item.id,
+          after,
+          payload.before
+        );
+        if (!updated) {
+          console.info("stale delivery skipped");
         }
-        return updateResearchRepositoryBindingHead(userId, item.id, after);
       })
   );
 }

@@ -2735,8 +2735,9 @@ export async function getWorkspaceItem(
 export async function updateResearchRepositoryBindingHead(
   userId: string,
   itemId: string,
-  headCommitSha: string
-): Promise<ResearchRepositoryWorkspaceItem> {
+  headCommitSha: string,
+  expectedBefore?: string
+): Promise<ResearchRepositoryWorkspaceItem | null> {
   return withUserLock(userId, async () => {
     const manifest = await readManifest(userId);
     const item = manifest.items[itemId];
@@ -2747,6 +2748,12 @@ export async function updateResearchRepositoryBindingHead(
       item.status !== "active"
     ) {
       throw new WorkspaceItemNotFoundError();
+    }
+    if (
+      expectedBefore !== undefined &&
+      item.binding.headCommitSha !== expectedBefore
+    ) {
+      return null;
     }
     const updated = ResearchRepositoryWorkspaceItemSchema.parse({
       ...item,

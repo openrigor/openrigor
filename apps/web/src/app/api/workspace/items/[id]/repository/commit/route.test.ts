@@ -221,6 +221,27 @@ describe("POST repository artifact commit", () => {
     expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 
+  it("rejects a legacy layout before credential preflight even if a later read is authorized", async () => {
+    harness.getWorkspaceItem.mockResolvedValue({
+      ...item,
+      binding: { ...item.binding, layoutVersion: "1.0" },
+    });
+    harness.readCredentials.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      installationId: 99,
+      repositoryIds: [101],
+      displayMetadata: { githubUserId: 7, login: "researcher" },
+    });
+
+    const response = await POST(request(), context);
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: "REPOSITORY_READ_ONLY",
+    });
+    expect(harness.claimOperation).not.toHaveBeenCalled();
+    expect(harness.commitArtifacts).not.toHaveBeenCalled();
+  });
+
   it("commits an authorable artifact with valid front-matter", async () => {
     const response = await POST(
       request({

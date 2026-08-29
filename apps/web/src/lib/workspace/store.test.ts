@@ -1080,9 +1080,45 @@ describe("research repository workspace items", () => {
       reconciledHead
     );
 
-    expect(updated.binding.headCommitSha).toBe(reconciledHead);
+    expect(updated?.binding.headCommitSha).toBe(reconciledHead);
     expect(harness.state.manifest.items[item.id]).toEqual(updated);
     expect(JSON.stringify(harness.state.manifest)).not.toContain("content");
+  });
+
+  it("skips a stale binding-head write after the user lock is acquired", async () => {
+    const item = repositoryWorkspaceItem();
+    const expectedBefore = item.binding.headCommitSha;
+    const newer = "d".repeat(40);
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    harness.hooks.onLockPut = () => {
+      const current = harness.state.manifest;
+      current.items[item.id] = {
+        ...current.items[item.id],
+        binding: {
+          ...current.items[item.id].binding,
+          headCommitSha: newer,
+        },
+      };
+    };
+
+    try {
+      const result = await updateResearchRepositoryBindingHead(
+        "user-1",
+        item.id,
+        "e".repeat(40),
+        expectedBefore
+      );
+
+      expect(result).toBeNull();
+      expect(harness.state.manifest.items[item.id].binding.headCommitSha).toBe(
+        newer
+      );
+    } finally {
+      harness.hooks.onLockPut = undefined;
+    }
   });
 
   it("persists a normalized private Method selection", async () => {

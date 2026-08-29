@@ -191,4 +191,19 @@ describe("POST repository reconcile", () => {
       consoleError.mockRestore();
     }
   });
+
+  it("does not fail a completed reconcile when the status read rejects", async () => {
+    harness.getResearchRepositoryStatus.mockRejectedValue(
+      new Error("status unavailable")
+    );
+
+    const response = await POST(new Request("http://localhost"), context);
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "Could not reconcile research repository",
+    });
+    expect(harness.completeOperation).toHaveBeenCalled();
+    expect(harness.failOperation).not.toHaveBeenCalled();
+  });
 });

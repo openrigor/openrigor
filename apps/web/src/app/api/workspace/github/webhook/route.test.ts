@@ -233,7 +233,8 @@ describe("POST /api/workspace/github/webhook", () => {
       expect(harness.updateHead).toHaveBeenCalledWith(
         "user-1",
         "workspace-one",
-        after
+        after,
+        before
       );
     }
   );
@@ -276,7 +277,8 @@ describe("POST /api/workspace/github/webhook", () => {
     expect(harness.updateHead).toHaveBeenCalledWith(
       "user-1",
       "workspace-one",
-      after
+      after,
+      "a".repeat(40)
     );
   });
 
@@ -376,7 +378,8 @@ describe("POST /api/workspace/github/webhook", () => {
     expect(harness.updateHead).toHaveBeenCalledWith(
       "user-1",
       "workspace-one",
-      newer
+      newer,
+      "a".repeat(40)
     );
 
     harness.updateHead.mockClear();
@@ -392,6 +395,7 @@ describe("POST /api/workspace/github/webhook", () => {
         },
       },
     ]);
+    harness.updateHead.mockResolvedValue(null);
 
     await POST(
       request({
@@ -404,7 +408,12 @@ describe("POST /api/workspace/github/webhook", () => {
       })
     );
 
-    expect(harness.updateHead).not.toHaveBeenCalled();
+    expect(harness.updateHead).toHaveBeenCalledWith(
+      "user-1",
+      "workspace-one",
+      staleAfter,
+      "a".repeat(40)
+    );
   });
 
   it("updates only repository ids for installation repository events", async () => {
