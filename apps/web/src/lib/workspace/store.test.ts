@@ -742,6 +742,98 @@ describe("research repository workspace items", () => {
     ).toBeUndefined();
   });
 
+  it("re-pins a binding pinned to a stale installation during refresh", async () => {
+    const staleInstallationId = 155988713;
+    const item = repositoryWorkspaceItem();
+    item.binding.installationId = staleInstallationId;
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "d".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    // Refresh runs through the NEW installation, never the stale one.
+    expect(harness.getGithubInstallationRepository).toHaveBeenCalledWith(
+      99,
+      101
+    );
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      "openrigor/workspace"
+    );
+    const refreshedBinding = harness.state.manifest.items[item.id].binding;
+    expect(refreshedBinding).toMatchObject({
+      installationId: 99,
+      repositoryId: 101,
+      branch: "openrigor/workspace",
+      layoutVersion: "2.0",
+      headCommitSha: refreshedHead,
+    });
+    expect(refreshedBinding.boundAt).toBe(item.binding.boundAt);
+  });
+
+  it("keeps a 1.0 binding on 1.0 while re-pinning a stale installation", async () => {
+    const item = repositoryWorkspaceItem("1.0");
+    item.binding.installationId = 155988713;
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    const refreshedHead = "e".repeat(40);
+    harness.getGithubRepositoryBranchHead.mockResolvedValue(refreshedHead);
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.state.manifest.items[item.id].binding).toMatchObject({
+      installationId: 99,
+      layoutVersion: "1.0",
+      branch: "openrigor/workspace",
+      headCommitSha: refreshedHead,
+    });
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      refreshedHead
+    );
+  });
+
+  it("leaves bindings outside the new grant untouched", async () => {
+    const item = repositoryWorkspaceItem();
+    item.binding.installationId = 155988713;
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    harness.readGithubResearchCredentials.mockResolvedValue(
+      connectedGithubCredentials([202])
+    );
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    expect(harness.getGithubInstallationRepository).not.toHaveBeenCalled();
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).not.toHaveBeenCalled();
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("still reports a stale-installation binding as disconnected before refresh", async () => {
+    const staleItem = repositoryWorkspaceItem();
+    staleItem.binding.installationId = 155988713;
+
+    await expect(
+      getResearchRepositoryStatus("user-1", staleItem)
+    ).resolves.toMatchObject({
+      workspaceId: staleItem.id,
+      repositoryId: 101,
+      state: "disconnected",
+      reason: "disconnected",
+    });
+  });
+
   it("creates a missing managed branch from the default head before binding", async () => {
     harness.getGithubRepositoryBranchHead
       .mockRejectedValueOnce(
