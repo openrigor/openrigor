@@ -132,6 +132,9 @@ describe("RepositoryPanel", () => {
 
     expect(await screen.findByText(REPOSITORY_UNAVAILABLE_COPY)).toBeTruthy();
     expect(screen.getByText(RESEARCH_REPOSITORY_TRUST_COPY)).toBeTruthy();
+    expect(RESEARCH_REPOSITORY_TRUST_COPY).toMatch(/confined/i);
+    expect(RESEARCH_REPOSITORY_TRUST_COPY).toMatch(/prefix/i);
+    expect(RESEARCH_REPOSITORY_TRUST_COPY).toMatch(/read-only/i);
   });
 
   it("shows read-only copy when the repository is public", async () => {
