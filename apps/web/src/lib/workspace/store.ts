@@ -898,7 +898,17 @@ export async function refreshResearchRepositoryBindings(
             installationId,
             item.binding.repositoryId
           );
-          if (!repository.private) return undefined;
+          // Public repositories still get their installation re-pinned (the
+          // status path can then report repository_public instead of a stale
+          // disconnected), but there is no managed branch head to refresh.
+          if (!repository.private) {
+            return {
+              itemId: item.id,
+              repositoryId: item.binding.repositoryId,
+              headCommitSha: undefined,
+              initialization: undefined,
+            };
+          }
           const headCommitSha = await getGithubRepositoryBranchHead(
             installationId,
             repository,
@@ -957,10 +967,12 @@ export async function refreshResearchRepositoryBindings(
           binding: {
             ...item.binding,
             installationId,
-            headCommitSha: entry.headCommitSha,
-            ...entry.initialization,
+            ...(entry.headCommitSha === undefined
+              ? {}
+              : { headCommitSha: entry.headCommitSha }),
+            ...(entry.initialization ?? {}),
             initializationFailureReason:
-              entry.initialization.initializationFailureReason,
+              entry.initialization?.initializationFailureReason,
           },
         });
     }

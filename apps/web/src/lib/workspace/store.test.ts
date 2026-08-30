@@ -834,6 +834,42 @@ describe("research repository workspace items", () => {
     });
   });
 
+  it("re-pins a stale installation even when the repository became public", async () => {
+    const item = repositoryWorkspaceItem();
+    item.binding.installationId = 155988713;
+    const storedHead = item.binding.headCommitSha;
+    harness.state.manifest = {
+      initialized: true,
+      items: { [item.id]: item },
+    };
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 101,
+      name: "private",
+      nameWithOwner: "octocat/private",
+      owner: "octocat",
+      private: false,
+      defaultBranch: "main",
+    });
+
+    await refreshResearchRepositoryBindings("user-1");
+
+    const refreshedBinding = harness.state.manifest.items[item.id].binding;
+    expect(refreshedBinding).toMatchObject({
+      installationId: 99,
+      repositoryId: 101,
+      headCommitSha: storedHead,
+    });
+    expect(harness.getGithubRepositoryBranchHead).not.toHaveBeenCalled();
+    const status = await getResearchRepositoryStatus("user-1", {
+      ...item,
+      binding: refreshedBinding,
+    } as typeof item);
+    expect(status).toMatchObject({
+      state: "read_only",
+      reason: "repository_public",
+    });
+  });
+
   it("creates a missing managed branch from the default head before binding", async () => {
     harness.getGithubRepositoryBranchHead
       .mockRejectedValueOnce(
