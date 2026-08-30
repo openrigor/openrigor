@@ -30,6 +30,23 @@ describe("PrintView readiness", () => {
     ).not.toBeNull();
   });
 
+  it("counts a capitalized Mermaid fence toward readiness", async () => {
+    const onReady = vi.fn();
+    const markdown = ["```Mermaid", "flowchart TD", "  A --> B", "```"].join(
+      "\n"
+    );
+
+    render(<PrintView markdown={markdown} onReady={onReady} />);
+
+    const printRoot = document.getElementById("print-root");
+    await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
+
+    expect(printRoot?.dataset.printReady).toBe("true");
+    expect(
+      printRoot?.querySelector('[data-print-mermaid="true"]')
+    ).not.toBeNull();
+  });
+
   it("waits for lazy Mermaid content before reporting readiness", async () => {
     const onReady = vi.fn();
     const markdown = [

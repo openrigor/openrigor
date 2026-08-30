@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const harness = vi.hoisted(() => ({
+  printViewMountCount: 0,
   graphData: {
     artifact: {
       currentIndex: 0,
@@ -39,6 +47,7 @@ vi.mock("./header", () => ({
 
 vi.mock("./PrintView", () => ({
   PrintView: ({ onReady }: { onReady?: () => void }) => {
+    harness.printViewMountCount += 1;
     harness.printViewOnReady = onReady;
     return null;
   },
@@ -86,6 +95,7 @@ describe("ArtifactRenderer print readiness", () => {
   beforeEach(() => {
     harness.headerOnPrint = undefined;
     harness.printViewOnReady = undefined;
+    harness.printViewMountCount = 0;
     vi.spyOn(window, "print").mockImplementation(() => undefined);
   });
 
@@ -123,13 +133,26 @@ describe("ArtifactRenderer print readiness", () => {
       await Promise.resolve();
     });
 
+    expect(harness.printViewMountCount).toBe(1);
+
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
 
     expect(warn).toHaveBeenCalledWith(
-      "[print] PrintView did not signal readiness before the fallback; printing the current content."
+      "[print] PrintView did not signal readiness before the fallback; cancelling this print attempt. You can retry."
     );
-    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(window.print).not.toHaveBeenCalled();
+    expect(screen.getByTestId("print-retry")).toBeTruthy();
+    expect(harness.printViewMountCount).toBe(1);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("print-retry"));
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId("print-retry")).toBeNull();
+    expect(harness.printViewMountCount).toBe(2);
+    expect(window.print).not.toHaveBeenCalled();
   });
 });

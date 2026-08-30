@@ -102,6 +102,7 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
   // Print functionality
   const [showPrintView, setShowPrintView] = useState(false);
   const [isPrintViewReady, setIsPrintViewReady] = useState(false);
+  const [printTimedOut, setPrintTimedOut] = useState(false);
   const printStartedRef = useRef(false);
 
   const handleMouseUp = useCallback(() => {
@@ -216,10 +217,12 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
 
     printStartedRef.current = false;
     setIsPrintViewReady(false);
+    setPrintTimedOut(false);
     setShowPrintView(true);
   }, [artifact]);
 
   const handlePrintViewReady = useCallback(() => {
+    setPrintTimedOut(false);
     setIsPrintViewReady(true);
   }, []);
 
@@ -228,11 +231,12 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
 
     const fallbackTimer = window.setTimeout(() => {
       console.warn(
-        "[print] PrintView did not signal readiness before the fallback; printing the current content."
+        "[print] PrintView did not signal readiness before the fallback; cancelling this print attempt. You can retry."
       );
-      if (printStartedRef.current) return;
-      printStartedRef.current = true;
-      window.print();
+      setShowPrintView(false);
+      setIsPrintViewReady(false);
+      printStartedRef.current = false;
+      setPrintTimedOut(true);
     }, PRINT_READINESS_FALLBACK_MS);
 
     return () => window.clearTimeout(fallbackTimer);
@@ -544,6 +548,22 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
         </>
       )}
       {/* Print view portal */}
+      {printTimedOut && (
+        <div
+          className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md border bg-background px-3 py-2 text-sm shadow-sm"
+          role="alert"
+        >
+          <p>Print preview failed to become ready.</p>
+          <button
+            type="button"
+            data-testid="print-retry"
+            className="mt-2 underline"
+            onClick={handlePrint}
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {showPrintView &&
         currentArtifactContent.type === "text" &&
         createPortal(

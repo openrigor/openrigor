@@ -107,8 +107,9 @@ function createMarkdownComponents(onMermaidReady: (id: string) => void) {
     code({ inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || "");
       const language = match ? match[1] : null;
+      const isMermaid = language?.toLowerCase() === "mermaid";
 
-      if (!inline && language === "mermaid") {
+      if (!inline && isMermaid) {
         const code = String(children).replace(/\n$/, "");
         return (
           <Suspense
