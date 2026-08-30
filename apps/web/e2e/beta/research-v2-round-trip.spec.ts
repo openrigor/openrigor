@@ -108,6 +108,39 @@ test.describe("@beta-release designated-directory v2 round trip", () => {
 
     const request = page.context().request;
     const repositoryItemId = await ensureFixtureRepository(page);
+
+    // The fixture repository may still be bound at legacy layout 1.0 (bound
+    // before the 2.0 cutover). Migrate it through the app's supported atomic
+    // replace-binding path, which re-probes at the current LAYOUT_VERSION.
+    const beforeResponse = await request.get(
+      `${baseUrl()}/api/workspace/items/${repositoryItemId}`
+    );
+    expect(beforeResponse.status()).toBe(200);
+    const beforeBody = (await beforeResponse.json()) as {
+      item?: {
+        kind?: string;
+        binding?: {
+          layoutVersion?: string;
+          repositoryId?: number;
+          installationId?: number;
+        };
+      };
+    };
+    const binding = beforeBody.item?.binding;
+    if (binding?.layoutVersion !== "2.0") {
+      expect(binding?.repositoryId).toEqual(expect.any(Number));
+      const rebindResponse = await request.post(
+        `${baseUrl()}/api/workspace/items/${repositoryItemId}/repository`,
+        {
+          data: {
+            repositoryId: binding?.repositoryId,
+            installationId: binding?.installationId,
+          },
+        }
+      );
+      expect(rebindResponse.status()).toBe(200);
+    }
+
     const itemResponse = await request.get(
       `${baseUrl()}/api/workspace/items/${repositoryItemId}`
     );
