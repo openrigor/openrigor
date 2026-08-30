@@ -230,7 +230,9 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
       console.warn(
         "[print] PrintView did not signal readiness before the fallback; printing the current content."
       );
-      setIsPrintViewReady(true);
+      if (printStartedRef.current) return;
+      printStartedRef.current = true;
+      window.print();
     }, PRINT_READINESS_FALLBACK_MS);
 
     return () => window.clearTimeout(fallbackTimer);

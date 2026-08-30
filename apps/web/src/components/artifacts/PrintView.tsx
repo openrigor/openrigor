@@ -9,7 +9,9 @@ import React, {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import remarkParse from "remark-parse";
 import rehypeKatex from "rehype-katex";
+import { unified } from "unified";
 import { Components } from "react-markdown";
 
 import "katex/dist/katex.min.css";
@@ -20,11 +22,27 @@ interface PrintViewProps {
   onReady?: () => void;
 }
 
+interface MdastNode {
+  type: string;
+  lang?: string | null;
+  children?: MdastNode[];
+}
+
+function countMermaidInTree(node: MdastNode): number {
+  let count =
+    node.type === "code" && node.lang?.toLowerCase() === "mermaid" ? 1 : 0;
+  const children = node.children;
+  if (!children) return count;
+  for (const child of children) {
+    count += countMermaidInTree(child);
+  }
+  return count;
+}
+
 function countMermaidCodeBlocks(markdown: string): number {
-  return (
-    markdown.match(/(?:^|\n)\s*(?:`{3,}|~{3,})\s*mermaid(?:\s[^\n]*)?\s*\n/gi)
-      ?.length ?? 0
-  );
+  const processor = unified().use(remarkParse).use(remarkMath).use(remarkGfm);
+  const tree = processor.runSync(processor.parse(markdown)) as MdastNode;
+  return countMermaidInTree(tree);
 }
 
 // Lazy load beautiful-mermaid to keep initial bundle small

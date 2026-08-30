@@ -54,9 +54,11 @@ vi.mock("./actions_toolbar", () => ({
 vi.mock("./actions_toolbar/custom", () => ({
   CustomQuickActions: () => null,
 }));
-vi.mock("./components/AskOpenCanvas", () => ({
-  AskOpenCanvas: React.forwardRef(() => null),
-}));
+vi.mock("./components/AskOpenCanvas", () => {
+  const AskOpenCanvas = React.forwardRef(() => null);
+  AskOpenCanvas.displayName = "AskOpenCanvas";
+  return { AskOpenCanvas };
+});
 vi.mock("@/contexts/GraphContext", () => ({
   useGraphContext: () => ({ graphData: harness.graphData }),
 }));
