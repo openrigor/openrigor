@@ -98,7 +98,10 @@ test.describe("@beta-release legacy v1 read-only repository", () => {
       // v2 round-trip spec. Once that spec has migrated the binding to 2.0
       // (a one-way, by-design operation), the v1 read-only proof was already
       // captured earlier in the sequence — skip rather than fail.
-      test.skip(true, "Fixture item is no longer layout 1.0 (migrated to 2.0 by the round-trip spec); v1 read-only proof requires a pre-migration run.");
+      test.skip(
+        true,
+        "Fixture item is no longer layout 1.0 (migrated to 2.0 by the round-trip spec); v1 read-only proof requires a pre-migration run."
+      );
       return;
     }
     expect(itemBody.item).toMatchObject({
@@ -164,7 +167,8 @@ test.describe("@beta-release legacy v1 read-only repository", () => {
     const fixtureCheck = await verifyGithubFixtureRepository(fixtureEnv.config);
     if (!fixtureCheck.exists || fixtureCheck.skipReason) {
       skipGithubFixture(
-        fixtureCheck.skipReason ?? "The GitHub fixture repository is unavailable"
+        fixtureCheck.skipReason ??
+          "The GitHub fixture repository is unavailable"
       );
     }
     const ghHeaders = {
