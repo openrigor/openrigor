@@ -5,6 +5,11 @@ import {
   createConcludedPrivateMethod,
   ensureSelectedMethod,
 } from "../helpers/evidence-journey";
+import {
+  getGithubFixtureEnv,
+  skipGithubFixture,
+  verifyGithubFixtureRepository,
+} from "../helpers/github-fixture";
 
 type RepositoryArtifact = {
   artifactId: string;
@@ -85,10 +90,10 @@ test.describe("@beta-release legacy v1 read-only repository", () => {
     const itemBody = (await itemResponse.json()) as {
       item?: {
         kind?: string;
-        binding?: { layoutVersion?: string };
+        binding?: { layoutVersion?: string; branch?: string };
       };
     };
-    if (itemBody.item?.binding?.layoutVersion !== "1.0") {
+    if (itemBody.item?.binding?.layoutVersion === "2.0") {
       // The legacy v1 fixture shares the single fixture repository with the
       // v2 round-trip spec. Once that spec has migrated the binding to 2.0
       // (a one-way, by-design operation), the v1 read-only proof was already
@@ -149,6 +154,38 @@ test.describe("@beta-release legacy v1 read-only repository", () => {
     });
     expect(firstBody.artifact?.commitSha).toMatch(/^[a-f0-9]{40}$/);
     expect(typeof firstBody.content).toBe("string");
+
+    // Byte-for-byte fidelity needs an external source of truth: compare the
+    // served content against the raw GitHub blob for the same path/revision.
+    const fixtureEnv = getGithubFixtureEnv();
+    if (!fixtureEnv.available) {
+      skipGithubFixture(fixtureEnv.reason);
+    }
+    const fixtureCheck = await verifyGithubFixtureRepository(fixtureEnv.config);
+    if (!fixtureCheck.exists || fixtureCheck.skipReason) {
+      skipGithubFixture(
+        fixtureCheck.skipReason ?? "The GitHub fixture repository is unavailable"
+      );
+    }
+    const ghHeaders = {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${fixtureEnv.config.token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+    const legacyBranch = itemBody.item?.binding?.branch ?? "main";
+    const ghResponse = await request.get(
+      `https://api.github.com/repos/${fixtureEnv.config.owner}/${fixtureEnv.config.repository}/contents/index.md?ref=${encodeURIComponent(legacyBranch)}`,
+      { headers: ghHeaders }
+    );
+    expect(ghResponse.status()).toBe(200);
+    const ghBody = (await ghResponse.json()) as { content?: string };
+    expect(typeof ghBody.content).toBe("string");
+    expect(firstBody.content).toBe(
+      Buffer.from(
+        (ghBody.content as string).replace(/\s/g, ""),
+        "base64"
+      ).toString("utf8")
+    );
 
     const commitResponse = await request.post(`${repositoryUrl}/commit`, {
       data: {
