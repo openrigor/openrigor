@@ -247,4 +247,61 @@ describe("PrivateResearchRepositoriesCard", () => {
       screen.getByRole("link", { name: "Connect GitHub" }).getAttribute("href")
     ).toBe("/api/workspace/github/authorize");
   });
+
+  it("does not render a second status pill in the expanded methods panel", async () => {
+    const item = repositoryItem("repository-one", 101);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/workspace/items") {
+        return jsonResponse({ items: [item] });
+      }
+      if (url === "/api/workspace/github/repositories") {
+        return jsonResponse({
+          connected: true,
+          installationId: 99,
+          repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
+        });
+      }
+      if (url.endsWith("/repository/methods")) {
+        return jsonResponse({
+          methods: [{ id: "method-a", title: "Essay Review" }],
+          selectedMethodIds: ["method-a"],
+        });
+      }
+      if (url.endsWith("/repository")) {
+        return jsonResponse({
+          status: {
+            workspaceId: item.id,
+            repositoryId: 101,
+            state: "disconnected",
+            reason: "disconnected",
+            checkedAt: "2026-08-24T08:00:00.000Z",
+          },
+        });
+      }
+      return jsonResponse({ error: "Unexpected request" }, 500);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage owner/essay-study" })
+    );
+
+    expect(await screen.findByText("Methods available in Create")).toBeTruthy();
+    expect(
+      await screen.findByRole("checkbox", { name: "Select Essay Review" })
+    ).toBeTruthy();
+    // The row header shows the single collapsed status pill…
+    expect(screen.getAllByText("disconnected")).toHaveLength(1);
+    expect(screen.queryByText("disconnected · disconnected")).toBeNull();
+    // …and the expanded panel adds no duplicate badge or Connect button.
+    expect(screen.queryByRole("link", { name: "Connect GitHub" })).toBeNull();
+    const statusFetches = fetchMock.mock.calls.filter(
+      ([url]) =>
+        String(url).endsWith("/repository") &&
+        !String(url).endsWith("/repository/methods")
+    );
+    expect(statusFetches).toHaveLength(1);
+  });
 });

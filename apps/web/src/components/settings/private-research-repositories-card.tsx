@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import type { RepositoryStatus } from "@opencanvas/shared/research-repository";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,16 +39,6 @@ function readableStatus(value: string): string {
   return value.replaceAll("_", " ");
 }
 
-export function shouldShowRepositoryConnect(
-  status: RepositoryStatus | undefined
-): boolean {
-  return (
-    status?.state === "disconnected" ||
-    status?.reason === "permission_lost" ||
-    status?.reason === "authorization_required"
-  );
-}
-
 function repositoryId(item: RepositoryItem): number | undefined {
   return item.binding?.repositoryId;
 }
@@ -74,38 +63,12 @@ function RepositoryMethods({
 }: {
   item: ResearchRepositoryWorkspaceItem;
 }) {
-  const [status, setStatus] = useState<RepositoryStatus>();
-  const [statusLoading, setStatusLoading] = useState(true);
   const [methods, setMethods] = useState<PrivateMethodSummary[]>();
   const [selectedMethodIds, setSelectedMethodIds] = useState<string[]>(
     item.selectedMethodIds
   );
   const [savingMethods, setSavingMethods] = useState(false);
   const [methodError, setMethodError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/workspace/items/${encodeURIComponent(item.id)}/repository`, {
-      credentials: "include",
-    })
-      .then(async (response) => {
-        const body = (await response.json()) as { status?: RepositoryStatus };
-        if (body.status) return body.status;
-        throw new Error("Could not check repository");
-      })
-      .then((nextStatus) => {
-        if (!cancelled) setStatus(nextStatus);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus(undefined);
-      })
-      .finally(() => {
-        if (!cancelled) setStatusLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [item.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,21 +127,6 @@ function RepositoryMethods({
     <div className="space-y-3 border-t border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-600">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-slate-800">Repository access</span>
-        <Badge variant="outline">
-          {statusLoading
-            ? "Checking…"
-            : status
-              ? readableStatus(status.state)
-              : "Unavailable"}
-        </Badge>
-        {status?.reason && (
-          <Badge variant="destructive">{readableStatus(status.reason)}</Badge>
-        )}
-        {shouldShowRepositoryConnect(status) && (
-          <Button asChild variant="outline" size="sm" className="h-7">
-            <a href="/api/workspace/github/authorize">Connect GitHub</a>
-          </Button>
-        )}
       </div>
       <div
         className="rounded-md border border-slate-200 bg-white p-3"
