@@ -1,5 +1,21 @@
 import { expect, test } from "@playwright/test";
-import { baseUrl, ensureAiModeConsent, loginAsTestUser } from "./helpers/auth";
+import {
+  baseUrl,
+  ensureAiModeConsent,
+  loginAsTestUser,
+  TIMEOUTS,
+} from "./helpers/auth";
+import { provision, reset } from "./helpers/beta-harness";
+import { ensureFixtureRepository } from "./helpers/evidence-journey";
+import {
+  getGithubFixtureEnv,
+  skipGithubFixture,
+  verifyGithubFixtureRepository,
+} from "./helpers/github-fixture";
+
+const GITHUB_API = "https://api.github.com";
+const V2_BRANCH = "openrigor/workspace";
+const V2_CITATION_PATH = "openrigor/CITATION.cff";
 
 /**
  * Server-boundary export coverage (issue #25). The UI ExportButton is only
@@ -97,5 +113,83 @@ test.describe("@regression export-api", () => {
       );
       expect(exportResponse.status()).toBe(401);
     });
+  });
+});
+
+test.describe("@beta-release @regression v2 citation export", () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  test.beforeEach(async ({ page }) => {
+    await provision(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await reset(page);
+  });
+
+  test("exports a citation from the v2 designated directory", async ({
+    page,
+  }) => {
+    const fixtureEnv = getGithubFixtureEnv();
+    if (!fixtureEnv.available) skipGithubFixture(fixtureEnv.reason);
+    const fixtureCheck = await verifyGithubFixtureRepository(fixtureEnv.config);
+    if (!fixtureCheck.exists || fixtureCheck.skipReason) {
+      skipGithubFixture(
+        fixtureCheck.skipReason ??
+          "The GitHub fixture repository is unavailable"
+      );
+    }
+
+    const request = page.context().request;
+    const repositoryItemId = await ensureFixtureRepository(page);
+    const itemResponse = await request.get(
+      `${baseUrl()}/api/workspace/items/${repositoryItemId}`
+    );
+    expect(itemResponse.status()).toBe(200);
+    expect((await itemResponse.json()).item).toMatchObject({
+      kind: "research_repository",
+      binding: { layoutVersion: "2.0" },
+    });
+
+    const headers = {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${fixtureEnv.config.token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+    const citationUrl = `${GITHUB_API}/repos/${encodeURIComponent(
+      fixtureEnv.config.owner
+    )}/${encodeURIComponent(fixtureEnv.config.repository)}/contents/${V2_CITATION_PATH}`;
+    const existing = await request.get(
+      `${citationUrl}?ref=${encodeURIComponent(V2_BRANCH)}`,
+      { headers }
+    );
+    let sha: string | undefined;
+    if (existing.status() === 200) {
+      sha = ((await existing.json()) as { sha: string }).sha;
+    } else {
+      expect(existing.status()).toBe(404);
+    }
+    const citation = "cff-version: 1.2.0\ntitle: PR5 citation regression\n";
+    const write = await request.put(citationUrl, {
+      headers,
+      data: {
+        message: "test: seed PR5 v2 citation",
+        content: Buffer.from(citation, "utf8").toString("base64"),
+        branch: V2_BRANCH,
+        ...(sha ? { sha } : {}),
+      },
+    });
+    expect([200, 201]).toContain(write.status());
+
+    const exportResponse = await request.get(
+      `${baseUrl()}/api/workspace/items/${repositoryItemId}/export?artifactId=citation&format=markdown`,
+      { timeout: TIMEOUTS.pageLoad }
+    );
+    expect(exportResponse.status()).toBe(200);
+    const body = await exportResponse.text();
+    expect(body).toContain(citation);
+    expect(body).toContain(`repository: "${fixtureEnv.config.nameWithOwner}"`);
+    expect(body).toContain(`branch: "${V2_BRANCH}"`);
+    expect(body).toMatch(/commit_sha: "[a-f0-9]{40}"/);
   });
 });

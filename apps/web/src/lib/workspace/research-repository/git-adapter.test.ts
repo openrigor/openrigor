@@ -849,4 +849,24 @@ describe("GitHub repository Git Data adapter", () => {
       })
     ).resolves.toBe(commitSha);
   });
+
+  it.each([
+    "index.md",
+    "methods/synthetic-method/evidence/outside.en.md",
+    "openrigorish/index.md",
+    "openrigor/openrigor/index.md",
+  ])("fails closed for a v2 commit outside openrigor/: %s", async (path) => {
+    await expect(
+      commitArtifactBlobs(99, repository, "openrigor/workspace", {
+        message: "Attempt an outside-prefix write",
+        baseSha,
+        layoutVersion: "2.0",
+        files: [{ path, content: "must not be written\n" }],
+      })
+    ).rejects.toMatchObject({
+      code: "INVALID_ARTIFACT_TYPE",
+    });
+    expect(harness.getHead).not.toHaveBeenCalled();
+    expect(harness.request).not.toHaveBeenCalled();
+  });
 });

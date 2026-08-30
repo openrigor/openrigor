@@ -57,6 +57,11 @@ vi.mock("@/lib/workspace/store", () => ({
 }));
 
 import { POST } from "./route";
+import {
+  REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+  REPOSITORY_READ_ONLY,
+  RepositoryAccessError,
+} from "@/lib/workspace/research-repository/access";
 
 const context = (id: string, threadId: string) => ({
   params: Promise.resolve({ id, threadId }),
@@ -220,5 +225,54 @@ describe("POST /api/workspace/items/[id]/evidence/[threadId]/submit", () => {
       "thread-1",
       expect.objectContaining({ status: "filed" })
     );
+  });
+
+  it("maps legacy private write-back rejection without opening a public PR", async () => {
+    const privateRepository = {
+      repositoryItemId: "wi_legacy_repo",
+      repositoryId: 101,
+      commitSha: "a".repeat(40),
+    };
+    harness.verifyUserAuthenticated.mockResolvedValue({
+      user: { id: "user-1" },
+    });
+    harness.getEvidenceSnapshot.mockResolvedValue({
+      item: { methodSource: { privateRepository } },
+      snapshot: { methodId: "legacy-method" },
+      reference: { status: "draft" },
+    });
+    harness.validateEvidenceSubmission.mockReturnValue({
+      values: { narrative: "Account" },
+      stage: "documented-experience",
+    });
+    harness.assembleEvidenceMarkdown.mockReturnValue("legacy markdown");
+    harness.evidenceFilePath.mockReturnValue(
+      "methods/legacy-method/evidence/file.en.md"
+    );
+    harness.commitPrivateMethodEvidence.mockRejectedValue(
+      new RepositoryAccessError(
+        REPOSITORY_READ_ONLY,
+        REPOSITORY_LAYOUT_READ_ONLY_MESSAGE
+      )
+    );
+
+    const response = await POST(
+      request({
+        narrative: "Account",
+        publication_authorisation: "confirmed-authorised-to-publish",
+        anonymisation_status:
+          "confirmed-no-student-identifiers-or-raw-student-material",
+        data_sharing_limits: "Aggregate counts only.",
+      }),
+      context("wi_1", "thread-1")
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: REPOSITORY_READ_ONLY,
+      message: REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+    });
+    expect(harness.openEvidencePullRequest).not.toHaveBeenCalled();
+    expect(harness.updateEvidenceThreadReference).not.toHaveBeenCalled();
   });
 });
