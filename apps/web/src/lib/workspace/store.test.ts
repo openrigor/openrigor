@@ -592,6 +592,38 @@ describe("research repository workspace items", () => {
     );
   });
 
+  it("keeps legacy binding preparation read-only and skips v2 scaffolding", async () => {
+    await expect(
+      prepareResearchRepositoryBinding(
+        { repositoryId: 101, installationId: 99 },
+        {
+          id: 101,
+          name: "private",
+          nameWithOwner: "octocat/private",
+          owner: "octocat",
+          private: true,
+          defaultBranch: "main",
+        },
+        "1.0"
+      )
+    ).resolves.toMatchObject({
+      headCommitSha: workspaceBranchSha,
+      initialization: { initialized: true },
+    });
+    expect(harness.ensureMethodHostIndex).not.toHaveBeenCalled();
+    expect(harness.probeMethodHostInitialization).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      workspaceBranchSha
+    );
+    expect(harness.probeMethodHostInitialization).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      "2.0"
+    );
+  });
+
   it("re-reads the head when a concurrent v2 sentinel create loses CAS", async () => {
     const racedHead = "d".repeat(40);
     harness.getGithubRepositoryBranchHead

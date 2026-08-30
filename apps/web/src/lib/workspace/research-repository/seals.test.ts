@@ -672,6 +672,37 @@ describe("repository ledger seals", () => {
       })
     );
   });
+
+  it("rejects a v2 seal preview whose output paths escape openrigor/", async () => {
+    const v2Access = {
+      ...access,
+      binding: { ...access.binding, layoutVersion: "2.0" as const },
+    };
+    for (const [path, file] of BASELINE_FILES) {
+      files.set(`openrigor/${path}`, { ...file });
+    }
+    harness.listArtifacts.mockResolvedValue({
+      artifacts: v2Artifacts,
+      commitSha: headCommitSha,
+    });
+
+    const preview = await previewSealSnapshot(v2Access, {
+      snapshotId: snapshotTwo,
+      reviewedAt,
+    });
+    const outsidePrefixPreview = {
+      ...preview,
+      ledgerPath: sealLedgerPath(snapshotTwo),
+      sealPath: sealManifestPath(snapshotTwo),
+    };
+
+    await expect(
+      commitSealSnapshot(v2Access, outsidePrefixPreview)
+    ).rejects.toMatchObject({
+      code: "INVALID_PREVIEW",
+    });
+    expect(harness.commitArtifacts).not.toHaveBeenCalled();
+  });
 });
 
 function yamlObject(source: string): unknown {

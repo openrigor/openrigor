@@ -139,6 +139,48 @@ describe("GET repository artifacts", () => {
     expect(harness.listArtifacts).not.toHaveBeenCalled();
   });
 
+  it("passes v2 prefix semantics through list and read requests", async () => {
+    const v2Item = {
+      ...item,
+      binding: { ...item.binding, layoutVersion: "2.0" },
+    };
+    const v2Artifact = { artifactId: "index", path: "openrigor/index.md" };
+    harness.getWorkspaceItem.mockResolvedValue(v2Item);
+    harness.listArtifacts.mockResolvedValue({
+      artifacts: [v2Artifact],
+      commitSha: "a".repeat(40),
+    });
+
+    const listResponse = await GET(new Request("http://localhost"), context);
+
+    expect(listResponse.status).toBe(200);
+    expect(harness.listArtifacts).toHaveBeenCalledWith(
+      99,
+      { id: 101, owner: "octocat", name: "private" },
+      "openrigor/workspace",
+      "2.0"
+    );
+
+    harness.readArtifact.mockResolvedValue({
+      content: "# v2 index\n",
+      blobSha: "b".repeat(40),
+      commitSha: "c".repeat(40),
+    });
+    const readResponse = await GET(
+      new Request("http://localhost?artifactId=index"),
+      context
+    );
+
+    expect(readResponse.status).toBe(200);
+    expect(harness.readArtifact).toHaveBeenCalledWith(
+      99,
+      { id: 101, owner: "octocat", name: "private" },
+      "openrigor/workspace",
+      "openrigor/index.md",
+      "2.0"
+    );
+  });
+
   it("marks an artifact from an unsupported layout as read-only", async () => {
     harness.getWorkspaceItem.mockResolvedValue({
       ...item,
