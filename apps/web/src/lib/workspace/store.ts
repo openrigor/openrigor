@@ -867,19 +867,27 @@ export async function replaceResearchRepositoryBinding(
   });
 }
 
-/** Re-probe every still-authorized Method host after GitHub reconnects. */
+/**
+ * Re-probe every still-authorized Method host after GitHub reconnects.
+ * Reconnects also re-pin bindings whose installationId points at a stale
+ * (replaced) installation whenever the repository is part of the new grant —
+ * otherwise the status path (which compares installationIds) would keep
+ * reporting them as disconnected forever. Every other binding field
+ * (repositoryId, repositoryFullName, branch, layoutVersion, boundAt) is
+ * preserved: reconnect never upgrades or rewrites the binding's identity.
+ */
 export async function refreshResearchRepositoryBindings(
   userId: string
 ): Promise<void> {
   const credentials = await readGithubResearchCredentials(userId);
   if (!credentials?.installationId) return;
+  const installationId = credentials.installationId;
 
   const manifest = await readManifest(userId);
   const bindings = Object.values(manifest.items).filter(
     (item): item is ResearchRepositoryWorkspaceItem =>
       isUsableResearchRepository(item) &&
       item.ownerId === userId &&
-      item.binding.installationId === credentials.installationId &&
       credentials.repositoryIds.includes(item.binding.repositoryId)
   );
   const refreshed = (
@@ -887,29 +895,44 @@ export async function refreshResearchRepositoryBindings(
       bindings.map(async (item) => {
         try {
           const repository = await getGithubInstallationRepository(
-            item.binding.installationId,
+            installationId,
             item.binding.repositoryId
           );
-          if (!repository.private) return undefined;
+          // Public repositories still get their installation re-pinned (the
+          // status path can then report repository_public instead of a stale
+          // disconnected), but there is no managed branch head to refresh.
+          if (!repository.private) {
+            return {
+              itemId: item.id,
+              repositoryId: item.binding.repositoryId,
+              headCommitSha: undefined,
+              initialization: undefined,
+            };
+          }
           const headCommitSha = await getGithubRepositoryBranchHead(
-            item.binding.installationId,
+            installationId,
             repository,
             item.binding.branch
           );
           const initialization =
             item.binding.layoutVersion === "2.0"
               ? await probeMethodHostInitialization(
-                  item.binding.installationId,
+                  installationId,
                   repository,
                   headCommitSha,
                   item.binding.layoutVersion
                 )
               : await probeMethodHostInitialization(
-                  item.binding.installationId,
+                  installationId,
                   repository,
                   headCommitSha
                 );
-          return { itemId: item.id, headCommitSha, initialization };
+          return {
+            itemId: item.id,
+            repositoryId: item.binding.repositoryId,
+            headCommitSha,
+            initialization,
+          };
         } catch (error) {
           console.error(
             "[workspace] Method-host refresh failed",
@@ -932,7 +955,8 @@ export async function refreshResearchRepositoryBindings(
         !item ||
         !isUsableResearchRepository(item) ||
         item.ownerId !== userId ||
-        item.binding.installationId !== credentials.installationId
+        item.binding.repositoryId !== entry.repositoryId ||
+        !credentials.repositoryIds.includes(item.binding.repositoryId)
       ) {
         continue;
       }
@@ -942,10 +966,13 @@ export async function refreshResearchRepositoryBindings(
           updatedAt: now,
           binding: {
             ...item.binding,
-            headCommitSha: entry.headCommitSha,
-            ...entry.initialization,
+            installationId,
+            ...(entry.headCommitSha === undefined
+              ? {}
+              : { headCommitSha: entry.headCommitSha }),
+            ...(entry.initialization ?? {}),
             initializationFailureReason:
-              entry.initialization.initializationFailureReason,
+              entry.initialization?.initializationFailureReason,
           },
         });
     }
