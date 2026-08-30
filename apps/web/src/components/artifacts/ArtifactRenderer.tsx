@@ -102,6 +102,7 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
   // Print functionality
   const [showPrintView, setShowPrintView] = useState(false);
   const [isPrintViewReady, setIsPrintViewReady] = useState(false);
+  const [printAttemptKey, setPrintAttemptKey] = useState(0);
   const [printTimedOut, setPrintTimedOut] = useState(false);
   const printStartedRef = useRef(false);
 
@@ -218,6 +219,7 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
     printStartedRef.current = false;
     setIsPrintViewReady(false);
     setPrintTimedOut(false);
+    setPrintAttemptKey((key) => key + 1);
     setShowPrintView(true);
   }, [artifact]);
 
@@ -569,6 +571,7 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
         createPortal(
           <Suspense fallback={<div>Loading print view...</div>}>
             <PrintView
+              key={printAttemptKey}
               markdown={currentArtifactContent.fullMarkdown}
               onReady={handlePrintViewReady}
             />

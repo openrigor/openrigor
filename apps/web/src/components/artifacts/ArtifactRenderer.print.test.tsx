@@ -47,7 +47,9 @@ vi.mock("./header", () => ({
 
 vi.mock("./PrintView", () => ({
   PrintView: ({ onReady }: { onReady?: () => void }) => {
-    harness.printViewMountCount += 1;
+    React.useEffect(() => {
+      harness.printViewMountCount += 1;
+    }, []);
     harness.printViewOnReady = onReady;
     return null;
   },
@@ -154,5 +156,42 @@ describe("ArtifactRenderer print readiness", () => {
     expect(screen.queryByTestId("print-retry")).toBeNull();
     expect(harness.printViewMountCount).toBe(2);
     expect(window.print).not.toHaveBeenCalled();
+  });
+
+  it("remounts PrintView when a second print starts during post-print cleanup", async () => {
+    vi.useFakeTimers();
+    render(<ArtifactRenderer {...rendererProps} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(harness.headerOnPrint).toBeDefined();
+
+    await act(async () => {
+      harness.headerOnPrint?.();
+      await Promise.resolve();
+    });
+    expect(harness.printViewMountCount).toBe(1);
+
+    await act(async () => {
+      harness.printViewOnReady?.();
+      await Promise.resolve();
+    });
+    expect(window.print).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      harness.headerOnPrint?.();
+      await Promise.resolve();
+    });
+    expect(harness.printViewMountCount).toBe(2);
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("print-retry")).toBeNull();
+
+    await act(async () => {
+      harness.printViewOnReady?.();
+      await Promise.resolve();
+    });
+    expect(window.print).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId("print-retry")).toBeNull();
   });
 });
