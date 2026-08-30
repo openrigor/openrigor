@@ -12,14 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   REPOSITORY_AUTHORIZATION_COPY,
   REPOSITORY_DISCONNECTED_COPY,
-  REPOSITORY_LAYOUT_READ_ONLY_COPY,
-  REPOSITORY_LAYOUT_V2_COPY,
   REPOSITORY_PERMISSION_COPY,
   RESEARCH_REPOSITORY_TRUST_COPY,
   REPOSITORY_PUBLIC_COPY,
   REPOSITORY_UNAVAILABLE_COPY,
 } from "./copy";
 import { RepositoryBrowser } from "./repository-browser";
+import { statusLabel } from "@/components/workspace/research-repository-status";
 
 type RepositoryPanelItem = {
   id: string;
@@ -40,19 +39,6 @@ type RepositoryStatusResponse = {
 
 function shortCommit(sha: string | undefined): string {
   return sha ? sha.slice(0, 7) : "unknown";
-}
-
-function statusLabel(status: RepositoryStatus | undefined): string {
-  if (!status) return "unavailable";
-  if (status.state === "read_only" && status.layoutVersion === "1.0") {
-    return REPOSITORY_LAYOUT_READ_ONLY_COPY;
-  }
-  if (status.state === "ready" && status.layoutVersion === "2.0") {
-    return `ready · ${REPOSITORY_LAYOUT_V2_COPY}`;
-  }
-  return status.reason
-    ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
-    : status.state.replace("_", " ");
 }
 
 function BoundRepositoryPanel({

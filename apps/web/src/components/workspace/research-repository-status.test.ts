@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RepositoryStatus } from "@opencanvas/shared/research-repository";
+import { REPOSITORY_LAYOUT_V2_COPY } from "@/components/research-repository/copy";
 import {
   shortRepositoryCommit,
   shouldShowRepositoryConnect,
@@ -43,5 +44,31 @@ describe("ResearchRepositoryStatus", () => {
     ).toBe(
       "Read-only: this repository uses the previous layout; it is readable but no longer writable."
     );
+  });
+
+  it("collapses a reason that repeats the state into the state alone", () => {
+    expect(statusLabel(status("disconnected", "disconnected"))).toBe(
+      "disconnected"
+    );
+  });
+
+  it("keeps distinct reason words next to the state", () => {
+    expect(statusLabel(status("blocked", "permission_lost"))).toBe(
+      "blocked · permission lost"
+    );
+    expect(statusLabel(status("read_only", "authorization_required"))).toBe(
+      "read only · authorization required"
+    );
+  });
+
+  it("labels ready repositories without a repeated word", () => {
+    expect(statusLabel(status("ready"))).toBe("ready");
+    expect(statusLabel(status("ready", undefined, "2.0"))).toBe(
+      `ready · ${REPOSITORY_LAYOUT_V2_COPY}`
+    );
+  });
+
+  it("labels a missing status as unavailable", () => {
+    expect(statusLabel(undefined)).toBe("unavailable");
   });
 });

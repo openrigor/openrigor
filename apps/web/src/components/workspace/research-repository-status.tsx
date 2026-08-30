@@ -36,16 +36,22 @@ function repositoryConnectLabel(status: RepositoryStatus | undefined): string {
     : "Reconnect GitHub";
 }
 
-export function statusLabel(status: RepositoryStatus): string {
+export function statusLabel(status: RepositoryStatus | undefined): string {
+  if (!status) return "unavailable";
   if (status.state === "read_only" && status.layoutVersion === "1.0") {
     return REPOSITORY_LAYOUT_READ_ONLY_COPY;
   }
   if (status.state === "ready" && status.layoutVersion === "2.0") {
     return `ready · ${REPOSITORY_LAYOUT_V2_COPY}`;
   }
-  return status.reason
-    ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
-    : status.state.replace("_", " ");
+  const state = status.state.replace("_", " ");
+  if (
+    status.reason &&
+    status.reason.replaceAll("_", "") !== status.state.replaceAll("_", "")
+  ) {
+    return `${state} · ${status.reason.replaceAll("_", " ")}`;
+  }
+  return state;
 }
 
 export function ResearchRepositoryStatus({
@@ -129,7 +135,7 @@ export function ResearchRepositoryStatus({
             : "bg-amber-50 text-amber-700"
         }`}
       >
-        {loading ? "checking…" : status ? statusLabel(status) : "unavailable"}
+        {loading ? "checking…" : statusLabel(status)}
       </span>
       {shouldShowRepositoryConnect(status) && (
         <Button asChild variant="outline" size="sm" className="h-7">
