@@ -5,7 +5,6 @@ const harness = vi.hoisted(() => ({
   verifyUserAuthenticated: vi.fn(),
   readGithubResearchCredentials: vi.fn(),
   getGithubInstallationRepository: vi.fn(),
-  buildGithubResearchTemplateUrl: vi.fn(),
 }));
 
 vi.mock("@/lib/research-workspaces-enabled.server", () => ({
@@ -20,9 +19,6 @@ vi.mock("@/lib/workspace/research-repository/credentials", () => ({
 vi.mock("@/lib/workspace/research-repository/github-app", () => ({
   getGithubInstallationRepository: harness.getGithubInstallationRepository,
 }));
-vi.mock("@/lib/workspace/research-repository/template", () => ({
-  buildGithubResearchTemplateUrl: harness.buildGithubResearchTemplateUrl,
-}));
 
 import { GET } from "./route";
 
@@ -33,9 +29,6 @@ describe("GET /api/workspace/github/repositories", () => {
     harness.verifyUserAuthenticated.mockResolvedValue({
       user: { id: "user-1" },
     });
-    harness.buildGithubResearchTemplateUrl.mockReturnValue(
-      "https://github.com/new?template_owner=OpenRigor"
-    );
   });
 
   it("returns 404 while the feature flag is off", async () => {
@@ -73,11 +66,7 @@ describe("GET /api/workspace/github/repositories", () => {
       installationId: 99,
       login: "octocat",
       repositories: [{ id: 101, nameWithOwner: "octocat/private" }],
-      createFromTemplateUrl: "https://github.com/new?template_owner=OpenRigor",
     });
-    expect(harness.buildGithubResearchTemplateUrl).toHaveBeenCalledWith(
-      "octocat"
-    );
   });
 
   it("resolves privacy for legacy display entries without a private field", async () => {

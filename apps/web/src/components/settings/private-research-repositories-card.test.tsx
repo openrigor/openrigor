@@ -194,7 +194,6 @@ describe("PrivateResearchRepositoriesCard", () => {
             connected: true,
             installationId: 99,
             repositories: [{ id: 303, nameWithOwner: "owner/new-study" }],
-            createFromTemplateUrl: "https://github.example/new",
           });
         }
         return jsonResponse({ error: "Unexpected request" }, 500);
@@ -211,8 +210,8 @@ describe("PrivateResearchRepositoriesCard", () => {
     );
     expect(screen.getByTestId("add-private-repository")).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: "Create from template" })
-    ).toBeTruthy();
+      screen.queryByRole("link", { name: "Create from template" })
+    ).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "Bind owner/new-study" })
     );

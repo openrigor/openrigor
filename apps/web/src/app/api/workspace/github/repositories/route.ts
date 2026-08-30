@@ -3,7 +3,6 @@ import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-ena
 import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
 import { readGithubResearchCredentials } from "@/lib/workspace/research-repository/credentials";
 import { getGithubInstallationRepository } from "@/lib/workspace/research-repository/github-app";
-import { buildGithubResearchTemplateUrl } from "@/lib/workspace/research-repository/template";
 
 export const dynamic = "force-dynamic";
 
@@ -76,10 +75,6 @@ export async function GET() {
       installationId: credentials.installationId,
       login: typeof login === "string" ? login : undefined,
       repositories,
-      createFromTemplateUrl:
-        typeof login === "string"
-          ? buildGithubResearchTemplateUrl(login)
-          : undefined,
     });
   } catch (error) {
     console.error("[github-research] failed to list repositories", error);
