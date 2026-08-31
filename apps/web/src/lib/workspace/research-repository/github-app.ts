@@ -392,9 +392,8 @@ export async function listGithubInstallationRepositories(
 ): Promise<GithubInstallationRepositoryListEntry[]> {
   const octokit = createGithubInstallationOctokit(installationId);
   const repositories = (await octokit.paginate(
-    octokit.rest.apps.listInstallationReposForAuthenticatedUser,
+    octokit.rest.apps.listReposAccessibleToInstallation,
     {
-      installation_id: installationId,
       per_page: 100,
       headers: { "x-github-api-version": GITHUB_API_VERSION },
     }

@@ -450,7 +450,6 @@ export function PrivateResearchRepositoriesCard() {
       if (response.status !== 204) {
         throw new Error("Could not disconnect GitHub");
       }
-      setItems([]);
       setGithubRepositories({ connected: false, repositories: [] });
       setAddExpanded(true);
     } catch {
