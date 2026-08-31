@@ -115,6 +115,10 @@ describe("DELETE /api/workspace/items/[id]", () => {
 
 describe("PATCH /api/workspace/items/[id]", () => {
   beforeEach(() => {
+    harness.verifyUserAuthenticated.mockReset();
+    harness.deleteWorkspaceItem.mockReset();
+    harness.getWorkspaceItem.mockReset();
+    harness.reconcileWorkspaceItemThread.mockReset();
     harness.verifyUserAuthenticated.mockResolvedValue({
       user: { id: "user-1" },
     });
