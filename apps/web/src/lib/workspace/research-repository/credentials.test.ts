@@ -405,6 +405,7 @@ describe("GitHub research credential Store", () => {
 
   it("errors instead of silently truncating a full last page", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(vi.fn());
+    const baseSearchItems = harness.store.searchItems.getMockImplementation();
     const fullPage = Array.from({ length: 100 }, (_, index) => ({
       namespace: ["github_research_credentials", `user-${index}`],
       key: "credentials",
@@ -425,6 +426,7 @@ describe("GitHub research credential Store", () => {
         MAX_CREDENTIAL_SEARCH_PAGES
       );
     } finally {
+      harness.store.searchItems.mockImplementation(baseSearchItems);
       consoleError.mockRestore();
     }
   });

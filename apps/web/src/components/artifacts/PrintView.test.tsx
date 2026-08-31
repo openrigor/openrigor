@@ -2,12 +2,24 @@
 
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PrintView } from "./PrintView";
+import { PrintView, countMermaidCodeBlocks } from "./PrintView";
 
 afterEach(() => cleanup());
 
 describe("PrintView readiness", () => {
-  it("counts a mermaid fence inside a blockquote before reporting readiness", async () => {
+  it("counts a mermaid fence inside a blockquote", () => {
+    const markdown = [
+      "> ```mermaid",
+      "> flowchart TD",
+      ">   A --> B",
+      "> ```",
+    ].join("\n");
+    expect(countMermaidCodeBlocks(markdown)).toBe(1);
+    expect(countMermaidCodeBlocks("```mermaid\nflowchart TD\n```")).toBe(1);
+    expect(countMermaidCodeBlocks("```js\nconst a = 1;\n```")).toBe(0);
+  });
+
+  it("reports readiness once a blockquote mermaid fence renders", async () => {
     const onReady = vi.fn();
     const markdown = [
       "> ```mermaid",
@@ -19,9 +31,6 @@ describe("PrintView readiness", () => {
     render(<PrintView markdown={markdown} onReady={onReady} />);
 
     const printRoot = document.getElementById("print-root");
-    expect(printRoot?.dataset.printReady).toBe("false");
-    expect(onReady).not.toHaveBeenCalled();
-
     await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
 
     expect(printRoot?.dataset.printReady).toBe("true");

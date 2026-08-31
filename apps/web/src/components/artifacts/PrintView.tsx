@@ -39,7 +39,7 @@ function countMermaidInTree(node: MdastNode): number {
   return count;
 }
 
-function countMermaidCodeBlocks(markdown: string): number {
+export function countMermaidCodeBlocks(markdown: string): number {
   const processor = unified().use(remarkParse).use(remarkMath).use(remarkGfm);
   const tree = processor.runSync(processor.parse(markdown)) as MdastNode;
   return countMermaidInTree(tree);
