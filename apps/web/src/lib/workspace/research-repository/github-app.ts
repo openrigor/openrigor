@@ -380,6 +380,46 @@ export async function getGithubInstallationRepository(
   };
 }
 
+export type GithubInstallationRepositoryListEntry = {
+  id: number;
+  nameWithOwner: string;
+  private: boolean;
+};
+
+/** List every repository the installation can currently access. */
+export async function listGithubInstallationRepositories(
+  installationId: number
+): Promise<GithubInstallationRepositoryListEntry[]> {
+  const octokit = createGithubInstallationOctokit(installationId);
+  const repositories = (await octokit.paginate(
+    octokit.rest.apps.listInstallationReposForAuthenticatedUser,
+    {
+      installation_id: installationId,
+      per_page: 100,
+      headers: { "x-github-api-version": GITHUB_API_VERSION },
+    }
+  )) as GithubRepository[];
+  return repositories.flatMap((repository) => {
+    if (
+      typeof repository.id !== "number" ||
+      !Number.isSafeInteger(repository.id) ||
+      repository.id <= 0 ||
+      typeof repository.full_name !== "string"
+    ) {
+      return [];
+    }
+    const nameWithOwner = repository.full_name.trim().toLowerCase();
+    if (!nameWithOwner) return [];
+    return [
+      {
+        id: repository.id,
+        nameWithOwner,
+        private: repository.private === true,
+      },
+    ];
+  });
+}
+
 /** Resolve the current head of one branch without retaining an App token. */
 export async function getGithubRepositoryBranchHead(
   installationId: number,
