@@ -83,7 +83,6 @@ describe("GET /api/workspace/github/repositories", () => {
       login: "octocat",
       repositories: [
         { id: 101, nameWithOwner: "octocat/private" },
-        { id: 202, nameWithOwner: "octocat/public" },
         { id: 404, nameWithOwner: "octocat/new-private" },
       ],
     });

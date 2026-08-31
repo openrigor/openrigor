@@ -92,10 +92,12 @@ export async function GET() {
     let repositories: SnapshotRepository[];
     try {
       const live = await listGithubInstallationRepositories(installationId);
-      repositories = live.map((entry) => ({
-        id: entry.id,
-        nameWithOwner: entry.nameWithOwner,
-      }));
+      repositories = live
+        .filter((entry) => entry.private)
+        .map((entry) => ({
+          id: entry.id,
+          nameWithOwner: entry.nameWithOwner,
+        }));
       const livePrivateIds = live
         .filter((entry) => entry.private)
         .map((entry) => entry.id);

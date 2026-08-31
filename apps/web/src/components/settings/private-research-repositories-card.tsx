@@ -63,8 +63,10 @@ export function shortRepositoryName(nameWithOwner: string): string {
 
 function RepositoryMethods({
   item,
+  disconnected,
 }: {
   item: ResearchRepositoryWorkspaceItem;
+  disconnected: boolean;
 }) {
   const [methods, setMethods] = useState<PrivateMethodSummary[]>();
   const [selectedMethodIds, setSelectedMethodIds] = useState<string[]>(
@@ -98,6 +100,7 @@ function RepositoryMethods({
   }, [item.id]);
 
   async function setMethodSelected(methodId: string, selected: boolean) {
+    if (disconnected) return;
     const previous = selectedMethodIds;
     const next = selected
       ? [...new Set([...previous, methodId])]
@@ -163,7 +166,7 @@ function RepositoryMethods({
               >
                 <Checkbox
                   checked={selectedMethodIds.includes(method.id)}
-                  disabled={savingMethods}
+                  disabled={savingMethods || disconnected}
                   onCheckedChange={(checked) =>
                     void setMethodSelected(method.id, checked === true)
                   }
@@ -196,11 +199,13 @@ function RepositoryMethods({
 function RepositoryRow({
   item,
   repositories,
+  disconnected,
   onRemove,
   removeError,
 }: {
   item: RepositoryItem;
   repositories: GithubRepositoryOption[];
+  disconnected: boolean;
   onRemove: (item: RepositoryItem, nameWithOwner: string) => void;
   removeError?: string;
 }) {
@@ -261,7 +266,7 @@ function RepositoryRow({
           data-testid={`private-repository-details-${item.id}`}
         >
           {usable ? (
-            <RepositoryMethods item={item} />
+            <RepositoryMethods item={item} disconnected={disconnected} />
           ) : (
             <div className="space-y-3 border-t border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <p>The stored repository binding is unavailable.</p>
@@ -450,7 +455,10 @@ export function PrivateResearchRepositoriesCard() {
       if (response.status !== 204) {
         throw new Error("Could not disconnect GitHub");
       }
-      setGithubRepositories({ connected: false, repositories: [] });
+      setGithubRepositories({
+        connected: false,
+        repositories: githubRepositories?.repositories ?? [],
+      });
       setAddExpanded(true);
     } catch {
       setDisconnectError("Could not disconnect GitHub.");
@@ -501,6 +509,7 @@ export function PrivateResearchRepositoriesCard() {
                 key={item.id}
                 item={item}
                 repositories={githubRepositories?.repositories ?? []}
+                disconnected={githubRepositories?.connected === false}
                 onRemove={removeRepository}
                 removeError={removeErrorById[item.id]}
               />

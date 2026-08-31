@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createAppAuth } from "@octokit/auth-app";
-import { Octokit } from "octokit";
+import { Octokit, type RestEndpointMethodTypes } from "octokit";
 
 const GITHUB_OAUTH_BASE_URL = "https://github.com";
 const GITHUB_API_VERSION = "2022-11-28";
@@ -397,7 +397,7 @@ export async function listGithubInstallationRepositories(
       per_page: 100,
       headers: { "x-github-api-version": GITHUB_API_VERSION },
     }
-  )) as GithubRepository[];
+  )) as RestEndpointMethodTypes["apps"]["listReposAccessibleToInstallation"]["response"]["data"]["repositories"];
   return repositories.flatMap((repository) => {
     if (
       typeof repository.id !== "number" ||

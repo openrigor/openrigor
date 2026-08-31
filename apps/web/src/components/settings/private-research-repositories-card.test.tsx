@@ -547,6 +547,12 @@ describe("PrivateResearchRepositoriesCard", () => {
             repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
           });
         }
+        if (url.endsWith("/repository/methods")) {
+          return jsonResponse({
+            methods: [{ id: "method-a", title: "Essay Review" }],
+            selectedMethodIds: ["method-a"],
+          });
+        }
         if (url.endsWith("/repository")) {
           return jsonResponse({
             status: {
@@ -581,6 +587,15 @@ describe("PrivateResearchRepositoriesCard", () => {
     expect(disconnectCall?.[1]?.headers).toMatchObject({
       "X-Requested-With": "XMLHttpRequest",
     });
+
+    // Retained bindings stay visible but read-only until reconnect.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Manage owner/essay-study" })
+    );
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Select Essay Review",
+    });
+    expect(checkbox).toHaveProperty("disabled", true);
   });
 
   it("keeps connected state and shows an alert when disconnect fails", async () => {
