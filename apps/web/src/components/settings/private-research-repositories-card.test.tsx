@@ -304,4 +304,348 @@ describe("PrivateResearchRepositoriesCard", () => {
     );
     expect(statusFetches).toHaveLength(1);
   });
+
+  it("lists a second live installation repository as bindable", async () => {
+    const bound = repositoryItem("repository-one", 101);
+    const addedItem = repositoryItem("repository-added", 303);
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/workspace/items" && init?.method === "POST") {
+          return jsonResponse({ item: addedItem }, 201);
+        }
+        if (url === "/api/workspace/items") {
+          return jsonResponse({ items: [bound] });
+        }
+        if (url === "/api/workspace/github/repositories") {
+          return jsonResponse({
+            connected: true,
+            installationId: 99,
+            login: "octocat",
+            repositories: [
+              { id: 101, nameWithOwner: "owner/essay-study" },
+              { id: 303, nameWithOwner: "owner/new-study" },
+            ],
+          });
+        }
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: bound.id,
+              repositoryId: 101,
+              state: "ready",
+              checkedAt: "2026-08-24T08:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Add private research repository",
+      })
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Bind owner/essay-study" })
+    ).toHaveProperty("disabled", true);
+    expect(screen.getByText("Bound")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Bind owner/new-study" })
+    );
+    expect(await screen.findByText("new-study")).toBeTruthy();
+  });
+
+  it("removes a bound repository after confirm", async () => {
+    const item = repositoryItem("repository-one", 101);
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirm);
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (
+          url === `/api/workspace/items/${item.id}` &&
+          init?.method === "DELETE"
+        ) {
+          return new Response(null, { status: 204 });
+        }
+        if (url === "/api/workspace/items") {
+          return jsonResponse({ items: [item] });
+        }
+        if (url === "/api/workspace/github/repositories") {
+          return jsonResponse({
+            connected: true,
+            installationId: 99,
+            login: "octocat",
+            repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
+          });
+        }
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: item.id,
+              repositoryId: 101,
+              state: "ready",
+              checkedAt: "2026-08-24T08:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage owner/essay-study" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove owner/essay-study" })
+    );
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Remove owner/essay-study from your OpenRigor workspace? Artifacts stay in the repository on GitHub."
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("essay-study")).toBeNull();
+    });
+    const deleteCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url) === `/api/workspace/items/${item.id}` &&
+        init?.method === "DELETE"
+    );
+    expect(deleteCall?.[1]?.headers).toMatchObject({
+      "X-Requested-With": "XMLHttpRequest",
+    });
+  });
+
+  it("does not delete when remove is declined", async () => {
+    const item = repositoryItem("repository-one", 101);
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false)
+    );
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/workspace/items") {
+        return jsonResponse({ items: [item] });
+      }
+      if (url === "/api/workspace/github/repositories") {
+        return jsonResponse({
+          connected: true,
+          installationId: 99,
+          repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
+        });
+      }
+      if (url.endsWith("/repository")) {
+        return jsonResponse({
+          status: {
+            workspaceId: item.id,
+            repositoryId: 101,
+            state: "ready",
+            checkedAt: "2026-08-24T08:00:00.000Z",
+          },
+        });
+      }
+      return jsonResponse({ error: "Unexpected request" }, 500);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage owner/essay-study" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove owner/essay-study" })
+    );
+
+    expect(screen.getByText("essay-study")).toBeTruthy();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === "DELETE"
+      )
+    ).toBe(false);
+  });
+
+  it("keeps the row and shows an alert when remove fails", async () => {
+    const item = repositoryItem("repository-one", 101);
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (
+          url === `/api/workspace/items/${item.id}` &&
+          init?.method === "DELETE"
+        ) {
+          return jsonResponse({ error: "failed" }, 500);
+        }
+        if (url === "/api/workspace/items") {
+          return jsonResponse({ items: [item] });
+        }
+        if (url === "/api/workspace/github/repositories") {
+          return jsonResponse({
+            connected: true,
+            installationId: 99,
+            repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
+          });
+        }
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: item.id,
+              repositoryId: 101,
+              state: "ready",
+              checkedAt: "2026-08-24T08:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Manage owner/essay-study" })
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove owner/essay-study" })
+    );
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByText("essay-study")).toBeTruthy();
+  });
+
+  it("disconnects GitHub and returns the connect affordance", async () => {
+    const item = repositoryItem("repository-one", 101);
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (
+          url === "/api/workspace/github/disconnect" &&
+          init?.method === "POST"
+        ) {
+          return new Response(null, { status: 204 });
+        }
+        if (url === "/api/workspace/items") {
+          return jsonResponse({ items: [item] });
+        }
+        if (url === "/api/workspace/github/repositories") {
+          return jsonResponse({
+            connected: true,
+            installationId: 99,
+            login: "octocat",
+            repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
+          });
+        }
+        if (url.endsWith("/repository/methods")) {
+          return jsonResponse({
+            methods: [{ id: "method-a", title: "Essay Review" }],
+            selectedMethodIds: ["method-a"],
+          });
+        }
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: item.id,
+              repositoryId: 101,
+              state: "ready",
+              checkedAt: "2026-08-24T08:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    expect(await screen.findByTestId("connected-as")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("disconnect-github"));
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("link", { name: "Connect GitHub" })
+          .getAttribute("href")
+      ).toBe("/api/workspace/github/authorize");
+    });
+    const disconnectCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url) === "/api/workspace/github/disconnect" &&
+        init?.method === "POST"
+    );
+    expect(disconnectCall?.[1]?.headers).toMatchObject({
+      "X-Requested-With": "XMLHttpRequest",
+    });
+
+    // Retained bindings stay visible but read-only until reconnect.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Manage owner/essay-study" })
+    );
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Select Essay Review",
+    });
+    expect(checkbox).toHaveProperty("disabled", true);
+  });
+
+  it("keeps connected state and shows an alert when disconnect fails", async () => {
+    const item = repositoryItem("repository-one", 101);
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (
+          url === "/api/workspace/github/disconnect" &&
+          init?.method === "POST"
+        ) {
+          return jsonResponse({ error: "failed" }, 500);
+        }
+        if (url === "/api/workspace/items") {
+          return jsonResponse({ items: [item] });
+        }
+        if (url === "/api/workspace/github/repositories") {
+          return jsonResponse({
+            connected: true,
+            installationId: 99,
+            login: "octocat",
+            repositories: [{ id: 101, nameWithOwner: "owner/essay-study" }],
+          });
+        }
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: item.id,
+              repositoryId: 101,
+              state: "ready",
+              checkedAt: "2026-08-24T08:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(createElement(PrivateResearchRepositoriesCard));
+    fireEvent.click(await screen.findByTestId("disconnect-github"));
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByTestId("connected-as")).toBeTruthy();
+    expect(screen.getByText("essay-study")).toBeTruthy();
+  });
 });
