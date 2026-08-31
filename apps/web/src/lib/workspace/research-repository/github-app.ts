@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createAppAuth } from "@octokit/auth-app";
-import { Octokit, type RestEndpointMethodTypes } from "octokit";
+import { Octokit } from "octokit";
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
 const GITHUB_OAUTH_BASE_URL = "https://github.com";
 const GITHUB_API_VERSION = "2022-11-28";

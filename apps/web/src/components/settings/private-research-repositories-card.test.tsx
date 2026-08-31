@@ -465,7 +465,9 @@ describe("PrivateResearchRepositoriesCard", () => {
 
     expect(screen.getByText("essay-study")).toBeTruthy();
     expect(
-      fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === "DELETE"
+      )
     ).toBe(false);
   });
 
