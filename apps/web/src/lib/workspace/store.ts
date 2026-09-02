@@ -92,6 +92,7 @@ import {
   type RepositoryLayoutVersion,
 } from "./research-repository/layout";
 import {
+  bootstrapEmptyResearchRepository,
   discoverPrivateMethods,
   ensureMethodHostIndex,
   probeMethodHostInitialization,
@@ -725,11 +726,28 @@ export async function prepareResearchRepositoryBinding(
     );
   } catch (error) {
     if (githubErrorStatus(error) !== 404) throw error;
-    const defaultBranchHead = await getGithubRepositoryBranchHead(
-      input.installationId,
-      repository,
-      repository.defaultBranch
-    );
+    let defaultBranchHead: string;
+    try {
+      defaultBranchHead = await getGithubRepositoryBranchHead(
+        input.installationId,
+        repository,
+        repository.defaultBranch
+      );
+    } catch (defaultBranchError) {
+      if (githubErrorStatus(defaultBranchError) !== 404) {
+        throw defaultBranchError;
+      }
+      // Truly empty repository: no commits and no branches exist. GitHub
+      // only permits the Contents API to create the initial commit, on the
+      // default branch — seed the Method-host sentinel there so the managed
+      // workspace branch below can be created off it (owner mandate: bind
+      // without pre-seeding; the app grows the structure as needed).
+      defaultBranchHead = await bootstrapEmptyResearchRepository(
+        input.installationId,
+        repository,
+        layoutVersion
+      );
+    }
     let recoveredHeadCommitSha: string | undefined;
     try {
       await createGithubRepositoryBranch(

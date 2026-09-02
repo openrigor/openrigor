@@ -98,6 +98,7 @@ const harness = vi.hoisted(() => {
     createGithubRepositoryBranch: vi.fn(),
     getGithubInstallationRepository: vi.fn(),
     getGithubRepositoryBranchHead: vi.fn(),
+    bootstrapEmptyResearchRepository: vi.fn(),
     ensureMethodHostIndex: vi.fn(),
     probeMethodHostInitialization: vi.fn(),
     discoverPrivateMethods: vi.fn(),
@@ -131,6 +132,7 @@ vi.mock("./research-repository/git-adapter", async (importOriginal) => {
     await importOriginal<typeof import("./research-repository/git-adapter")>();
   return {
     ...actual,
+    bootstrapEmptyResearchRepository: harness.bootstrapEmptyResearchRepository,
     ensureMethodHostIndex: harness.ensureMethodHostIndex,
     probeMethodHostInitialization: harness.probeMethodHostInitialization,
     discoverPrivateMethods: harness.discoverPrivateMethods,
@@ -486,6 +488,7 @@ describe("research repository workspace items", () => {
     harness.createGithubRepositoryBranch.mockReset();
     harness.getGithubInstallationRepository.mockReset();
     harness.getGithubRepositoryBranchHead.mockReset();
+    harness.bootstrapEmptyResearchRepository.mockReset();
     harness.ensureMethodHostIndex.mockReset();
     harness.probeMethodHostInitialization.mockReset();
     harness.discoverPrivateMethods.mockReset();
@@ -908,6 +911,61 @@ describe("research repository workspace items", () => {
       "openrigor/workspace"
     );
     expect(item.binding.headCommitSha).toBe(workspaceBranchSha);
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("bootstraps a truly empty repository (no default head) before binding", async () => {
+    const seededHead = repositorySha;
+    harness.getGithubRepositoryBranchHead
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockResolvedValueOnce(workspaceBranchSha);
+    harness.bootstrapEmptyResearchRepository.mockResolvedValue(seededHead);
+
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
+      1,
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "openrigor/workspace"
+    );
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
+      2,
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "main"
+    );
+    expect(harness.bootstrapEmptyResearchRepository).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({
+        owner: "octocat",
+        name: "private",
+        defaultBranch: "main",
+      }),
+      "2.0"
+    );
+    expect(harness.createGithubRepositoryBranch).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      "openrigor/workspace",
+      seededHead
+    );
+    expect(harness.getGithubRepositoryBranchHead).toHaveBeenNthCalledWith(
+      3,
+      99,
+      expect.objectContaining({ defaultBranch: "main" }),
+      "openrigor/workspace"
+    );
+    expect(item.binding.headCommitSha).toBe(workspaceBranchSha);
+    expect(item.binding.initialized).toBe(true);
     expect(harness.state.manifest.items[item.id]).toEqual(item);
   });
 
