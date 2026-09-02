@@ -172,20 +172,43 @@ test.describe("@beta-release designated-directory v2 round trip", () => {
 
     const editedContent = `${initialContent}\nEdited through the PR5 repository editor.\n`;
     await editor.fill(editedContent);
-    const commitResponsePromise = page.waitForResponse(
-      (response) =>
-        response
-          .url()
-          .endsWith(
-            `/api/workspace/items/${repositoryItemId}/repository/commit`
-          ) && response.request().method() === "POST",
-      { timeout: TIMEOUTS.pageLoad }
-    );
-    await page
-      .getByRole("button", { name: "Commit changes", exact: true })
-      .click();
-    const commitResponse = await commitResponsePromise;
-    expect(commitResponse.status()).toBe(200);
+    // The seed push above is a third-party write: GitHub delivers the app
+    // webhook asynchronously, and reconciliation can race the editor load.
+    // The commit endpoint CAS-guards on the client-supplied baseCommitSha
+    // and answers 409 (stale_repository from the git CAS, or
+    // REPOSITORY_CHANGED from the write-access head check) when the branch
+    // moved underneath us — the designed pattern is to re-read the head and
+    // retry. The 409 also bounces the client to a re-login state, so re-run
+    // provisioning, reopen the editor, re-apply the edit, and retry.
+    let commitResponse: Awaited<ReturnType<typeof page.waitForResponse>>;
+    for (let attempt = 1; ; attempt++) {
+      const commitResponsePromise = page.waitForResponse(
+        (response) =>
+          response
+            .url()
+            .endsWith(
+              `/api/workspace/items/${repositoryItemId}/repository/commit`
+            ) && response.request().method() === "POST",
+        { timeout: TIMEOUTS.pageLoad }
+      );
+      await page
+        .getByRole("button", { name: "Commit changes", exact: true })
+        .click();
+      commitResponse = await commitResponsePromise;
+      if (commitResponse.status() === 200) break;
+      expect(commitResponse.status()).toBe(409);
+      const commitError = (await commitResponse.json()).error;
+      expect(["stale_repository", "REPOSITORY_CHANGED"]).toContain(commitError);
+      expect(attempt).toBeLessThan(3);
+      await provision(page);
+      await page.goto(
+        `${baseUrl()}/workspace/settings/repositories/${repositoryItemId}?artifactId=${encodeURIComponent(ARTIFACT_ID)}`,
+        { waitUntil: "domcontentloaded", timeout: TIMEOUTS.pageLoad }
+      );
+      await expect(editor).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+      await expect(editor).toHaveValue(initialContent);
+      await editor.fill(editedContent);
+    }
     const commitBody = (await commitResponse.json()) as {
       commitSha?: string;
       provenance?: { path?: string; revision?: string };

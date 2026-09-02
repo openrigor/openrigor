@@ -72,11 +72,14 @@ test.describe("@beta-release @beta-harness public-beta E2E harness", () => {
     await expect(bindEntry).toBeVisible({ timeout: TIMEOUTS.pageLoad });
     // Scope to interactive affordances: the explainer paragraph ("Connect
     // GitHub to choose an installation repository…") and the connect link
-    // can coexist, which trips strict mode on a bare getByText.
+    // can coexist, which trips strict mode on a bare getByText. The Add
+    // panel lists live installation repositories, one "Bind <repo>" button
+    // per repository (post settings-lifecycle fix #81), so accept any Bind
+    // button in the panel.
     await expect(
       bindEntry
         .getByRole("link", { name: "Connect GitHub" })
-        .or(bindEntry.getByRole("button", { name: /Bind repository/ }))
+        .or(bindEntry.getByRole("button", { name: /Bind/ }))
         .or(bindEntry.getByText("No installation repositories"))
         .first()
     ).toBeVisible({ timeout: TIMEOUTS.pageLoad });
