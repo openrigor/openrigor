@@ -969,6 +969,64 @@ describe("research repository workspace items", () => {
     expect(harness.state.manifest.items[item.id]).toEqual(item);
   });
 
+  it("recovers when a concurrent binding seeds the first commit during bootstrap", async () => {
+    const seededHead = repositorySha;
+    harness.getGithubRepositoryBranchHead
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockResolvedValueOnce(seededHead)
+      .mockResolvedValueOnce(workspaceBranchSha);
+    harness.bootstrapEmptyResearchRepository.mockRejectedValue(
+      Object.assign(new Error("Contents put raced"), { status: 422 })
+    );
+
+    const item = await createResearchRepositoryItem("user-1", {
+      repositoryId: 101,
+      installationId: 99,
+    });
+
+    expect(harness.bootstrapEmptyResearchRepository).toHaveBeenCalledTimes(1);
+    expect(harness.createGithubRepositoryBranch).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ owner: "octocat", name: "private" }),
+      "openrigor/workspace",
+      seededHead
+    );
+    expect(item.binding.headCommitSha).toBe(workspaceBranchSha);
+    expect(item.binding.initialized).toBe(true);
+    expect(harness.state.manifest.items[item.id]).toEqual(item);
+  });
+
+  it("rethrows a bootstrap failure while the repository stays empty", async () => {
+    const bootstrapError = Object.assign(new Error("GitHub unavailable"), {
+      status: 503,
+    });
+    harness.getGithubRepositoryBranchHead
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Not found"), { status: 404 })
+      );
+    harness.bootstrapEmptyResearchRepository.mockRejectedValue(bootstrapError);
+
+    await expect(
+      createResearchRepositoryItem("user-1", {
+        repositoryId: 101,
+        installationId: 99,
+      })
+    ).rejects.toBe(bootstrapError);
+    expect(harness.createGithubRepositoryBranch).not.toHaveBeenCalled();
+    expect(harness.state.manifest).toBeUndefined();
+  });
+
   it.each([409, 422])(
     "binds after a %i managed branch creation race",
     async (status) => {
