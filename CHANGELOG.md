@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.10.0
+
+Designated-directory research repositories: the OpenRigor integration now lives
+in one `openrigor/` directory at the root of your private repository instead of
+claiming the whole repository. New bindings require the layout 2.0 minimum
+structure (`openrigor/methods/index.md`); the repository stays fully yours —
+everything else in it is ignored, and nothing outside the prefix is ever read
+or written. Legacy layout 1.0 bindings open read-only with an explicit message.
+
+### Added
+
+- **Designated directory (layout 2.0)** — dual layout resolver and prefix probe
+  (#71); reads, writes, exports, seals, and evidence confined to the `openrigor/`
+  prefix, fail-closed on anything outside it (#72)
+- **Cutover** — new binds require 2.0; layout 1.0 is read-only with a clear
+  reason; webhook pushes touching only paths outside the prefix no longer
+  invalidate the workspace binding; atomic CAS head guarding on every write
+  (#73)
+- **Rebind on reconnect** — bindings re-pin to the active installation when a
+  GitHub connection is restored (#78)
+- **Repository lifecycle in settings** — add additional private repositories,
+  remove bindings, and disconnect cleanly, backed by the live installation
+  listing; retained bindings stay read-only after disconnect (#81)
+- **Truly empty repository bind** — a brand-new private repository with no
+  commits and no default branch can now be bound and bootstrapped (#82)
+- **Print readiness** — the first `window.print()` waits for the lazy PrintView
+  and Mermaid rendering to finish before opening the print dialog (#74)
+
+### Changed
+
+- Create-from-template affordance removed: bringing your own private repository
+  is the only path, and the starter template env is gone (#75)
+- Repository status pills deduplicated; identical state·reason pairs collapse
+  (#79)
+- Order-dependent web unit suite failures fixed so the suite is deterministic
+  (#80)
+
+### Docs
+
+- Research repository layout concept and trust-copy artifact confinement
+  written down; trust copy now scoped to the repository-mapped layout (#76)
+
+### Tests
+
+- Designated-directory unit matrix plus live E2E specs: v2 round trip with a
+  real 1.0→2.0 migration, legacy v1 read-only byte fidelity, export/citation
+  regression, empty-repo bind, and settings lifecycle journeys (#77, #83)
+
 ## 0.9.0
 
 Public beta for students doing real research: signup, bind a private GitHub
