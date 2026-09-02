@@ -572,6 +572,38 @@ export async function commitArtifactBlobs(
   return commitSha;
 }
 
+/**
+ * Seed the first commit of a truly empty research repository (no commits, no
+ * branches) on its default branch. GitHub does not allow create-ref in an
+ * empty repository; the Contents API first-commit path in commitArtifactBlobs
+ * is the supported bootstrap and it must target the repository's
+ * initial/default branch. The seeded scaffold carries the Method-host
+ * sentinel so callers can create the managed workspace branch off this head
+ * immediately after.
+ */
+export async function bootstrapEmptyResearchRepository(
+  installationId: number,
+  repository: GithubRepositoryCoordinates & { defaultBranch: string },
+  layoutVersion = "1.0"
+): Promise<string> {
+  return commitArtifactBlobs(
+    installationId,
+    repository,
+    repository.defaultBranch,
+    {
+      message: "Initialize OpenRigor Method host",
+      baseSha: null,
+      layoutVersion,
+      files: [
+        {
+          path: methodHostIndexPath(layoutVersion),
+          content: METHOD_HOST_INDEX_CONTENT,
+        },
+      ],
+    }
+  );
+}
+
 export async function readArtifactBlob(
   installationId: number,
   repository: GithubRepositoryCoordinates,

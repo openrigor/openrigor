@@ -13,6 +13,7 @@ vi.mock("./github-app", () => ({
 
 import { createHash } from "node:crypto";
 import {
+  bootstrapEmptyResearchRepository,
   commitArtifactBlobs,
   discoverPrivateMethods,
   ensureMethodHostIndex,
@@ -461,6 +462,34 @@ describe("GitHub repository Git Data adapter", () => {
     expect(harness.request).not.toHaveBeenCalledWith(
       "POST /repos/{owner}/{repo}/git/refs",
       expect.anything()
+    );
+  });
+
+  it("bootstraps an empty repository on its default branch with the Method-host sentinel", async () => {
+    harness.getHead.mockRejectedValue(
+      Object.assign(new Error("Not found"), { status: 404 })
+    );
+    harness.request.mockImplementation(async (route: string) => {
+      if (route === "PUT /repos/{owner}/{repo}/contents/{path}") {
+        return { data: { commit: { sha: commitSha } } };
+      }
+      throw new Error(`Unexpected route ${route}`);
+    });
+
+    await expect(
+      bootstrapEmptyResearchRepository(
+        99,
+        { ...repository, defaultBranch: "main" },
+        "2.0"
+      )
+    ).resolves.toBe(commitSha);
+    expect(harness.request).toHaveBeenCalledWith(
+      "PUT /repos/{owner}/{repo}/contents/{path}",
+      expect.objectContaining({
+        path: "openrigor/methods/index.md",
+        branch: "main",
+        content: Buffer.from("# Methods\n").toString("base64"),
+      })
     );
   });
 
