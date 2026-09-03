@@ -24,8 +24,8 @@ set +a
 
 remote_app_dir="${OSS_DEV_REMOTE_APP_DIR:-/opt/evaluchat-oss}"
 remote_catalog_root="${OSS_DEV_REMOTE_CATALOG_ROOT:-/opt/evaluchat-catalog}"
-web_service="${OSS_DEV_WEB_SERVICE:-evaluchat-oss-web.service}"
-agents_service="${OSS_DEV_AGENTS_SERVICE:-evaluchat-oss-agents.service}"
+web_service="${OSS_DEV_WEB_SERVICE:-openrigor-oss-web.service}"
+agents_service="${OSS_DEV_AGENTS_SERVICE:-openrigor-oss-agents.service}"
 dev_url="${OSS_DEV_URL:-https://dev.openrigor.org}"
 agent_url="${OSS_DEV_AGENT_URL:-http://127.0.0.1:54367}"
 web_port="${OSS_DEV_WEB_PORT:-3000}"
