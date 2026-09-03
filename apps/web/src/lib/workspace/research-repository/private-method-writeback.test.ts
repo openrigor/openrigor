@@ -66,8 +66,8 @@ const repositoryItem = {
     repositoryId: 101,
     installationId: 99,
     branch: "openrigor/workspace",
-    layoutVersion: "1.0",
-    headCommitSha: provenance.commitSha,
+    layoutVersion: "2.0",
+    headCommitSha,
     boundAt: "2026-08-24T00:00:00.000Z",
     initialized: true,
   },
@@ -152,7 +152,7 @@ describe("private Method repository write-back authorization", () => {
       provenance: {
         repository: "researcher/private-methods",
         branch: "openrigor/workspace",
-        path: filePath,
+        path: `openrigor/${filePath}`,
         revision: committedSha,
       },
     });
@@ -165,7 +165,7 @@ describe("private Method repository write-back authorization", () => {
         baseSha: headCommitSha,
         files: [
           {
-            path: filePath,
+            path: `openrigor/${filePath}`,
             content: "---\ntype: Evidence\n---\n",
           },
         ],
@@ -176,5 +176,61 @@ describe("private Method repository write-back authorization", () => {
       "wi_repo",
       committedSha
     );
+  });
+
+  it("prefixes evidence write-back for a v2 repository binding", async () => {
+    harness.getWorkspaceItem.mockResolvedValue({
+      ...repositoryItem,
+      binding: { ...repositoryItem.binding, layoutVersion: "2.0" },
+    });
+
+    const filePath = "methods/essay-review/evidence/2026-08-24T12-00-00Z.en.md";
+    await commitPrivateMethodEvidence({
+      userId: "user-1",
+      provenance,
+      methodId: "essay-review",
+      filePath,
+      markdown: "---\ntype: Evidence\n---\n",
+    });
+
+    expect(harness.commitArtifacts).toHaveBeenCalledWith(
+      99,
+      { id: 101, owner: "researcher", name: "private-methods", private: true },
+      "openrigor/workspace",
+      expect.objectContaining({
+        layoutVersion: "2.0",
+        files: [
+          {
+            path: `openrigor/${filePath}`,
+            content: "---\ntype: Evidence\n---\n",
+          },
+        ],
+      })
+    );
+    expect(harness.commitProvenance).toHaveBeenCalledWith(
+      expect.anything(),
+      "openrigor/workspace",
+      `openrigor/${filePath}`,
+      committedSha
+    );
+  });
+
+  it("rejects evidence write-back for a legacy repository binding", async () => {
+    harness.getWorkspaceItem.mockResolvedValue({
+      ...repositoryItem,
+      binding: { ...repositoryItem.binding, layoutVersion: "1.0" },
+    });
+
+    await expect(
+      commitPrivateMethodEvidence({
+        userId: "user-1",
+        provenance,
+        methodId: "essay-review",
+        filePath: "methods/essay-review/evidence/legacy.en.md",
+        markdown: "legacy",
+      })
+    ).rejects.toMatchObject({ code: REPOSITORY_READ_ONLY });
+    expect(harness.loadRepository).not.toHaveBeenCalled();
+    expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 });

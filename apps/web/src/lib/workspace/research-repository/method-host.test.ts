@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
   discoverPrivateMethodsFromTree,
+  inspectMethodHostInitialization,
   type MethodHostTreeEntry,
 } from "./method-host";
 
 const indexEntry = {
   path: "methods/index.md",
   type: "blob",
+  mode: "100644",
   sha: "index",
+};
+const v2IndexEntry = {
+  path: "openrigor/methods/index.md",
+  type: "blob",
+  mode: "100644",
+  sha: "v2-index",
 };
 
 function methodEntries(
@@ -18,6 +26,7 @@ function methodEntries(
     {
       path: `methods/${id}/${id}.en.md`,
       type: "blob",
+      mode: "100644",
       sha: `method-${id}`,
     },
     ...(options.evidenceTemplate === false
@@ -26,10 +35,21 @@ function methodEntries(
           {
             path: `methods/${id}/evidence-template.en.md`,
             type: "blob",
+            mode: "100644",
             sha: `evidence-${id}`,
           },
         ]),
   ];
+}
+
+function v2MethodEntries(
+  id: string,
+  options: { evidenceTemplate?: boolean } = {}
+): MethodHostTreeEntry[] {
+  return methodEntries(id, options).map((entry) => ({
+    ...entry,
+    path: `openrigor/${entry.path}`,
+  }));
 }
 
 function markdown(frontmatter: string): string {
@@ -38,9 +58,14 @@ function markdown(frontmatter: string): string {
 
 async function discover(
   tree: MethodHostTreeEntry[],
-  blobs: Record<string, string>
+  blobs: Record<string, string>,
+  layoutVersion = "1.0"
 ) {
-  return discoverPrivateMethodsFromTree(tree, async (sha) => blobs[sha] ?? "");
+  return discoverPrivateMethodsFromTree(
+    tree,
+    async (sha) => blobs[sha] ?? "",
+    layoutVersion
+  );
 }
 
 describe("private Method-host discovery conformance", () => {
@@ -93,7 +118,10 @@ describe("private Method-host discovery conformance", () => {
 
   it("reports a repository without methods/ as uninitialized", async () => {
     await expect(
-      discover([{ path: "README.md", type: "blob", sha: "readme" }], {})
+      discover(
+        [{ path: "README.md", type: "blob", mode: "100644", sha: "readme" }],
+        {}
+      )
     ).resolves.toEqual({
       initialization: {
         initialized: false,
@@ -113,6 +141,62 @@ describe("private Method-host discovery conformance", () => {
       initialization: {
         initialized: false,
         initializationFailureReason: "methods_index_missing",
+      },
+      methods: [],
+    });
+  });
+
+  it("discovers Methods below the v2 designated root", async () => {
+    const id = "designated-method";
+    await expect(
+      discover(
+        [v2IndexEntry, ...v2MethodEntries(id)],
+        {
+          [`method-${id}`]: markdown(
+            `type: Method\nid: ${id}\ntitle: Designated method`
+          ),
+        },
+        "2.0"
+      )
+    ).resolves.toEqual({
+      initialization: { initialized: true },
+      methods: [
+        {
+          id,
+          title: "Designated method",
+          profiles: [],
+          evidenceTemplateMarkdown: "",
+        },
+      ],
+    });
+  });
+
+  it("does not treat a symlink blob at the index path as initialized", () => {
+    expect(
+      inspectMethodHostInitialization([
+        {
+          path: "methods/index.md",
+          type: "blob",
+          mode: "120000",
+          sha: "symlink-index",
+        },
+      ])
+    ).toEqual({
+      initialized: false,
+      initializationFailureReason: "methods_index_missing",
+    });
+    expect(inspectMethodHostInitialization([indexEntry])).toEqual({
+      initialized: true,
+    });
+  });
+
+  it("does not discover a v1 Methods tree while probing v2", async () => {
+    await expect(
+      discover([indexEntry, ...methodEntries("outside")], {}, "2.0")
+    ).resolves.toEqual({
+      initialization: {
+        initialized: false,
+        initializationFailureReason: "methods_directory_missing",
       },
       methods: [],
     });

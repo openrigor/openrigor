@@ -472,6 +472,14 @@ describe("Evidence runtime", () => {
     expect(() => canonicalizeEvidenceSubmissionKey("...")).toThrow();
   });
 
+  it("prefixes v2 evidence paths", () => {
+    expect(
+      evidenceFilePath("synthetic-method", "2026-08-28t07-01-36z", "2.0")
+    ).toBe(
+      "openrigor/methods/synthetic-method/evidence/2026-08-28t07-01-36z.en.md"
+    );
+  });
+
   it("only auto-merges documented experience with every integrity gate", () => {
     expect(isAutoMergeEligibleStage("documented-experience")).toBe(true);
     for (const stage of ["structured-experiment", "replication", "challenge"]) {

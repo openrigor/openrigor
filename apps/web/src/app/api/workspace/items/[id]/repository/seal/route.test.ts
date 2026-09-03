@@ -104,7 +104,7 @@ const item = {
     installationId: 99,
     repositoryId: 101,
     branch: "openrigor/workspace",
-    layoutVersion: "1.0",
+    layoutVersion: "2.0",
     headCommitSha: baseCommitSha,
     boundAt: "2026-08-23T00:00:00.000Z",
   },
@@ -125,8 +125,8 @@ const preview = {
   ],
   configurationHash: "f".repeat(64),
   renderHash: "1".repeat(64),
-  ledgerPath: `ledger/seals/${snapshotOne}.en.md`,
-  sealPath: `ledger/seals/${snapshotOne}.seal.yml`,
+  ledgerPath: `openrigor/ledger/seals/${snapshotOne}.en.md`,
+  sealPath: `openrigor/ledger/seals/${snapshotOne}.seal.yml`,
   ledgerMarkdown: "private rendered ledger bytes",
   manifestYaml: "private manifest bytes",
   inputArtifactIds: ["method.synthetic-method"],
@@ -250,6 +250,52 @@ describe("POST repository seal", () => {
     });
     expect(harness.commit).not.toHaveBeenCalled();
     expect(harness.claim).not.toHaveBeenCalled();
+  });
+
+  it("rejects a seal from a legacy layout with the read-only access code", async () => {
+    harness.getItem.mockResolvedValue({
+      ...item,
+      binding: { ...item.binding, layoutVersion: "1.0" },
+    });
+
+    const response = await POST(
+      request({ action: "seal", preview, declarations: confirmedDeclarations }),
+      context
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: "REPOSITORY_READ_ONLY",
+      message:
+        "This repository uses the previous layout; it is readable but no longer writable.",
+    });
+    expect(harness.claim).not.toHaveBeenCalled();
+    expect(harness.fail).not.toHaveBeenCalled();
+    expect(harness.commit).not.toHaveBeenCalled();
+  });
+
+  it("returns the same read-only 403 on a repeated legacy seal", async () => {
+    harness.getItem.mockResolvedValue({
+      ...item,
+      binding: { ...item.binding, layoutVersion: "1.0" },
+    });
+    const body = {
+      action: "seal",
+      preview,
+      declarations: confirmedDeclarations,
+    };
+
+    const first = await POST(request(body), context);
+    const second = await POST(request(body), context);
+
+    expect(first.status).toBe(403);
+    expect(second.status).toBe(403);
+    expect(await first.json()).toMatchObject({ error: "REPOSITORY_READ_ONLY" });
+    expect(await second.json()).toMatchObject({
+      error: "REPOSITORY_READ_ONLY",
+    });
+    expect(harness.claim).not.toHaveBeenCalled();
+    expect(harness.fail).not.toHaveBeenCalled();
   });
 
   it("does not call GitHub after authorization is revoked", async () => {
@@ -406,8 +452,8 @@ describe("POST repository seal", () => {
       ...preview,
       snapshotId: snapshotTwo,
       supersedes: snapshotOne,
-      ledgerPath: `ledger/seals/${snapshotTwo}.en.md`,
-      sealPath: `ledger/seals/${snapshotTwo}.seal.yml`,
+      ledgerPath: `openrigor/ledger/seals/${snapshotTwo}.en.md`,
+      sealPath: `openrigor/ledger/seals/${snapshotTwo}.seal.yml`,
     });
 
     const response = await POST(
@@ -426,7 +472,7 @@ describe("POST repository seal", () => {
       snapshotId: snapshotTwo,
       provenance: {
         ...sealProvenance,
-        path: `ledger/seals/${snapshotTwo}.en.md`,
+        path: `openrigor/ledger/seals/${snapshotTwo}.en.md`,
       },
     });
     expect(harness.preview).toHaveBeenCalledWith(
@@ -439,7 +485,8 @@ describe("POST repository seal", () => {
     );
     expect(harness.validateDeclarations).toHaveBeenCalledWith(
       preview.snapshotData,
-      confirmedDeclarations
+      confirmedDeclarations,
+      "2.0"
     );
     expect(harness.commit).toHaveBeenCalledWith(
       expect.any(Object),

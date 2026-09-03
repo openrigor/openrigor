@@ -366,14 +366,17 @@ describe("GitHub research credential Store", () => {
     await Promise.all([
       updateGithubInstallationRepositories("user-1", [102], []),
       updateGithubInstallationRepositories("user-1", [103], []),
-      recordGithubPush("user-1", { repositoryId: 103 }),
+      recordGithubPush("user-1", {
+        repositoryId: 103,
+        pathScope: "inside",
+      }),
     ]);
 
     await expect(
       readGithubResearchCredentialRecord("user-1")
     ).resolves.toMatchObject({
       repositoryIds: [101, 102, 103],
-      lastPush: { repositoryId: 103 },
+      lastPush: { repositoryId: 103, pathScope: "inside" },
     });
   });
 
@@ -402,6 +405,7 @@ describe("GitHub research credential Store", () => {
 
   it("errors instead of silently truncating a full last page", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(vi.fn());
+    const baseSearchItems = harness.store.searchItems.getMockImplementation();
     const fullPage = Array.from({ length: 100 }, (_, index) => ({
       namespace: ["github_research_credentials", `user-${index}`],
       key: "credentials",
@@ -422,6 +426,7 @@ describe("GitHub research credential Store", () => {
         MAX_CREDENTIAL_SEARCH_PAGES
       );
     } finally {
+      harness.store.searchItems.mockImplementation(baseSearchItems);
       consoleError.mockRestore();
     }
   });

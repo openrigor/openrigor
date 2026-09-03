@@ -171,7 +171,9 @@ test.describe("@beta-release github revoke journey", () => {
         name: `Bind ${fixtureOption.nameWithOwner}`,
         exact: true,
       });
-      if ((await bindButton.count()) === 0) {
+      try {
+        await expect(bindButton).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+      } catch {
         skipGithubFixture(
           `GitHub App installation did not render fixture repository ${fixtureOption.nameWithOwner}`
         );

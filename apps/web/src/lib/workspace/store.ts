@@ -88,7 +88,13 @@ import {
   getGithubRepositoryBranchHead,
 } from "./research-repository/github-app";
 import {
+  repositoryLayoutPrefix,
+  type RepositoryLayoutVersion,
+} from "./research-repository/layout";
+import {
+  bootstrapEmptyResearchRepository,
   discoverPrivateMethods,
+  ensureMethodHostIndex,
   probeMethodHostInitialization,
 } from "./research-repository/git-adapter";
 import {
@@ -108,7 +114,8 @@ const LOCK_KEY = "lock";
 /** Store SDK TTL is in minutes (see @langchain/langgraph-sdk StoreClient.putItem). */
 const WORKSPACE_LOCK_TTL_MINUTES = 1;
 export const RESEARCH_REPOSITORY_BRANCH = "openrigor/workspace" as const;
-export const RESEARCH_REPOSITORY_LAYOUT_VERSION = "1.0" as const;
+export const RESEARCH_REPOSITORY_LAYOUT_VERSION: RepositoryLayoutVersion =
+  "2.0";
 const PRIVATE_METHOD_DEFAULT_TEMPLATE_ID = "evaluchat-assignment-brief";
 
 /** Test seam: mutate `.value` for lease TTL / renewal-interval math. */
@@ -705,9 +712,10 @@ async function loadResearchRepositoryForBinding(
   return repository;
 }
 
-async function prepareResearchRepositoryBinding(
+export async function prepareResearchRepositoryBinding(
   input: { repositoryId: number; installationId: number },
-  repository: Awaited<ReturnType<typeof getGithubInstallationRepository>>
+  repository: Awaited<ReturnType<typeof getGithubInstallationRepository>>,
+  layoutVersion: RepositoryLayoutVersion = RESEARCH_REPOSITORY_LAYOUT_VERSION
 ) {
   let headCommitSha: string;
   try {
@@ -718,11 +726,44 @@ async function prepareResearchRepositoryBinding(
     );
   } catch (error) {
     if (githubErrorStatus(error) !== 404) throw error;
-    const defaultBranchHead = await getGithubRepositoryBranchHead(
-      input.installationId,
-      repository,
-      repository.defaultBranch
-    );
+    let defaultBranchHead: string;
+    try {
+      defaultBranchHead = await getGithubRepositoryBranchHead(
+        input.installationId,
+        repository,
+        repository.defaultBranch
+      );
+    } catch (defaultBranchError) {
+      if (githubErrorStatus(defaultBranchError) !== 404) {
+        throw defaultBranchError;
+      }
+      // Truly empty repository: no commits and no branches exist. GitHub
+      // only permits the Contents API to create the initial commit, on the
+      // default branch — seed the Method-host sentinel there so the managed
+      // workspace branch below can be created off it (owner mandate: bind
+      // without pre-seeding; the app grows the structure as needed).
+      try {
+        defaultBranchHead = await bootstrapEmptyResearchRepository(
+          input.installationId,
+          repository,
+          layoutVersion
+        );
+      } catch (bootstrapError) {
+        // A concurrent binding may have seeded the first commit between
+        // the 404 probes and this bootstrap (e.g. the Contents API rejects
+        // the second put with 422). Re-read the default head; the
+        // bootstrap error stands only while the repository is still empty.
+        try {
+          defaultBranchHead = await getGithubRepositoryBranchHead(
+            input.installationId,
+            repository,
+            repository.defaultBranch
+          );
+        } catch {
+          throw bootstrapError;
+        }
+      }
+    }
     let recoveredHeadCommitSha: string | undefined;
     try {
       await createGithubRepositoryBranch(
@@ -753,13 +794,51 @@ async function prepareResearchRepositoryBinding(
       ));
   }
 
+  if (layoutVersion === "2.0") {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        headCommitSha = (
+          await ensureMethodHostIndex(
+            input.installationId,
+            repository,
+            RESEARCH_REPOSITORY_BRANCH,
+            headCommitSha,
+            layoutVersion
+          )
+        ).commitSha;
+        break;
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          error.name !== "StaleRepositoryError"
+        ) {
+          throw error;
+        }
+        if (attempt === 2) throw error;
+        headCommitSha = await getGithubRepositoryBranchHead(
+          input.installationId,
+          repository,
+          RESEARCH_REPOSITORY_BRANCH
+        );
+      }
+    }
+  }
+
   return {
     headCommitSha,
-    initialization: await probeMethodHostInitialization(
-      input.installationId,
-      repository,
-      headCommitSha
-    ),
+    initialization:
+      layoutVersion === "2.0"
+        ? await probeMethodHostInitialization(
+            input.installationId,
+            repository,
+            headCommitSha,
+            layoutVersion
+          )
+        : await probeMethodHostInitialization(
+            input.installationId,
+            repository,
+            headCommitSha
+          ),
   };
 }
 
@@ -822,19 +901,27 @@ export async function replaceResearchRepositoryBinding(
   });
 }
 
-/** Re-probe every still-authorized Method host after GitHub reconnects. */
+/**
+ * Re-probe every still-authorized Method host after GitHub reconnects.
+ * Reconnects also re-pin bindings whose installationId points at a stale
+ * (replaced) installation whenever the repository is part of the new grant —
+ * otherwise the status path (which compares installationIds) would keep
+ * reporting them as disconnected forever. Every other binding field
+ * (repositoryId, repositoryFullName, branch, layoutVersion, boundAt) is
+ * preserved: reconnect never upgrades or rewrites the binding's identity.
+ */
 export async function refreshResearchRepositoryBindings(
   userId: string
 ): Promise<void> {
   const credentials = await readGithubResearchCredentials(userId);
   if (!credentials?.installationId) return;
+  const installationId = credentials.installationId;
 
   const manifest = await readManifest(userId);
   const bindings = Object.values(manifest.items).filter(
     (item): item is ResearchRepositoryWorkspaceItem =>
       isUsableResearchRepository(item) &&
       item.ownerId === userId &&
-      item.binding.installationId === credentials.installationId &&
       credentials.repositoryIds.includes(item.binding.repositoryId)
   );
   const refreshed = (
@@ -842,21 +929,44 @@ export async function refreshResearchRepositoryBindings(
       bindings.map(async (item) => {
         try {
           const repository = await getGithubInstallationRepository(
-            item.binding.installationId,
+            installationId,
             item.binding.repositoryId
           );
-          if (!repository.private) return undefined;
+          // Public repositories still get their installation re-pinned (the
+          // status path can then report repository_public instead of a stale
+          // disconnected), but there is no managed branch head to refresh.
+          if (!repository.private) {
+            return {
+              itemId: item.id,
+              repositoryId: item.binding.repositoryId,
+              headCommitSha: undefined,
+              initialization: undefined,
+            };
+          }
           const headCommitSha = await getGithubRepositoryBranchHead(
-            item.binding.installationId,
+            installationId,
             repository,
             item.binding.branch
           );
-          const initialization = await probeMethodHostInitialization(
-            item.binding.installationId,
-            repository,
-            headCommitSha
-          );
-          return { itemId: item.id, headCommitSha, initialization };
+          const initialization =
+            item.binding.layoutVersion === "2.0"
+              ? await probeMethodHostInitialization(
+                  installationId,
+                  repository,
+                  headCommitSha,
+                  item.binding.layoutVersion
+                )
+              : await probeMethodHostInitialization(
+                  installationId,
+                  repository,
+                  headCommitSha
+                );
+          return {
+            itemId: item.id,
+            repositoryId: item.binding.repositoryId,
+            headCommitSha,
+            initialization,
+          };
         } catch (error) {
           console.error(
             "[workspace] Method-host refresh failed",
@@ -879,7 +989,8 @@ export async function refreshResearchRepositoryBindings(
         !item ||
         !isUsableResearchRepository(item) ||
         item.ownerId !== userId ||
-        item.binding.installationId !== credentials.installationId
+        item.binding.repositoryId !== entry.repositoryId ||
+        !credentials.repositoryIds.includes(item.binding.repositoryId)
       ) {
         continue;
       }
@@ -889,10 +1000,13 @@ export async function refreshResearchRepositoryBindings(
           updatedAt: now,
           binding: {
             ...item.binding,
-            headCommitSha: entry.headCommitSha,
-            ...entry.initialization,
+            installationId,
+            ...(entry.headCommitSha === undefined
+              ? {}
+              : { headCommitSha: entry.headCommitSha }),
+            ...(entry.initialization ?? {}),
             initializationFailureReason:
-              entry.initialization.initializationFailureReason,
+              entry.initialization?.initializationFailureReason,
           },
         });
     }
@@ -1143,11 +1257,19 @@ async function resolvePrivateMethodHost(
     repository,
     repositoryItem.binding.branch
   );
-  const discovery = await discoverPrivateMethods(
-    repositoryItem.binding.installationId,
-    repository,
-    commitSha
-  );
+  const discovery =
+    repositoryItem.binding.layoutVersion === "2.0"
+      ? await discoverPrivateMethods(
+          repositoryItem.binding.installationId,
+          repository,
+          commitSha,
+          repositoryItem.binding.layoutVersion
+        )
+      : await discoverPrivateMethods(
+          repositoryItem.binding.installationId,
+          repository,
+          commitSha
+        );
   return { commitSha, credentials, repository, discovery };
 }
 
@@ -1325,7 +1447,8 @@ export async function createPrivateMethodWorkspaceItem(
     privateEvidenceTemplate: privateEvidenceTemplateSnapshot(
       definition.evidenceTemplateMarkdown,
       definition.id,
-      commitSha
+      commitSha,
+      repositoryItem.binding.layoutVersion
     ),
   };
 
@@ -1443,17 +1566,26 @@ function loadedLedgerSourceFromSeal(
   preview: SealSnapshotPreview
 ): LoadedLedgerSource {
   const config = ledgerConfigFromSeal(preview);
+  // The seal preview is the immutable source of the repository paths. This
+  // keeps v2 path projection correct even when the binding itself is not part
+  // of the persisted ledger item.
+  const layoutVersion: RepositoryLayoutVersion = preview.ledgerPath.startsWith(
+    repositoryLayoutPrefix("2.0")
+  )
+    ? "2.0"
+    : "1.0";
+  const prefix = repositoryLayoutPrefix(layoutVersion);
   const template = {
     id: "evidence-template" as const,
     version: config.templateVersion,
-    path: `methods/${config.methodId}/evidence-template.en.md`,
+    path: `${prefix}methods/${config.methodId}/evidence-template.en.md`,
     dimensions: [],
   };
   return {
     method: {
       id: config.methodId,
       version: config.methodVersion,
-      path: `methods/${config.methodId}/${config.methodId}.en.md`,
+      path: `${prefix}methods/${config.methodId}/${config.methodId}.en.md`,
       evidenceTemplate: template,
     },
     template,
@@ -2664,8 +2796,9 @@ export async function getWorkspaceItem(
 export async function updateResearchRepositoryBindingHead(
   userId: string,
   itemId: string,
-  headCommitSha: string
-): Promise<ResearchRepositoryWorkspaceItem> {
+  headCommitSha: string,
+  expectedBefore?: string
+): Promise<ResearchRepositoryWorkspaceItem | null> {
   return withUserLock(userId, async () => {
     const manifest = await readManifest(userId);
     const item = manifest.items[itemId];
@@ -2676,6 +2809,12 @@ export async function updateResearchRepositoryBindingHead(
       item.status !== "active"
     ) {
       throw new WorkspaceItemNotFoundError();
+    }
+    if (
+      expectedBefore !== undefined &&
+      item.binding.headCommitSha !== expectedBefore
+    ) {
+      return null;
     }
     const updated = ResearchRepositoryWorkspaceItemSchema.parse({
       ...item,

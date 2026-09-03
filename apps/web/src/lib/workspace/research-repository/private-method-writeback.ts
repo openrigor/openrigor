@@ -8,17 +8,16 @@ import {
   REPOSITORY_DISCONNECTED,
   REPOSITORY_UNAVAILABLE,
   RepositoryAccessError,
-  assertRepositoryPrivate,
-  loadInstallationRepository,
+  assertRepositoryWriteAccess,
 } from "./access";
 import {
   commitArtifactBlobs,
-  getRepositoryBranchHead,
   repositoryCommitProvenance,
   type GithubCommitAuthor,
 } from "./git-adapter";
 import type { RepositoryCommitProvenance } from "@opencanvas/shared/research-repository";
 import type { RepositorySealAccess } from "./seals";
+import { repositoryLayoutPrefix } from "./layout";
 
 type PrivateRepository = NonNullable<MethodSource["privateRepository"]>;
 
@@ -64,16 +63,14 @@ export async function privateMethodRepositoryAccess(
       "Research repository is disconnected"
     );
   }
-  const repository = await loadInstallationRepository(
-    item.binding.installationId,
-    item.binding.repositoryId
-  );
-  assertRepositoryPrivate(repository);
-  const headCommitSha = await getRepositoryBranchHead(
-    item.binding.installationId,
-    repository,
-    item.binding.branch
-  );
+  const { repository, currentHead: headCommitSha } =
+    await assertRepositoryWriteAccess({
+      installationId: item.binding.installationId,
+      repositoryId: item.binding.repositoryId,
+      branch: item.binding.branch,
+      expectedHeadSha: item.binding.headCommitSha,
+      layoutVersion: item.binding.layoutVersion,
+    });
   return {
     repositoryItemId: item.id,
     access: {
@@ -91,14 +88,24 @@ export async function commitPrivateMethodEvidence(input: {
   filePath: string;
   markdown: string;
 }): Promise<{ commitSha: string; provenance: RepositoryCommitProvenance }> {
-  const expectedPrefix = `methods/${input.methodId}/evidence/`;
-  if (!input.filePath.startsWith(expectedPrefix)) {
+  const relativePrefix = `methods/${input.methodId}/evidence/`;
+  const suppliedRelativePath = input.filePath.startsWith("openrigor/")
+    ? input.filePath.slice("openrigor/".length)
+    : input.filePath;
+  if (!suppliedRelativePath.startsWith(relativePrefix)) {
     throw new Error("Private evidence path does not match Method provenance");
   }
   const { repositoryItemId, access } = await privateMethodRepositoryAccess(
     input.userId,
     input.provenance
   );
+  if (
+    access.binding.layoutVersion === "1.0" &&
+    input.filePath !== suppliedRelativePath
+  ) {
+    throw new Error("Private evidence path does not match Method provenance");
+  }
+  const filePath = `${repositoryLayoutPrefix(access.binding.layoutVersion)}${suppliedRelativePath}`;
   const commitSha = await commitArtifactBlobs(
     access.binding.installationId,
     access.repository,
@@ -107,7 +114,10 @@ export async function commitPrivateMethodEvidence(input: {
       authorUser: repositoryCommitAuthor(access),
       message: `File evidence for ${input.methodId}`,
       baseSha: access.binding.headCommitSha,
-      files: [{ path: input.filePath, content: input.markdown }],
+      files: [{ path: filePath, content: input.markdown }],
+      ...(access.binding.layoutVersion === "1.0"
+        ? {}
+        : { layoutVersion: access.binding.layoutVersion }),
     }
   );
   await updateResearchRepositoryBindingHead(
@@ -120,7 +130,7 @@ export async function commitPrivateMethodEvidence(input: {
     provenance: repositoryCommitProvenance(
       access.repository,
       access.binding.branch,
-      input.filePath,
+      filePath,
       commitSha
     ),
   };

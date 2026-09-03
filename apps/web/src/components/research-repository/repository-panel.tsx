@@ -18,6 +18,7 @@ import {
   REPOSITORY_UNAVAILABLE_COPY,
 } from "./copy";
 import { RepositoryBrowser } from "./repository-browser";
+import { statusLabel } from "@/components/workspace/research-repository-status";
 
 type RepositoryPanelItem = {
   id: string;
@@ -38,13 +39,6 @@ type RepositoryStatusResponse = {
 
 function shortCommit(sha: string | undefined): string {
   return sha ? sha.slice(0, 7) : "unknown";
-}
-
-function statusLabel(status: RepositoryStatus | undefined): string {
-  if (!status) return "unavailable";
-  return status.reason
-    ? `${status.state.replace("_", " ")} · ${status.reason.replaceAll("_", " ")}`
-    : status.state.replace("_", " ");
 }
 
 function BoundRepositoryPanel({
@@ -189,6 +183,11 @@ function BoundRepositoryPanel({
               {statusLabel(status)}
             </span>
             <span>{item.binding.branch}</span>
+            <span>
+              {item.binding.layoutVersion === "2.0"
+                ? "Layout 2.0"
+                : `Layout ${item.binding.layoutVersion}`}
+            </span>
             <code className="rounded bg-slate-100 px-1.5 py-0.5">
               {shortCommit(headCommitSha)}
             </code>

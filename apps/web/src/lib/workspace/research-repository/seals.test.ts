@@ -106,6 +106,10 @@ const artifacts = [
     contentSha256: "4".repeat(64),
   },
 ] as const;
+const v2Artifacts = artifacts.map((artifact) => ({
+  ...artifact,
+  path: `openrigor/${artifact.path}`,
+}));
 
 const access = {
   binding: {
@@ -611,6 +615,93 @@ describe("repository ledger seals", () => {
         reviewedAt,
       })
     ).resolves.toMatchObject({ snapshotId: snapshotOne });
+  });
+
+  it("keeps v2 seal reads, paths, and commits under openrigor/", async () => {
+    const v2Access = {
+      ...access,
+      binding: { ...access.binding, layoutVersion: "2.0" as const },
+    };
+    for (const [path, file] of BASELINE_FILES) {
+      files.set(`openrigor/${path}`, { ...file });
+    }
+    harness.listArtifacts.mockResolvedValue({
+      artifacts: v2Artifacts,
+      commitSha: headCommitSha,
+    });
+
+    const preview = await previewSealSnapshot(v2Access, {
+      snapshotId: snapshotTwo,
+      reviewedAt,
+    });
+
+    expect(preview.ledgerPath).toBe(sealLedgerPath(snapshotTwo, "2.0"));
+    expect(preview.sealPath).toBe(sealManifestPath(snapshotTwo, "2.0"));
+    expect(
+      preview.inputs.every((input) => input.path.startsWith("openrigor/"))
+    ).toBe(true);
+    expect(
+      canonicalSealConfigurationJson({
+        method: preview.method,
+        layoutVersion: "2.0",
+        inputArtifactIds: preview.inputArtifactIds,
+      })
+    ).not.toBe(
+      canonicalSealConfigurationJson({
+        method: preview.method,
+        layoutVersion: "1.0",
+        inputArtifactIds: preview.inputArtifactIds,
+      })
+    );
+
+    await commitSealSnapshot(v2Access, preview);
+    expect(harness.commitArtifacts).toHaveBeenCalledWith(
+      99,
+      access.repository,
+      "openrigor/workspace",
+      expect.objectContaining({
+        layoutVersion: "2.0",
+        files: [
+          expect.objectContaining({
+            path: `openrigor/ledger/seals/${snapshotTwo}.en.md`,
+          }),
+          expect.objectContaining({
+            path: `openrigor/ledger/seals/${snapshotTwo}.seal.yml`,
+          }),
+        ],
+      })
+    );
+  });
+
+  it("rejects a v2 seal preview whose output paths escape openrigor/", async () => {
+    const v2Access = {
+      ...access,
+      binding: { ...access.binding, layoutVersion: "2.0" as const },
+    };
+    for (const [path, file] of BASELINE_FILES) {
+      files.set(`openrigor/${path}`, { ...file });
+    }
+    harness.listArtifacts.mockResolvedValue({
+      artifacts: v2Artifacts,
+      commitSha: headCommitSha,
+    });
+
+    const preview = await previewSealSnapshot(v2Access, {
+      snapshotId: snapshotTwo,
+      reviewedAt,
+    });
+    const outsidePrefixPreview = {
+      ...preview,
+      ledgerPath: sealLedgerPath(snapshotTwo),
+      sealPath: sealManifestPath(snapshotTwo),
+    };
+
+    await expect(
+      commitSealSnapshot(v2Access, outsidePrefixPreview)
+    ).rejects.toMatchObject({
+      code: "INVALID_PREVIEW",
+    });
+    expect(harness.commitArtifacts).not.toHaveBeenCalled();
   });
 });
 

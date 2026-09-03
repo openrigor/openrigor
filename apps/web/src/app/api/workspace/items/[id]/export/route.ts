@@ -219,12 +219,21 @@ async function loadRepositoryArtifact(
     item.binding.installationId,
     item.binding.repositoryId
   );
-  const result = await readArtifactBlob(
-    item.binding.installationId,
-    repository,
-    item.binding.branch,
-    identity.path
-  );
+  const result =
+    item.binding.layoutVersion === "2.0"
+      ? await readArtifactBlob(
+          item.binding.installationId,
+          repository,
+          item.binding.branch,
+          identity.path,
+          item.binding.layoutVersion
+        )
+      : await readArtifactBlob(
+          item.binding.installationId,
+          repository,
+          item.binding.branch,
+          identity.path
+        );
   const methodMetadata =
     identity.kind === "method"
       ? methodMetadataFromMarkdown(result.content)

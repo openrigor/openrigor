@@ -14,6 +14,7 @@ vi.mock("./git-adapter", () => ({
 
 import {
   REPOSITORY_CHANGED,
+  REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
   REPOSITORY_READ_ONLY,
   REPOSITORY_UNAVAILABLE,
   RepositoryAccessError,
@@ -79,6 +80,7 @@ describe("repository access guards", () => {
         repositoryId: 101,
         branch: "openrigor/workspace",
         expectedHeadSha: head,
+        layoutVersion: "2.0",
         files: ["index.md"],
       })
     ).rejects.toMatchObject({
@@ -96,11 +98,31 @@ describe("repository access guards", () => {
         repositoryId: 101,
         branch: "openrigor/workspace",
         expectedHeadSha: head,
+        layoutVersion: "2.0",
         files: ["index.md"],
       })
     ).rejects.toMatchObject({
       code: REPOSITORY_CHANGED,
       files: ["index.md"],
     });
+  });
+
+  it("rejects writes from a legacy layout before loading GitHub", async () => {
+    await expect(
+      assertRepositoryWriteAccess({
+        installationId: 99,
+        repositoryId: 101,
+        branch: "openrigor/workspace",
+        expectedHeadSha: head,
+        layoutVersion: "1.0",
+        files: ["index.md"],
+      })
+    ).rejects.toMatchObject({
+      code: REPOSITORY_READ_ONLY,
+      message: REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+      files: ["index.md"],
+    });
+    expect(harness.getRepository).not.toHaveBeenCalled();
+    expect(harness.getHead).not.toHaveBeenCalled();
   });
 });

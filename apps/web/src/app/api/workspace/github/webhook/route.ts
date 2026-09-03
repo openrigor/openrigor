@@ -2,6 +2,7 @@ import { Webhooks } from "@octokit/webhooks";
 import { NextRequest, NextResponse } from "next/server";
 import { isGithubResearchWorkspacesEnabled } from "@/lib/research-workspaces-enabled.server";
 import {
+  type GithubPushPathScope,
   claimGithubWebhookDelivery,
   deleteGithubResearchCredentials,
   findGithubCredentialOwnersByGithubUserId,
@@ -12,6 +13,11 @@ import {
   updateGithubInstallation,
   updateGithubInstallationRepositories,
 } from "@/lib/workspace/research-repository/credentials";
+import {
+  listWorkspaceItems,
+  updateResearchRepositoryBindingHead,
+} from "@/lib/workspace/store";
+import { isUsableResearchRepository } from "@/lib/workspace/types";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +39,14 @@ type WebhookPayload = {
   ref?: unknown;
   before?: unknown;
   after?: unknown;
+  deleted?: boolean;
+  commits?: unknown;
 };
+
+const MANAGED_REPOSITORY_PREFIX = "openrigor/";
+const MANAGED_BRANCH_REF = "refs/heads/openrigor/workspace";
+const GITHUB_PUSH_COMMITS_LIMIT = 2048;
+const MAX_PUSH_PATHS = 2000;
 
 function repositoryIds(value: unknown): number[] {
   if (!Array.isArray(value)) return [];
@@ -58,6 +71,86 @@ function githubUserId(payload: WebhookPayload): number | undefined {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0
     ? value
     : undefined;
+}
+
+function pushPathScope(payload: WebhookPayload): GithubPushPathScope {
+  if (!Array.isArray(payload.commits) || payload.commits.length === 0) {
+    return "unknown";
+  }
+  // GitHub includes at most 2048 commits in a push payload. A full page can
+  // be truncated, so treat the cap as unknown and advance the binding safely.
+  if (payload.commits.length >= GITHUB_PUSH_COMMITS_LIMIT) return "unknown";
+
+  let changedPathCount = 0;
+  for (const commit of payload.commits) {
+    if (!commit || typeof commit !== "object" || Array.isArray(commit)) {
+      return "unknown";
+    }
+    const candidate = commit as Record<string, unknown>;
+    for (const field of ["added", "removed", "modified"]) {
+      const paths = candidate[field];
+      if (!Array.isArray(paths)) return "unknown";
+      for (const path of paths) {
+        changedPathCount += 1;
+        if (changedPathCount > MAX_PUSH_PATHS) return "unknown";
+        if (typeof path !== "string" || path.length === 0) return "unknown";
+        if (path.startsWith(MANAGED_REPOSITORY_PREFIX)) return "inside";
+      }
+    }
+  }
+  return "outside";
+}
+
+function commitSha(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
+}
+
+async function updateResearchRepositoryHeads(
+  userId: string,
+  payload: WebhookPayload,
+  scope: GithubPushPathScope
+): Promise<void> {
+  const after = payload.after;
+  if (
+    payload.deleted === true ||
+    scope === "outside" ||
+    payload.ref !== MANAGED_BRANCH_REF ||
+    !commitSha(after)
+  ) {
+    return;
+  }
+  const repositoryId = payload.repository?.id;
+  if (
+    typeof repositoryId !== "number" ||
+    !Number.isSafeInteger(repositoryId) ||
+    repositoryId <= 0
+  ) {
+    return;
+  }
+
+  const items = await listWorkspaceItems(userId);
+  const installation = installationId(payload);
+  await Promise.all(
+    items
+      .filter(
+        (item) =>
+          isUsableResearchRepository(item) &&
+          item.binding.installationId === installation &&
+          item.binding.repositoryId === repositoryId
+      )
+      .map(async (item) => {
+        if (!commitSha(payload.before)) return;
+        const updated = await updateResearchRepositoryBindingHead(
+          userId,
+          item.id,
+          after,
+          payload.before
+        );
+        if (!updated) {
+          console.info("stale delivery skipped");
+        }
+      })
+  );
 }
 
 async function handleDelivery(
@@ -96,6 +189,7 @@ async function handleDelivery(
     );
     return;
   }
+  const scope = pushPathScope(payload);
   await recordGithubPush(userId, {
     repositoryId:
       typeof payload.repository?.id === "number"
@@ -104,7 +198,9 @@ async function handleDelivery(
     ref: typeof payload.ref === "string" ? payload.ref : undefined,
     before: typeof payload.before === "string" ? payload.before : undefined,
     after: typeof payload.after === "string" ? payload.after : undefined,
+    pathScope: scope,
   });
+  await updateResearchRepositoryHeads(userId, payload, scope);
 }
 
 export async function POST(request: NextRequest) {

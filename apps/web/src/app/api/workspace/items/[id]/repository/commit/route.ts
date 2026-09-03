@@ -6,6 +6,8 @@ import {
   updateResearchRepositoryBindingHead,
 } from "@/lib/workspace/store";
 import {
+  REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+  REPOSITORY_READ_ONLY,
   RepositoryAccessError,
   assertRepositoryPrivate,
   assertRepositoryWriteAccess,
@@ -23,6 +25,7 @@ import {
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
   RepositoryLayoutError,
+  isRepositoryLayoutVersionWritable,
   resolveRepositoryArtifactPath,
   validateRepositoryArtifactContent,
 } from "@/lib/workspace/research-repository/layout";
@@ -113,7 +116,11 @@ export async function POST(request: Request, context: RouteContext) {
       body.artifactId,
       item.binding.layoutVersion
     );
-    validateRepositoryArtifactContent(artifact.path, body.content);
+    validateRepositoryArtifactContent(
+      artifact.path,
+      body.content,
+      item.binding.layoutVersion
+    );
   } catch (error) {
     if (error instanceof RepositoryLayoutError) {
       return json(
@@ -122,6 +129,18 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
     throw error;
+  }
+
+  if (!isRepositoryLayoutVersionWritable(item.binding.layoutVersion)) {
+    return json(
+      repositoryAccessBody(
+        new RepositoryAccessError(
+          REPOSITORY_READ_ONLY,
+          REPOSITORY_LAYOUT_READ_ONLY_MESSAGE
+        )
+      ),
+      repositoryAccessHttpStatus(REPOSITORY_READ_ONLY)
+    );
   }
 
   let repositoryForCommit: GithubRepositoryCoordinates | undefined;
@@ -270,6 +289,7 @@ export async function POST(request: Request, context: RouteContext) {
         repositoryId: item.binding.repositoryId,
         branch: item.binding.branch,
         expectedHeadSha: item.binding.headCommitSha,
+        layoutVersion: item.binding.layoutVersion,
         files: [artifact.path],
       });
       repositoryForCommit = access.repository;
@@ -381,6 +401,9 @@ export async function POST(request: Request, context: RouteContext) {
         message: body.commitMessage,
         baseSha: body.baseCommitSha,
         files: [{ path: artifact.path, content: body.content }],
+        ...(item.binding.layoutVersion === "2.0"
+          ? { layoutVersion: item.binding.layoutVersion }
+          : {}),
       }
     );
   } catch (error) {

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "octokit";
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
 const GITHUB_OAUTH_BASE_URL = "https://github.com";
 const GITHUB_API_VERSION = "2022-11-28";
@@ -378,6 +379,45 @@ export async function getGithubInstallationRepository(
     private: repository.private,
     defaultBranch: repository.default_branch,
   };
+}
+
+export type GithubInstallationRepositoryListEntry = {
+  id: number;
+  nameWithOwner: string;
+  private: boolean;
+};
+
+/** List every repository the installation can currently access. */
+export async function listGithubInstallationRepositories(
+  installationId: number
+): Promise<GithubInstallationRepositoryListEntry[]> {
+  const octokit = createGithubInstallationOctokit(installationId);
+  const repositories = (await octokit.paginate(
+    octokit.rest.apps.listReposAccessibleToInstallation,
+    {
+      per_page: 100,
+      headers: { "x-github-api-version": GITHUB_API_VERSION },
+    }
+  )) as RestEndpointMethodTypes["apps"]["listReposAccessibleToInstallation"]["response"]["data"]["repositories"];
+  return repositories.flatMap((repository) => {
+    if (
+      typeof repository.id !== "number" ||
+      !Number.isSafeInteger(repository.id) ||
+      repository.id <= 0 ||
+      typeof repository.full_name !== "string"
+    ) {
+      return [];
+    }
+    const nameWithOwner = repository.full_name.trim().toLowerCase();
+    if (!nameWithOwner) return [];
+    return [
+      {
+        id: repository.id,
+        nameWithOwner,
+        private: repository.private === true,
+      },
+    ];
+  });
 }
 
 /** Resolve the current head of one branch without retaining an App token. */

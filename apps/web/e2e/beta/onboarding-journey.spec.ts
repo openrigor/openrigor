@@ -196,7 +196,9 @@ test.describe("@beta-release public-beta onboarding journey", () => {
         name: `Bind ${fixtureOption.nameWithOwner}`,
         exact: true,
       });
-      if ((await bindButton.count()) === 0) {
+      try {
+        await expect(bindButton).toBeVisible({ timeout: TIMEOUTS.pageLoad });
+      } catch {
         skipGithubFixture(
           `GitHub App installation did not render fixture repository ${fixtureOption.nameWithOwner}`
         );
@@ -267,19 +269,28 @@ test.describe("@beta-release public-beta onboarding journey", () => {
         timeout: TIMEOUTS.pageLoad,
       });
 
-      const catalogResponse = await page.request.get(
-        `${baseUrl()}/api/workspace/catalog?kind=method&q=${encodeURIComponent(method.id)}`
-      );
-      expect(catalogResponse.status()).toBe(200);
-      const catalogBody = (await catalogResponse.json()) as {
-        results?: CatalogResultWire[];
-      };
-      const privateMethod = catalogBody.results?.find(
-        (result) =>
-          result.id === method.id &&
-          result.private === true &&
-          result.repositoryItemId === repositoryItemId
-      );
+      let privateMethod: CatalogResultWire | undefined;
+      const catalogDeadline = Date.now() + TIMEOUTS.pageLoad;
+      while (!privateMethod && Date.now() < catalogDeadline) {
+        const remaining = catalogDeadline - Date.now();
+        if (remaining <= 0) break;
+        const catalogResponse = await page.request.get(
+          `${baseUrl()}/api/workspace/catalog?kind=method&q=${encodeURIComponent(method.id)}`,
+          { timeout: remaining }
+        );
+        expect(catalogResponse.status()).toBe(200);
+        const catalogBody = (await catalogResponse.json()) as {
+          results?: CatalogResultWire[];
+        };
+        privateMethod = catalogBody.results?.find(
+          (result) =>
+            result.id === method.id &&
+            result.private === true &&
+            result.repositoryItemId === repositoryItemId
+        );
+        if (!privateMethod)
+          await page.waitForTimeout(Math.min(1000, remaining));
+      }
       expect(privateMethod).toBeTruthy();
       expect(privateMethod?.commitSha).toMatch(/^[a-f0-9]{40}$/i);
       createdItem = await createFromCatalog(

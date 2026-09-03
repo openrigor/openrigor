@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import type { RepositoryStatus } from "@opencanvas/shared/research-repository";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,9 +25,11 @@ export type GithubRepositoryOption = {
 type GithubRepositoriesResponse = {
   connected: boolean;
   installationId?: number;
+  login?: string;
   repositories: GithubRepositoryOption[];
-  createFromTemplateUrl?: string;
 };
+
+const CSRF_HEADERS = { "X-Requested-With": "XMLHttpRequest" };
 
 type PrivateMethodsResponse = {
   methods?: PrivateMethodSummary[];
@@ -39,16 +40,6 @@ type RepositoryItem = Extract<WorkspaceItem, { kind: "research_repository" }>;
 
 function readableStatus(value: string): string {
   return value.replaceAll("_", " ");
-}
-
-export function shouldShowRepositoryConnect(
-  status: RepositoryStatus | undefined
-): boolean {
-  return (
-    status?.state === "disconnected" ||
-    status?.reason === "permission_lost" ||
-    status?.reason === "authorization_required"
-  );
 }
 
 function repositoryId(item: RepositoryItem): number | undefined {
@@ -72,41 +63,17 @@ export function shortRepositoryName(nameWithOwner: string): string {
 
 function RepositoryMethods({
   item,
+  disconnected,
 }: {
   item: ResearchRepositoryWorkspaceItem;
+  disconnected: boolean;
 }) {
-  const [status, setStatus] = useState<RepositoryStatus>();
-  const [statusLoading, setStatusLoading] = useState(true);
   const [methods, setMethods] = useState<PrivateMethodSummary[]>();
   const [selectedMethodIds, setSelectedMethodIds] = useState<string[]>(
     item.selectedMethodIds
   );
   const [savingMethods, setSavingMethods] = useState(false);
   const [methodError, setMethodError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/workspace/items/${encodeURIComponent(item.id)}/repository`, {
-      credentials: "include",
-    })
-      .then(async (response) => {
-        const body = (await response.json()) as { status?: RepositoryStatus };
-        if (body.status) return body.status;
-        throw new Error("Could not check repository");
-      })
-      .then((nextStatus) => {
-        if (!cancelled) setStatus(nextStatus);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus(undefined);
-      })
-      .finally(() => {
-        if (!cancelled) setStatusLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [item.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +100,7 @@ function RepositoryMethods({
   }, [item.id]);
 
   async function setMethodSelected(methodId: string, selected: boolean) {
+    if (disconnected) return;
     const previous = selectedMethodIds;
     const next = selected
       ? [...new Set([...previous, methodId])]
@@ -165,21 +133,6 @@ function RepositoryMethods({
     <div className="space-y-3 border-t border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-600">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-slate-800">Repository access</span>
-        <Badge variant="outline">
-          {statusLoading
-            ? "Checking…"
-            : status
-              ? readableStatus(status.state)
-              : "Unavailable"}
-        </Badge>
-        {status?.reason && (
-          <Badge variant="destructive">{readableStatus(status.reason)}</Badge>
-        )}
-        {shouldShowRepositoryConnect(status) && (
-          <Button asChild variant="outline" size="sm" className="h-7">
-            <a href="/api/workspace/github/authorize">Connect GitHub</a>
-          </Button>
-        )}
       </div>
       <div
         className="rounded-md border border-slate-200 bg-white p-3"
@@ -213,7 +166,7 @@ function RepositoryMethods({
               >
                 <Checkbox
                   checked={selectedMethodIds.includes(method.id)}
-                  disabled={savingMethods}
+                  disabled={savingMethods || disconnected}
                   onCheckedChange={(checked) =>
                     void setMethodSelected(method.id, checked === true)
                   }
@@ -246,9 +199,15 @@ function RepositoryMethods({
 function RepositoryRow({
   item,
   repositories,
+  disconnected,
+  onRemove,
+  removeError,
 }: {
   item: RepositoryItem;
   repositories: GithubRepositoryOption[];
+  disconnected: boolean;
+  onRemove: (item: RepositoryItem, nameWithOwner: string) => void;
+  removeError?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const nameWithOwner = repositoryName(item, repositories);
@@ -307,7 +266,7 @@ function RepositoryRow({
           data-testid={`private-repository-details-${item.id}`}
         >
           {usable ? (
-            <RepositoryMethods item={item} />
+            <RepositoryMethods item={item} disconnected={disconnected} />
           ) : (
             <div className="space-y-3 border-t border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
               <p>The stored repository binding is unavailable.</p>
@@ -316,6 +275,24 @@ function RepositoryRow({
               </Button>
             </div>
           )}
+          <div className="space-y-2 border-t border-slate-200 bg-slate-50/70 p-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-red-700"
+              data-testid={`remove-repository-${item.id}`}
+              aria-label={`Remove ${nameWithOwner}`}
+              onClick={() => onRemove(item, nameWithOwner)}
+            >
+              Remove
+            </Button>
+            {removeError && (
+              <p role="alert" className="text-sm text-red-700">
+                {removeError}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </li>
@@ -331,6 +308,10 @@ export function PrivateResearchRepositoriesCard() {
   const [addExpanded, setAddExpanded] = useState(false);
   const [creatingRepositoryId, setCreatingRepositoryId] = useState<number>();
   const [addError, setAddError] = useState<string>();
+  const [removeErrorById, setRemoveErrorById] = useState<
+    Record<string, string>
+  >({});
+  const [disconnectError, setDisconnectError] = useState<string>();
 
   useEffect(() => {
     let cancelled = false;
@@ -410,6 +391,80 @@ export function PrivateResearchRepositoriesCard() {
     }
   }
 
+  async function refetchGithubRepositories() {
+    const response = await fetch("/api/workspace/github/repositories", {
+      credentials: "include",
+    });
+    if (!response.ok) return;
+    const body = (await response.json()) as GithubRepositoriesResponse;
+    setGithubRepositories(body);
+  }
+
+  async function removeRepository(item: RepositoryItem, nameWithOwner: string) {
+    if (
+      !window.confirm(
+        `Remove ${nameWithOwner} from your OpenRigor workspace? Artifacts stay in the repository on GitHub.`
+      )
+    ) {
+      return;
+    }
+    setRemoveErrorById((current) => {
+      const next = { ...current };
+      delete next[item.id];
+      return next;
+    });
+    try {
+      const response = await fetch(
+        `/api/workspace/items/${encodeURIComponent(item.id)}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: CSRF_HEADERS,
+        }
+      );
+      if (response.status !== 204) {
+        throw new Error("Could not remove repository");
+      }
+      setItems((current) =>
+        (current ?? []).filter((entry) => entry.id !== item.id)
+      );
+      await refetchGithubRepositories();
+    } catch {
+      setRemoveErrorById((current) => ({
+        ...current,
+        [item.id]: "Could not remove repository.",
+      }));
+    }
+  }
+
+  async function disconnectGithub() {
+    if (
+      !window.confirm(
+        "Disconnect GitHub? Bound repositories become read-only until you reconnect."
+      )
+    ) {
+      return;
+    }
+    setDisconnectError(undefined);
+    try {
+      const response = await fetch("/api/workspace/github/disconnect", {
+        method: "POST",
+        credentials: "include",
+        headers: CSRF_HEADERS,
+      });
+      if (response.status !== 204) {
+        throw new Error("Could not disconnect GitHub");
+      }
+      setGithubRepositories({
+        connected: false,
+        repositories: githubRepositories?.repositories ?? [],
+      });
+      setAddExpanded(true);
+    } catch {
+      setDisconnectError("Could not disconnect GitHub.");
+    }
+  }
+
   if (!featureAvailable) return null;
 
   const boundRepositoryIds = new Set(
@@ -454,9 +509,36 @@ export function PrivateResearchRepositoriesCard() {
                 key={item.id}
                 item={item}
                 repositories={githubRepositories?.repositories ?? []}
+                disconnected={githubRepositories?.connected === false}
+                onRemove={removeRepository}
+                removeError={removeErrorById[item.id]}
               />
             ))}
           </ul>
+        )}
+
+        {githubRepositories?.connected === true && (
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+            <span data-testid="connected-as">
+              {githubRepositories.login
+                ? `Connected as ${githubRepositories.login}`
+                : "Connected"}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="disconnect-github"
+              onClick={() => void disconnectGithub()}
+            >
+              Disconnect GitHub
+            </Button>
+            {disconnectError && (
+              <p role="alert" className="w-full text-sm text-red-700">
+                {disconnectError}
+              </p>
+            )}
+          </div>
         )}
 
         {addExpanded && (
@@ -477,28 +559,6 @@ export function PrivateResearchRepositoriesCard() {
               </>
             ) : (
               <>
-                {githubRepositories.createFromTemplateUrl && (
-                  <div className="rounded-lg border bg-white p-3">
-                    <p className="text-sm text-slate-600">
-                      Start a new private repository, then reconnect GitHub to
-                      refresh this list.
-                    </p>
-                    <Button
-                      asChild
-                      className="mt-3"
-                      size="sm"
-                      variant="outline"
-                    >
-                      <a
-                        href={githubRepositories.createFromTemplateUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Create from template
-                      </a>
-                    </Button>
-                  </div>
-                )}
                 {githubRepositories.repositories.length === 0 ? (
                   <div className="rounded-lg border bg-white p-3">
                     <p className="text-sm text-slate-600">

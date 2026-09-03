@@ -1,4 +1,5 @@
 import { parseMarkdownFrontmatter } from "../ledger-reference";
+import { repositoryLayoutPrefix } from "./layout";
 import type {
   MethodHostInitialization,
   PrivateMethodDefinition,
@@ -7,16 +8,29 @@ import type {
 export type MethodHostTreeEntry = {
   path: string;
   type: string;
+  mode: string;
   sha: string;
 };
 
+export const METHOD_HOST_INDEX_CONTENT = "# Methods\n";
+
+export function methodHostRoot(layoutVersion = "1.0"): string {
+  return `${repositoryLayoutPrefix(layoutVersion)}methods`;
+}
+
+export function methodHostIndexPath(layoutVersion = "1.0"): string {
+  return `${methodHostRoot(layoutVersion)}/index.md`;
+}
+
 export function inspectMethodHostInitialization(
-  tree: readonly MethodHostTreeEntry[]
+  tree: readonly MethodHostTreeEntry[],
+  layoutVersion = "1.0"
 ): MethodHostInitialization {
+  const methodsRoot = methodHostRoot(layoutVersion);
   const hasMethodsDirectory = tree.some(
     (entry) =>
-      (entry.path === "methods" && entry.type === "tree") ||
-      entry.path.startsWith("methods/")
+      (entry.path === methodsRoot && entry.type === "tree") ||
+      entry.path.startsWith(`${methodsRoot}/`)
   );
   if (!hasMethodsDirectory) {
     return {
@@ -26,7 +40,10 @@ export function inspectMethodHostInitialization(
   }
   if (
     !tree.some(
-      (entry) => entry.path === "methods/index.md" && entry.type === "blob"
+      (entry) =>
+        entry.path === methodHostIndexPath(layoutVersion) &&
+        entry.type === "blob" &&
+        (entry.mode === "100644" || entry.mode === "100755")
     )
   ) {
     return {
@@ -37,35 +54,39 @@ export function inspectMethodHostInitialization(
   return { initialized: true };
 }
 
-function methodDirectory(path: string): string | undefined {
-  const segments = path.split("/");
-  if (
-    segments.length !== 3 ||
-    segments[0] !== "methods" ||
-    segments[2] !== `${segments[1]}.en.md`
-  ) {
+function methodDirectory(
+  path: string,
+  methodsRoot: string
+): string | undefined {
+  const prefix = `${methodsRoot}/`;
+  if (!path.startsWith(prefix)) return undefined;
+  const segments = path.slice(prefix.length).split("/");
+  if (segments.length !== 2 || segments[1] !== `${segments[0]}.en.md`) {
     return undefined;
   }
-  return segments[1] || undefined;
+  return segments[0] || undefined;
 }
 
 export async function discoverPrivateMethodsFromTree(
   tree: readonly MethodHostTreeEntry[],
-  readBlob: (sha: string) => Promise<string>
+  readBlob: (sha: string) => Promise<string>,
+  layoutVersion = "1.0"
 ): Promise<{
   initialization: MethodHostInitialization;
   methods: PrivateMethodDefinition[];
 }> {
-  const initialization = inspectMethodHostInitialization(tree);
+  const initialization = inspectMethodHostInitialization(tree, layoutVersion);
   if (!initialization.initialized) return { initialization, methods: [] };
+  const methodsRoot = methodHostRoot(layoutVersion);
 
   const candidates = tree.flatMap((entry) => {
     if (entry.type !== "blob") return [];
-    const directory = methodDirectory(entry.path);
+    const directory = methodDirectory(entry.path, methodsRoot);
     if (!directory) return [];
     const evidenceEntry = tree.find(
       (candidate) =>
-        candidate.path === `methods/${directory}/evidence-template.en.md` &&
+        candidate.path ===
+          `${methodsRoot}/${directory}/evidence-template.en.md` &&
         candidate.type === "blob"
     );
     return evidenceEntry ? [{ directory, entry, evidenceEntry }] : [];

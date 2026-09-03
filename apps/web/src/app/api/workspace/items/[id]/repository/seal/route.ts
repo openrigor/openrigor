@@ -14,6 +14,8 @@ import {
   type GithubCommitAuthor,
 } from "@/lib/workspace/research-repository/git-adapter";
 import {
+  REPOSITORY_LAYOUT_READ_ONLY_MESSAGE,
+  REPOSITORY_READ_ONLY,
   RepositoryAccessError,
   assertRepositoryPrivate,
   assertRepositoryWriteAccess,
@@ -21,7 +23,10 @@ import {
   repositoryAccessBody,
   repositoryAccessHttpStatus,
 } from "@/lib/workspace/research-repository/access";
-import { RepositoryLayoutError } from "@/lib/workspace/research-repository/layout";
+import {
+  RepositoryLayoutError,
+  isRepositoryLayoutVersionWritable,
+} from "@/lib/workspace/research-repository/layout";
 import {
   claimRepositoryOperation,
   completeRepositoryOperation,
@@ -253,10 +258,19 @@ function matchesPreview(
  */
 function assertSealDeclarations(
   preview: SealSnapshotPreview,
-  declared: SealDeclarations
+  declared: SealDeclarations,
+  layoutVersion = "1.0"
 ): void {
   try {
-    validateLedgerPublicationDeclarations(preview.snapshotData, declared);
+    if (layoutVersion === "1.0") {
+      validateLedgerPublicationDeclarations(preview.snapshotData, declared);
+    } else {
+      validateLedgerPublicationDeclarations(
+        preview.snapshotData,
+        declared,
+        layoutVersion
+      );
+    }
   } catch (error) {
     if (error instanceof FormValidationError) {
       throw new SealSnapshotError(
@@ -288,6 +302,17 @@ export async function POST(request: Request, context: RouteContext) {
   const item = await getWorkspaceItem(auth.user.id, id);
   if (!item || item.kind !== "research_repository") {
     return json({ error: "Research repository not found" }, 404);
+  }
+  if (!isRepositoryLayoutVersionWritable(item.binding.layoutVersion)) {
+    return json(
+      repositoryAccessBody(
+        new RepositoryAccessError(
+          REPOSITORY_READ_ONLY,
+          REPOSITORY_LAYOUT_READ_ONLY_MESSAGE
+        )
+      ),
+      repositoryAccessHttpStatus(REPOSITORY_READ_ONLY)
+    );
   }
 
   if (body.action === "preview") {
@@ -475,7 +500,11 @@ export async function POST(request: Request, context: RouteContext) {
       repositoryId: item.binding.repositoryId,
       branch: item.binding.branch,
       expectedHeadSha: item.binding.headCommitSha,
-      files: [sealLedgerPath(snapshotId), sealManifestPath(snapshotId)],
+      layoutVersion: item.binding.layoutVersion,
+      files: [
+        sealLedgerPath(snapshotId, item.binding.layoutVersion),
+        sealManifestPath(snapshotId, item.binding.layoutVersion),
+      ],
     });
     access = { binding: item.binding, credentials, repository };
   } catch (error) {
@@ -512,7 +541,11 @@ export async function POST(request: Request, context: RouteContext) {
           "The accepted preview no longer matches the repository inputs"
         );
       }
-      assertSealDeclarations(preview, body.declarations);
+      assertSealDeclarations(
+        preview,
+        body.declarations,
+        item.binding.layoutVersion
+      );
       ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,
@@ -524,7 +557,11 @@ export async function POST(request: Request, context: RouteContext) {
         supersedes: body.supersedes,
         expectedHeadCommitSha: operation.baseCommitSha,
       });
-      assertSealDeclarations(preview, body.declarations);
+      assertSealDeclarations(
+        preview,
+        body.declarations,
+        item.binding.layoutVersion
+      );
       ({ commitSha, provenance: commitProvenance } = await commitSealSnapshot(
         access,
         preview,

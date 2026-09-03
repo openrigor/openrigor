@@ -147,6 +147,54 @@ describe("GET /api/workspace/items/[id]/export", () => {
     );
   });
 
+  it("exports a v2 citation through the designated prefix", async () => {
+    const repositoryItem = {
+      id: "repo_v2",
+      ownerId: "user-1",
+      kind: "research_repository",
+      status: "active",
+      binding: {
+        provider: "github",
+        repositoryId: 101,
+        installationId: 99,
+        repositoryFullName: "openrigor/private-research",
+        branch: "openrigor/workspace",
+        layoutVersion: "2.0",
+        headCommitSha: "a".repeat(40),
+        boundAt: "2026-08-26T00:00:00.000Z",
+      },
+    };
+    harness.getWorkspaceItem.mockResolvedValue(repositoryItem);
+    harness.getGithubInstallationRepository.mockResolvedValue({
+      id: 101,
+      owner: "openrigor",
+      name: "private-research",
+      nameWithOwner: "openrigor/private-research",
+    });
+    harness.readArtifactBlob.mockResolvedValue({
+      content: "cff-version: 1.2.0\ntitle: Synthetic research\n",
+      blobSha: "b".repeat(40),
+      commitSha: "c".repeat(40),
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/workspace/items/repo_v2/export?artifactId=citation"
+      ),
+      context("repo_v2")
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("cff-version: 1.2.0");
+    expect(harness.readArtifactBlob).toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ id: 101 }),
+      "openrigor/workspace",
+      "openrigor/CITATION.cff",
+      "2.0"
+    );
+  });
+
   it("returns 404 for a nonexistent workspace item", async () => {
     harness.getWorkspaceItem.mockResolvedValue(undefined);
 

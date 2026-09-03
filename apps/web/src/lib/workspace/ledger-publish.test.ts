@@ -7,6 +7,7 @@ import {
   renderLedgerMarkdown,
   validateLedgerPublicationDeclarations,
 } from "./ledger-publish";
+import { ledgerEvidenceFilePath } from "./ledger-paths";
 
 const config: LedgerConfig = {
   methodId: "ai-assisted-essay",
@@ -155,5 +156,13 @@ describe("validateLedgerPublicationDeclarations", () => {
         public_data_declaration: "not-confirmed-do-not-submit",
       })
     ).toThrow(FormValidationError);
+  });
+
+  it("uses the selected repository layout for ledger paths", () => {
+    expect(
+      ledgerEvidenceFilePath("ledger_demo", "ai-assisted-essay", "2.0")
+    ).toBe(
+      "openrigor/methods/ai-assisted-essay/evidence/ledgers/ledger_demo.en.md"
+    );
   });
 });
