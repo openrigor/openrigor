@@ -1,0 +1,38 @@
+{
+  "common": {
+    "_ns": true
+  },
+  "chat": {
+    "_ns": true
+  },
+  "canvas": {
+    "_ns": true
+  },
+  "artifacts": {
+    "_ns": true
+  },
+  "auth": {
+    "_ns": true
+  },
+  "teaching": {
+    "_ns": true
+  },
+  "workspace": {
+    "_ns": true
+  },
+  "landing": {
+    "_ns": true
+  },
+  "legal": {
+    "_ns": true
+  },
+  "admin": {
+    "_ns": true
+  },
+  "settings": {
+    "_ns": true,
+    "language": "Language",
+    "languageSelection": "Interface language",
+    "languageDescription": "Choose the language used across the workspace."
+  }
+}
