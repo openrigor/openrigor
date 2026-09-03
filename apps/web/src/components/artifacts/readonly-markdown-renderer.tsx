@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import "@blocknote/core/fonts/inter.css";
+import { locales } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/shadcn/style.css";
+import { useLocale } from "next-intl";
 import TrackChangesExtension, {
   setTrackChangesRanges,
   clearTrackChangesRanges,
@@ -14,6 +16,23 @@ import type { DiffRange } from "@/lib/diffing";
 import { canvasSchema } from "./canvas-schema";
 import "katex/dist/katex.min.css";
 import { parseMarkdownToCanvasBlocks } from "./mermaid-markdown";
+import {
+  DEFAULT_LOCALE,
+  isLocaleCode,
+  type LocaleCode,
+} from "@/lib/i18n/locales";
+
+const BLOCKNOTE_LOCALE_BY_APP_LOCALE: Record<LocaleCode, keyof typeof locales> =
+  {
+    en: "en",
+    de: "de",
+    fr: "fr",
+    es: "es",
+    it: "en",
+  };
+type BlockNoteDictionary = NonNullable<
+  Parameters<typeof useCreateBlockNote>[0]
+>["dictionary"];
 
 function isCellEmpty(cell: unknown[]): boolean {
   if (cell.length === 0) return true;
@@ -128,8 +147,13 @@ export function ReadonlyMarkdownRenderer({
   scrollToOffset,
   scrollContainerRef,
 }: ReadonlyMarkdownRendererProps) {
+  const locale = useLocale();
+  const appLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
   const editor = useCreateBlockNote({
     schema: canvasSchema,
+    dictionary: locales[
+      BLOCKNOTE_LOCALE_BY_APP_LOCALE[appLocale]
+    ] as BlockNoteDictionary,
     _tiptapOptions: {
       extensions: [TrackChangesExtension, MathInlineExtension],
     },

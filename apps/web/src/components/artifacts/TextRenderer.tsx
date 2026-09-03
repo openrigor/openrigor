@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ArtifactMarkdownV3 } from "@opencanvas/shared/types";
 import { calculateCursorPosition } from "@opencanvas/shared";
 import "@blocknote/core/fonts/inter.css";
+import { locales } from "@blocknote/core";
 import {
   FormattingToolbarController,
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
+import { useLocale } from "next-intl";
 import { CustomFormattingToolbar } from "./CustomFormattingToolbar";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/shadcn/style.css";
@@ -38,6 +40,23 @@ import {
   exportCanvasBlocksToMarkdown,
   parseMarkdownToCanvasBlocks,
 } from "./mermaid-markdown";
+import {
+  DEFAULT_LOCALE,
+  isLocaleCode,
+  type LocaleCode,
+} from "@/lib/i18n/locales";
+
+const BLOCKNOTE_LOCALE_BY_APP_LOCALE: Record<LocaleCode, keyof typeof locales> =
+  {
+    en: "en",
+    de: "de",
+    fr: "fr",
+    es: "es",
+    it: "en",
+  };
+type BlockNoteDictionary = NonNullable<
+  Parameters<typeof useCreateBlockNote>[0]
+>["dictionary"];
 
 /**
  * Checks whether a single cell in a table row is "empty" — i.e. contains no
@@ -130,8 +149,13 @@ export interface TextRendererProps {
 }
 
 export function TextRendererComponent(props: TextRendererProps) {
+  const locale = useLocale();
+  const appLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
   const editor = useCreateBlockNote({
     schema: canvasSchema,
+    dictionary: locales[
+      BLOCKNOTE_LOCALE_BY_APP_LOCALE[appLocale]
+    ] as BlockNoteDictionary,
     _tiptapOptions: {
       extensions: [TrackChangesExtension, MathInlineExtension],
     },
