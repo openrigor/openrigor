@@ -19,10 +19,7 @@ export function LandingFooter() {
               />
               <span>OpenRigor</span>
             </Link>
-            <p>
-              Open-source research infrastructure. Methods and provenance become
-              evidence.
-            </p>
+            <p>Markdown-native research, with AI when you want it.</p>
           </div>
           <div className="foot-col">
             <h4>Platform</h4>
