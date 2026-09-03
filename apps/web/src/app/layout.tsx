@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OpenRigor — Open-source research infrastructure",
+  title: "OpenRigor — Markdown-native research tool",
   description:
-    "An open-source, Markdown-native workspace for research that tracks and collates digital artifacts. Methods, evidence, and provenance stay inspectable from question to finding.",
+    "A markdown-native research tool with built-in AI process assistance; your documents, methods, and evidence are versioned in a private repository you control.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

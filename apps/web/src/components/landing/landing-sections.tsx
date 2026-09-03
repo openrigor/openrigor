@@ -26,23 +26,22 @@ export function HeroSection() {
     <section className="hero">
       <div className="container hero-inner">
         <div>
-          <span className="eyebrow">
-            Open evidence infrastructure for research with digital artifacts
-          </span>
+          <span className="eyebrow">Markdown-native research tool</span>
           <h1>
-            When AI is part of the work.
+            Research in plain markdown.
             <br />
-            <em>What counts as evidence?</em>
+            <em>AI when you want it.</em>
           </h1>
           <p className="hero-sub">
-            OpenRigor is a place where methods become evidence. Methods and
-            provenance make work inspectable. Evidence contribution, Ledger, and
-            human-authored finding have distinct roles.
+            OpenRigor is a markdown-native workspace where your documents,
+            methods, and evidence live together. The work stays plain text,
+            versioned in a private repository you control, with nothing locked
+            in a proprietary format.
           </p>
           <p className="hero-sub">
-            In your private research workspace, a GitHub-backed private
-            repository is the home for the work. You choose BYOK (recommended),
-            a shared model, or Markdown-only.
+            Built-in AI can draft, revise, organise, and collate sources when
+            you want help. It is optional and visible, and you can do the
+            research with no AI at all.
           </p>
           <div className="hero-ctas">
             <OpenCanvasButton className="btn btn-primary">
@@ -54,9 +53,9 @@ export function HeroSection() {
             </a>
           </div>
           <div className="hero-trust" aria-label="Platform foundations">
-            <span>Workspace</span>
-            <span>OKF knowledge</span>
-            <span>Git provenance</span>
+            <span>Markdown-native</span>
+            <span>Git-versioned</span>
+            <span>Optional AI</span>
           </div>
         </div>
 
@@ -84,30 +83,26 @@ export function HypothesisSection() {
     <section className="hypothesis section" id="about">
       <div className="container hypo-grid">
         <div>
-          <h2>
-            When AI is part of the work, the answer alone is not evidence.
-          </h2>
+          <h2>The result matters. The path to it does too.</h2>
           <p className="hypo-stand">
-            AI can write an essay, solve a problem, and find sources.
+            A finished document never shows the research behind it: the drafts,
+            dead ends, sources, and decisions.
           </p>
           <p className="hypo-stand">
-            A completed task no longer tells us, by itself, what a person
-            understood, decided, or can do.
+            The work is verifiable only when the process is kept, not just the
+            result.
           </p>
           <p className="hypo-stand">
-            Banning AI does not settle the question. It can hide the judgement
-            and reasoning involved in working with it.
+            AI can help with the process. A versioned trail keeps the work
+            visible, so there is no need to ban or distrust AI.
           </p>
         </div>
         <div className="guide-card">
           <p className="g-label">The shared question</p>
-          <p className="g-q">
-            What should people still know, decide, explain, and demonstrate when
-            AI is available?
-          </p>
+          <p className="g-q">How do you show the research behind the result?</p>
           <p className="g-sub">
-            OpenRigor does not prescribe the answer. It makes competing methods
-            visible, testable, and easier to improve.
+            OpenRigor keeps drafts, sources, decisions, and revisions in one
+            open, versioned trail you can inspect.
           </p>
         </div>
       </div>
@@ -119,36 +114,30 @@ export function MeasuresSection() {
   return (
     <section className="measures section" id="measures">
       <div className="container">
-        <h2>Three questions, not one.</h2>
+        <h2>Three parts of the research record.</h2>
         <p className="lede">
-          Research on AI-assisted work needs to separate the capabilities that a
-          finished output can conceal.
+          The workspace keeps the research trail visible from question to
+          finding.
         </p>
         <div className="meas-grid">
           <div className="meas">
             <span className="m-n">01</span>
-            <b>Produce independently</b>
-            <p>Can they produce the work without AI?</p>
+            <b>Sources and claims</b>
+            <p>Where did this claim come from?</p>
           </div>
           <div className="meas">
             <span className="m-n">02</span>
-            <b>Understand</b>
-            <p>
-              Can they explain the underlying knowledge, choices, and reasoning?
-            </p>
+            <b>Revisions</b>
+            <p>What changed along the way, and what was the reasoning?</p>
           </div>
           <div className="meas">
             <span className="m-n">03</span>
-            <b>Work with AI</b>
-            <p>
-              Can they question it, evaluate it, correct it, and decide when not
-              to rely on it?
-            </p>
+            <b>AI assistance</b>
+            <p>What did AI propose, and what did you decide?</p>
           </div>
         </div>
         <p className="lede" style={{ marginTop: 28 }}>
-          These capabilities overlap, but success in one does not establish the
-          others.
+          The trail is part of the research record.
         </p>
       </div>
     </section>
@@ -180,9 +169,8 @@ export function ProblemsSection() {
       <div className="container">
         <h2>Questions worth testing, not declaring.</h2>
         <p className="lede">
-          The first ones come from education research; the same discipline
-          applies elsewhere, from systematic reviews to verification and
-          fact-checking of AI-assisted work.
+          The first questions come from education research. They also matter in
+          systematic reviews, verification, and fact-checking AI-assisted work.
         </p>
         <div className="prob-list">
           {PROBLEMS.map((row) => (
@@ -221,13 +209,12 @@ export function BuildingSection() {
     <section className="canvas-platform section" id="canvas">
       <div className="container">
         <span className="eyebrow">The common workspace</span>
-        <h2>A practical place for methods to take shape.</h2>
+        <h2>The workspace is the research record.</h2>
         <p className="lede">
-          The Workspace is useful on its own—and gives researchers and
-          practitioners an open surface for designing, running and explaining
-          research methods. Education research is the first domain; the
-          workspace is not limited to it. Choose BYOK, a shared model, or
-          Markdown-only. Shared model is never preselected.
+          Write documents, methods, notes, and evidence as plain markdown in one
+          workspace. Render Mermaid diagrams and LaTeX, print clean PDFs, and
+          use optional AI assistance to draft, revise, organise, or explain. The
+          work stays in a private repository you control.
         </p>
         <div className="platform-map">
           {CANVAS_CAPABILITIES.map((layer, index) => (
@@ -280,11 +267,10 @@ export function ResearchSection() {
         <span className="eyebrow">Research in the open</span>
         <h2>A research programme that can evolve.</h2>
         <p className="lede">
-          No position comes preloaded. The research catalogue records an
-          evolving programme of methods that invite AI, constrain it or
-          investigate claims about its use. The first wave comes from education
-          research and asks whether each method actually serves the research
-          objective it was designed for.
+          OpenRigor starts with no answer in mind. The catalogue grows as
+          researchers try methods that use AI, limit it, or test claims about
+          its use. The first wave asks whether each method serves the question
+          it was built to answer.
         </p>
         <div className="evidence-flow" aria-label="Evidence lifecycle">
           <span>Question</span>
@@ -315,15 +301,15 @@ export function ResearchSection() {
             <p className="measure-label">What makes it inspectable</p>
             <div>
               <b>Evidence contribution</b>
-              <p>Methods and provenance travel with the work.</p>
+              <p>The work carries its method and source history with it.</p>
             </div>
             <div>
               <b>Ledger</b>
-              <p>The Ledger is a record in the repo, not a finding.</p>
+              <p>The Ledger records the work. It is not a finding.</p>
             </div>
             <div>
               <b>Human-authored finding</b>
-              <p>People write the claim. AI does not author the finding.</p>
+              <p>People write the finding. AI does not.</p>
             </div>
           </div>
         </div>
@@ -360,15 +346,15 @@ const OPEN_LAYERS = [
 const DATA_CONTROL = [
   {
     label: "Private repo",
-    text: "In your private research workspace, your GitHub repository is the home. OpenRigor metadata and Ledgers are stored there.",
+    text: "Your private GitHub repository holds the work and the OpenRigor records that go with it, including Ledgers.",
   },
   {
     label: "BYOK (recommended)",
-    text: "Model traffic goes to your provider. Retention is that provider's.",
+    text: "Use your own AI provider. Its retention policy applies.",
   },
   {
     label: "Markdown-only",
-    text: "No OpenRigor LLM. Shared model is never preselected.",
+    text: "No OpenRigor language model is used. The shared service stays off unless you turn it on.",
   },
 ];
 
@@ -379,11 +365,10 @@ export function OssSection() {
         <span className="eyebrow on-dark">Open by design</span>
         <h2>Research becomes more useful when it can travel.</h2>
         <p className="lede">
-          The novelty is not a hidden model. It is applying open-source
-          practices to building research infrastructure where methods, evidence,
-          and provenance stay inspectable. AI-in-education research is the first
-          application area. A private repository can be the home for work in
-          your private research workspace; you control the model path.
+          OpenRigor is a markdown-native research tool with built-in AI process
+          assistance. The catalogue begins with one research programme; the
+          workspace can support research elsewhere too. Your private repository
+          stays yours, and you decide whether AI is part of the work.
         </p>
         <div className="open-layers">
           {OPEN_LAYERS.map((layer) => (
@@ -402,12 +387,12 @@ export function OssSection() {
           ))}
         </div>
         <p className="lede" style={{ marginTop: 28 }}>
-          Shared-model processing is described in the{" "}
+          Read the{" "}
           <a className="link" href="/privacy/shared-model">
-            shared-model privacy notice
-          </a>
-          {". "}
-          Markdown-only uses no OpenRigor LLM.
+            privacy notice
+          </a>{" "}
+          to learn how the shared service handles data. When you work without
+          AI, no OpenRigor language model runs.
         </p>
         <div className="dark-ctas">
           <a
@@ -435,8 +420,8 @@ export function FinalCtaSection() {
         <span className="eyebrow">The invitation</span>
         <h2>Bring a question. Try a method. Show your work.</h2>
         <p>
-          The Workspace gives the experiment a place to happen. Open methods and
-          portable knowledge give the result a chance to matter.
+          The Workspace gives the research a place to happen. Open methods and
+          shareable knowledge help others follow and build on the result.
         </p>
         <div className="final-ctas">
           <OpenCanvasButton className="btn btn-primary">
