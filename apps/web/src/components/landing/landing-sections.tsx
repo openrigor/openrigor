@@ -27,12 +27,12 @@ export function HeroSection() {
       <div className="container hero-inner">
         <div>
           <span className="eyebrow">
-            Open evidence infrastructure for AI in education
+            Open evidence infrastructure for research with digital artifacts
           </span>
           <h1>
-            AI changes learning.
+            When AI is part of the work.
             <br />
-            <em>What should we measure?</em>
+            <em>What counts as evidence?</em>
           </h1>
           <p className="hero-sub">
             OpenRigor is a place where methods become evidence. Methods and
@@ -70,7 +70,7 @@ export function HeroSection() {
               loop
               playsInline
               preload="metadata"
-              aria-label="Short demo of OpenRigor coaching a writing assignment"
+              aria-label="Short demo of the OpenRigor workspace"
             />
           </div>
         </div>
@@ -121,8 +121,8 @@ export function MeasuresSection() {
       <div className="container">
         <h2>Three questions, not one.</h2>
         <p className="lede">
-          When we ask whether someone can “do it,” we may be asking about
-          different capabilities.
+          Research on AI-assisted work needs to separate the capabilities that a
+          finished output can conceal.
         </p>
         <div className="meas-grid">
           <div className="meas">
@@ -180,7 +180,9 @@ export function ProblemsSection() {
       <div className="container">
         <h2>Questions worth testing, not declaring.</h2>
         <p className="lede">
-          The uncomfortable questions are already in classrooms and workplaces.
+          The first ones come from education research; the same discipline
+          applies elsewhere, from systematic reviews to verification and
+          fact-checking of AI-assisted work.
         </p>
         <div className="prob-list">
           {PROBLEMS.map((row) => (
@@ -221,10 +223,11 @@ export function BuildingSection() {
         <span className="eyebrow">The common workspace</span>
         <h2>A practical place for methods to take shape.</h2>
         <p className="lede">
-          The Workspace is useful on its own—and gives teachers and researchers
-          an open surface for designing, running and explaining new ways of
-          working with AI. Choose BYOK, a shared model, or Markdown-only. Shared
-          model is never preselected.
+          The Workspace is useful on its own—and gives researchers and
+          practitioners an open surface for designing, running and explaining
+          research methods. Education research is the first domain; the
+          workspace is not limited to it. Choose BYOK, a shared model, or
+          Markdown-only. Shared model is never preselected.
         </p>
         <div className="platform-map">
           {CANVAS_CAPABILITIES.map((layer, index) => (
@@ -277,10 +280,11 @@ export function ResearchSection() {
         <span className="eyebrow">Research in the open</span>
         <h2>A research programme that can evolve.</h2>
         <p className="lede">
-          No position comes preloaded. The research catalogue records evolving
-          methods that invite AI, constrain it or investigate claims about its
-          use—and asks whether each one actually serves the learning objective
-          it was designed for.
+          No position comes preloaded. The research catalogue records an
+          evolving programme of methods that invite AI, constrain it or
+          investigate claims about its use. The first wave comes from education
+          research and asks whether each method actually serves the research
+          objective it was designed for.
         </p>
         <div className="evidence-flow" aria-label="Evidence lifecycle">
           <span>Question</span>
@@ -375,10 +379,11 @@ export function OssSection() {
         <span className="eyebrow on-dark">Open by design</span>
         <h2>Research becomes more useful when it can travel.</h2>
         <p className="lede">
-          The novelty is not a hidden model. It is applying the technologies and
-          practices of open-source projects to the work of figuring out AI in
-          education. A private repository can be the home for work in your
-          private research workspace; you control the model path.
+          The novelty is not a hidden model. It is applying open-source
+          practices to building research infrastructure where methods, evidence,
+          and provenance stay inspectable. AI-in-education research is the first
+          application area. A private repository can be the home for work in
+          your private research workspace; you control the model path.
         </p>
         <div className="open-layers">
           {OPEN_LAYERS.map((layer) => (
