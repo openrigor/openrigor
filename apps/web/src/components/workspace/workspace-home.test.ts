@@ -16,6 +16,10 @@ vi.mock("@/contexts/UserContext", () => ({
   useUserContext: () => ({ user: undefined, loading: false }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
+}));
+
 import { shouldShowGithubResearchOnboarding } from "./workspace-home";
 import { WorkspaceHome } from "./workspace-home";
 
