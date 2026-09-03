@@ -20,7 +20,8 @@ export function LandingFooter() {
               <span>OpenRigor</span>
             </Link>
             <p>
-              Open-source infrastructure for experimenting with AI in education.
+              Open-source research infrastructure. Methods and provenance become
+              evidence.
             </p>
           </div>
           <div className="foot-col">
