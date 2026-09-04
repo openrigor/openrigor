@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ArtifactMarkdownV3 } from "@opencanvas/shared/types";
 import { calculateCursorPosition } from "@opencanvas/shared";
 import "@blocknote/core/fonts/inter.css";
+import { locales } from "@blocknote/core";
 import {
   FormattingToolbarController,
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
+import { useLocale } from "next-intl";
 import { CustomFormattingToolbar } from "./CustomFormattingToolbar";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/shadcn/style.css";
@@ -32,12 +34,18 @@ import MathInlineExtension from "./MathInlineExtension";
 import { computeDiffRanges, type DiffRange } from "@/lib/diffing";
 import { EditActionBar } from "./EditActionBar";
 import { canvasSchema } from "./canvas-schema";
+import { resolveBlockNoteLocale } from "@/lib/i18n/blocknote-locale";
 
 import "katex/dist/katex.min.css";
 import {
   exportCanvasBlocksToMarkdown,
   parseMarkdownToCanvasBlocks,
 } from "./mermaid-markdown";
+import { DEFAULT_LOCALE, isLocaleCode } from "@/lib/i18n/locales";
+
+type BlockNoteDictionary = NonNullable<
+  Parameters<typeof useCreateBlockNote>[0]
+>["dictionary"];
 
 /**
  * Checks whether a single cell in a table row is "empty" — i.e. contains no
@@ -130,12 +138,22 @@ export interface TextRendererProps {
 }
 
 export function TextRendererComponent(props: TextRendererProps) {
-  const editor = useCreateBlockNote({
-    schema: canvasSchema,
-    _tiptapOptions: {
-      extensions: [TrackChangesExtension, MathInlineExtension],
+  const locale = useLocale();
+  const appLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
+  const editor = useCreateBlockNote(
+    {
+      schema: canvasSchema,
+      dictionary: locales[
+        resolveBlockNoteLocale(appLocale)
+      ] as BlockNoteDictionary,
+      _tiptapOptions: {
+        extensions: [TrackChangesExtension, MathInlineExtension],
+      },
     },
-  });
+    // Recreate the editor when the app locale changes so BlockNote's
+    // dictionary (UI strings) follows the switched language.
+    [appLocale]
+  );
   const { graphData } = useGraphContext();
   const {
     setCursorPosition,
@@ -235,10 +253,12 @@ export function TextRendererComponent(props: TextRendererProps) {
 
   // When a new artifact version arrives (thread switch, streaming update,
   // or bootstrap), mark content as not-yet-loaded so the guard in the
-  // content-loading effect doesn't block the initial parse.
+  // content-loading effect doesn't block the initial parse. The editor
+  // dependency covers editor recreation (locale switch): a fresh editor
+  // instance is empty, so existing content must be re-loaded into it.
   useEffect(() => {
     contentLoadedRef.current = false;
-  }, [artifact?.currentIndex]);
+  }, [artifact?.currentIndex, editor]);
 
   useEffect(() => {
     const selectedText = editor.getSelectedText();

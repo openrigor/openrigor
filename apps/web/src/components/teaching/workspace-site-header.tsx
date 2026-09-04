@@ -3,6 +3,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { BRAND_PANEL_COLOR } from "@/components/auth/login/login-branding";
+import { CompactLanguageSwitcher } from "@/components/settings/language-switcher";
 
 /** Ghost nav control on brand-blue header (docs `.main-nav a`). */
 export const workspaceNavGhostClass = cn(
@@ -65,6 +66,7 @@ export function WorkspaceSiteHeader({
           </span>
         </div>
         <nav className="flex flex-wrap items-center justify-end gap-2">
+          <CompactLanguageSwitcher />
           {children}
         </nav>
       </div>

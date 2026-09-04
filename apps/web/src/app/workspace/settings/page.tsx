@@ -17,13 +17,16 @@ import { SettingsBreadcrumb } from "@/components/workspace/settings-breadcrumb";
 import { ByokSettingsCard } from "@/components/workspace/byok-settings-card";
 import { AiModeSettingsCard } from "@/components/workspace/ai-mode-settings-card";
 import { PrivateResearchRepositoriesCard } from "@/components/settings/private-research-repositories-card";
+import { LanguageSwitcher } from "@/components/settings/language-switcher";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 
 function SettingsForm() {
   const { user, loading } = useUserContext();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations("settings");
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -136,6 +139,14 @@ function SettingsForm() {
                   {submitting ? "Saving…" : "Save"}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+          <Card className="bg-white">
+            <CardHeader>
+              <CardTitle>{t("language")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LanguageSwitcher />
             </CardContent>
           </Card>
           <PrivateResearchRepositoriesCard />
