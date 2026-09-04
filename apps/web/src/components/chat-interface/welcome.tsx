@@ -7,48 +7,49 @@ import { NotebookPen } from "lucide-react";
 import { ProgrammingLanguagesDropdown } from "../ui/programming-lang-dropdown";
 import { Button } from "../ui/button";
 import NoSSRWrapper from "../NoSSRWrapper";
+import { useTranslations } from "next-intl";
 
 const QUICK_START_PROMPTS_SEARCH = [
-  "Write a market analysis of AI chip manufacturers in 2025",
-  "Create a blog post about the latest climate change policies and their impact",
-  "Draft an investor update on renewable energy trends this quarter",
-  "Write a report on current cybersecurity threats in cloud computing",
-  "Analyze the latest developments in quantum computing for a tech newsletter",
-  "Create a summary of emerging medical breakthroughs in cancer treatment",
-  "Write about the impact of current interest rates on the housing market",
-  "Draft an article about breakthroughs in battery technology this year",
-  "Analyze current supply chain disruptions in semiconductor manufacturing",
-  "Write about how recent AI regulations affect business innovation",
+  "quickStartSearch1",
+  "quickStartSearch2",
+  "quickStartSearch3",
+  "quickStartSearch4",
+  "quickStartSearch5",
+  "quickStartSearch6",
+  "quickStartSearch7",
+  "quickStartSearch8",
+  "quickStartSearch9",
+  "quickStartSearch10",
 ];
 
 const QUICK_START_PROMPTS = [
-  "Write a bedtime story about a brave little robot",
-  "Create a function to calculate Fibonacci numbers in TypeScript",
-  "Draft a resignation letter for a position I've had for 2 years",
-  "Build a simple weather dashboard using React and Tailwind",
-  "Write a poem about artificial intelligence",
-  "Create a basic Express.js REST API with two endpoints",
-  "Draft a congratulatory speech for my sister's graduation",
-  "Build a command-line calculator in Python",
-  "Write instructions for making perfect scrambled eggs",
-  "Create a simple snake game using HTML canvas",
-  "Write me a TODO app in React",
-  "Explain why the sky is blue in a short essay",
-  "Help me draft an email to my professor Craig",
-  "Write a web scraping program in Python",
+  "quickStart1",
+  "quickStart2",
+  "quickStart3",
+  "quickStart4",
+  "quickStart5",
+  "quickStart6",
+  "quickStart7",
+  "quickStart8",
+  "quickStart9",
+  "quickStart10",
+  "quickStart11",
+  "quickStart12",
+  "quickStart13",
+  "quickStart14",
 ];
 
-export const TEACHER_ASSIGNMENT_PROMPTS = [
-  "Draft a persuasive essay prompt about renewable energy",
-  "Create a rubric for evaluating research papers",
-  "Write a creative writing assignment about time travel",
-  "Design a critical thinking exercise for history class",
-  "Draft a group project brief for a marketing course",
-  "Create an essay prompt analyzing a Shakespeare sonnet",
-  "Design a lab report assignment for biology students",
-  "Write a reflection prompt for a field trip experience",
-  "Draft a debate topic about artificial intelligence ethics",
-  "Create a peer review rubric for student presentations",
+export const TEACHER_ASSIGNMENT_PROMPT_KEYS = [
+  "teacherAssignmentPrompt1",
+  "teacherAssignmentPrompt2",
+  "teacherAssignmentPrompt3",
+  "teacherAssignmentPrompt4",
+  "teacherAssignmentPrompt5",
+  "teacherAssignmentPrompt6",
+  "teacherAssignmentPrompt7",
+  "teacherAssignmentPrompt8",
+  "teacherAssignmentPrompt9",
+  "teacherAssignmentPrompt10",
 ];
 
 function getRandomPrompts(prompts: string[], count: number = 4): string[] {
@@ -75,6 +76,7 @@ const QuickStartPrompts = ({
   searchEnabled,
   quickStartPrompts,
 }: QuickStartPromptsProps) => {
+  const t = useTranslations("chat");
   const threadRuntime = useThreadRuntime();
 
   const handleClick = (text: string) => {
@@ -88,9 +90,11 @@ const QuickStartPrompts = ({
     () =>
       quickStartPrompts ||
       getRandomPrompts(
-        searchEnabled ? QUICK_START_PROMPTS_SEARCH : QUICK_START_PROMPTS
+        (searchEnabled ? QUICK_START_PROMPTS_SEARCH : QUICK_START_PROMPTS).map(
+          (key) => t(key)
+        )
       ),
-    [searchEnabled, quickStartPrompts]
+    [searchEnabled, quickStartPrompts, t]
   );
 
   return (
@@ -114,6 +118,7 @@ const QuickStartPrompts = ({
 };
 
 const QuickStartButtons = (props: QuickStartButtonsProps) => {
+  const t = useTranslations("chat");
   const hideBlankCanvas = props.hideQuickStartButtons;
 
   const handleLanguageSubmit = (language: ProgrammingLanguageOptions) => {
@@ -124,14 +129,14 @@ const QuickStartButtons = (props: QuickStartButtonsProps) => {
     <div className="flex flex-col gap-8 items-center justify-center w-full">
       {!hideBlankCanvas && (
         <div className="flex flex-col gap-6">
-          <p className="text-gray-600 text-sm">Start with a blank canvas</p>
+          <p className="text-gray-600 text-sm">{t("startBlankCanvas")}</p>
           <div className="flex flex-row gap-1 items-center justify-center w-full">
             <Button
               variant="outline"
               className="text-gray-500 hover:text-gray-700 transition-colors ease-in rounded-2xl flex items-center justify-center gap-2 w-[250px] h-[64px]"
               onClick={() => props.handleQuickStart("text")}
             >
-              New Markdown
+              {t("newMarkdown")}
               <NotebookPen />
             </Button>
             <ProgrammingLanguagesDropdown handleSubmit={handleLanguageSubmit} />
@@ -139,7 +144,7 @@ const QuickStartButtons = (props: QuickStartButtonsProps) => {
         </div>
       )}
       <div className="flex flex-col gap-6 mt-2 w-full">
-        <p className="text-gray-600 text-sm">or with a message</p>
+        <p className="text-gray-600 text-sm">{t("orWithMessage")}</p>
         {props.composer}
         <NoSSRWrapper>
           <QuickStartPrompts
@@ -166,6 +171,8 @@ interface ThreadWelcomeProps {
 export const ThreadWelcome: FC<ThreadWelcomeProps> = (
   props: ThreadWelcomeProps
 ) => {
+  const t = useTranslations("chat");
+
   return (
     <ThreadPrimitive.Empty>
       <div className="flex items-center justify-center mt-16 w-full">
@@ -178,7 +185,7 @@ export const ThreadWelcome: FC<ThreadWelcomeProps> = (
             className="mx-auto"
           />
           <TighterText className="mt-4 text-lg font-medium">
-            What would you like to write today?
+            {t("welcomePrompt")}
           </TighterText>
           <div className="mt-8 w-full">
             <QuickStartButtons

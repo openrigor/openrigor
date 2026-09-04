@@ -5,6 +5,7 @@ import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-but
 import { PortToLanguageOptions } from "./PortToLanguage";
 import { ProgrammingLanguageOptions } from "@opencanvas/shared/types";
 import { GraphInput } from "@opencanvas/shared/types";
+import { useTranslations } from "next-intl";
 
 type SharedComponentProps = {
   handleClose: () => void;
@@ -28,19 +29,19 @@ export interface CodeToolbarProps {
 const toolbarOptions: ToolbarOption[] = [
   {
     id: "addComments",
-    tooltip: "Add comments",
+    tooltip: "addComments",
     icon: <MessageCircleCode className="w-[26px] h-[26px]" />,
     component: null,
   },
   {
     id: "addLogs",
-    tooltip: "Add logs",
+    tooltip: "addLogs",
     icon: <ScrollText className="w-[26px] h-[26px]" />,
     component: null,
   },
   {
     id: "portLanguage",
-    tooltip: "Port language",
+    tooltip: "portLanguage",
     icon: <BookA className="w-[26px] h-[26px]" />,
     component: (
       props: SharedComponentProps & { language: ProgrammingLanguageOptions }
@@ -48,7 +49,7 @@ const toolbarOptions: ToolbarOption[] = [
   },
   {
     id: "fixBugs",
-    tooltip: "Fix bugs",
+    tooltip: "fixBugs",
     icon: <Bug className="w-[26px] h-[26px]" />,
     component: null,
   },
@@ -56,6 +57,7 @@ const toolbarOptions: ToolbarOption[] = [
 
 export function CodeToolBar(props: CodeToolbarProps) {
   const { streamMessage } = props;
+  const t = useTranslations("artifacts");
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeOption, setActiveOption] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ export function CodeToolBar(props: CodeToolbarProps) {
             : toolbarOptions.map((option) => (
                 <TooltipIconButton
                   key={option.id}
-                  tooltip={option.tooltip}
+                  tooltip={t(option.tooltip)}
                   variant="ghost"
                   className="transition-colors w-[36px] h-[36px]"
                   delayDuration={400}
@@ -152,8 +154,8 @@ export function CodeToolBar(props: CodeToolbarProps) {
         <TooltipIconButton
           tooltip={
             props.isTextSelected
-              ? "Quick actions disabled while text is selected"
-              : "Code tools"
+              ? t("quickActionsDisabledWhileSelected")
+              : t("codeTools")
           }
           variant="outline"
           className={cn(

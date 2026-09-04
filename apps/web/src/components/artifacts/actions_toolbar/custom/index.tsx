@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { TighterText } from "@/components/ui/header";
 import { GraphInput } from "@opencanvas/shared/types";
 import { User } from "@supabase/supabase-js";
+import { useTranslations } from "next-intl";
 
 export interface CustomQuickActionsProps {
   isTextSelected: boolean;
@@ -44,6 +45,7 @@ const DropdownMenuItemWithDelete = ({
   onEdit: () => void;
   onClick: () => Promise<void>;
 }) => {
+  const t = useTranslations("artifacts");
   const [isHovering, setIsHovering] = useState(false);
 
   return (
@@ -61,7 +63,7 @@ const DropdownMenuItemWithDelete = ({
       </DropdownMenuItem>
       <TooltipIconButton
         disabled={disabled}
-        tooltip="Edit action"
+        tooltip={t("editAction")}
         variant="ghost"
         onClick={onEdit}
         className={cn("ml-1", isHovering ? "visible" : "invisible")}
@@ -70,7 +72,7 @@ const DropdownMenuItemWithDelete = ({
       </TooltipIconButton>
       <TooltipIconButton
         disabled={disabled}
-        tooltip="Delete action"
+        tooltip={t("deleteAction")}
         variant="ghost"
         onClick={onDelete}
         className={cn(isHovering ? "visible" : "invisible")}
@@ -89,6 +91,8 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
     isLoadingQuickActions,
   } = useStore();
   const { toast } = useToast();
+  const t = useTranslations("artifacts");
+  const commonT = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -132,8 +136,8 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
   const handleDelete = async (id: string) => {
     if (!user) {
       toast({
-        title: "Failed to delete",
-        description: "User not found",
+        title: t("failedToDelete"),
+        description: commonT("userNotFound"),
         variant: "destructive",
         duration: 5000,
       });
@@ -147,7 +151,7 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
       );
       if (deletionSuccess) {
         toast({
-          title: "Custom quick action deleted successfully",
+          title: t("customQuickActionDeletedSuccessfully"),
         });
         setCustomQuickActions((actions) => {
           if (!actions) return actions;
@@ -155,13 +159,13 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
         });
       } else {
         toast({
-          title: "Failed to delete custom quick action",
+          title: t("failedToDeleteCustomQuickAction"),
           variant: "destructive",
         });
       }
     } catch (_) {
       toast({
-        title: "Failed to delete custom quick action",
+        title: t("failedToDeleteCustomQuickAction"),
         variant: "destructive",
       });
     }
@@ -179,8 +183,8 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
         <TooltipIconButton
           tooltip={
             props.isTextSelected
-              ? "Quick actions disabled while text is selected"
-              : "Custom quick actions"
+              ? t("quickActionsDisabledWhileSelected")
+              : t("customQuickActions")
           }
           variant="outline"
           className={cn(
@@ -203,17 +207,17 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="max-h-[600px] max-w-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         <DropdownMenuLabel>
-          <TighterText>Custom Quick Actions</TighterText>
+          <TighterText>{t("customQuickActions")}</TighterText>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {isLoadingQuickActions && !customQuickActions?.length ? (
           <span className="text-sm text-gray-600 flex items-center justify-start gap-1 p-2">
-            Loading
+            {commonT("loading")}
             <LoaderCircle className="w-4 h-4 animate-spin" />
           </span>
         ) : !customQuickActions?.length ? (
           <TighterText className="text-sm text-gray-600 p-2">
-            No custom quick actions found.
+            {t("noCustomQuickActionsFound")}
           </TighterText>
         ) : (
           <div className="max-h-[450px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
@@ -236,7 +240,7 @@ export function CustomQuickActions(props: CustomQuickActionsProps) {
           className="flex items-center justify-start gap-1"
         >
           <CirclePlus className="w-4 h-4" />
-          <TighterText className="font-medium">New</TighterText>
+          <TighterText className="font-medium">{t("new")}</TighterText>
         </DropdownMenuItem>
       </DropdownMenuContent>
       <NewCustomQuickActionDialog
