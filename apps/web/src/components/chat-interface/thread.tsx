@@ -29,12 +29,15 @@ import { useUserContext } from "@/contexts/UserContext";
 import { useThreadContext } from "@/contexts/ThreadProvider";
 import { useAssistantContext } from "@/contexts/AssistantContext";
 import { useTeachingAssignmentOptional } from "@/contexts/TeachingAssignmentContext";
+import { useTranslations } from "next-intl";
 
 const ThreadScrollToBottom: FC = () => {
+  const t = useTranslations("chat");
+
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
       <TooltipIconButton
-        tooltip="Scroll to bottom"
+        tooltip={t("scrollToBottom")}
         variant="outline"
         className="absolute -top-8 rounded-full disabled:invisible"
       >
@@ -70,6 +73,8 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
   } = props;
   const minimalCanvas = props.minimalCanvas ?? true;
   const { toast } = useToast();
+  const t = useTranslations("chat");
+  const commonT = useTranslations("common");
   const {
     graphData: { clearState, runId, feedbackSubmitted, setFeedbackSubmitted },
   } = useGraphContext();
@@ -92,8 +97,8 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
   const handleNewSession = async () => {
     if (!user) {
       toast({
-        title: "User not found",
-        description: "Failed to create thread without user",
+        title: commonT("userNotFound"),
+        description: t("failedToCreateThreadWithoutUser"),
         duration: 5000,
         variant: "destructive",
       });
@@ -125,7 +130,7 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
                 </p>
                 {hasChatStarted && (
                   <TooltipIconButton
-                    tooltip="Collapse Chat"
+                    tooltip={t("collapseChat")}
                     variant="ghost"
                     className="w-8 h-8 shrink-0"
                     delayDuration={400}
@@ -167,7 +172,7 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
           <div className="flex flex-row flex-1 gap-2 items-center justify-end">
             {!assignmentPrompt && (
               <TooltipIconButton
-                tooltip="Collapse Chat"
+                tooltip={t("collapseChat")}
                 variant="ghost"
                 className="w-8 h-8"
                 delayDuration={400}
@@ -178,7 +183,7 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
             )}
             {!minimalCanvas && (
               <TooltipIconButton
-                tooltip="New chat"
+                tooltip={t("newChat")}
                 variant="ghost"
                 className="w-8 h-8"
                 delayDuration={400}

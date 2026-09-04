@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import React from "react";
 import { useUserContext } from "@/contexts/UserContext";
 import { useThreadContext } from "@/contexts/ThreadProvider";
+import { useTranslations } from "next-intl";
 
 interface ThreadHistoryProps {
   switchSelectedThreadCallback: (thread: Thread) => void;
@@ -27,6 +28,7 @@ interface ThreadProps {
 }
 
 const ThreadItem = (props: ThreadProps) => {
+  const t = useTranslations("chat");
   const [isHovering, setIsHovering] = useState(false);
 
   return (
@@ -47,7 +49,7 @@ const ThreadItem = (props: ThreadProps) => {
       </Button>
       {isHovering && (
         <TooltipIconButton
-          tooltip="Delete thread"
+          tooltip={t("deleteThread")}
           variant="ghost"
           onClick={props.onDelete}
         >
@@ -63,13 +65,14 @@ const LoadingThread = () => <Skeleton className="w-full h-8" />;
 const convertThreadActualToThreadProps = (
   thread: Thread,
   switchSelectedThreadCallback: (thread: Thread) => void,
-  deleteThread: (id: string) => void
+  deleteThread: (id: string) => void,
+  untitled: string
 ): ThreadProps => ({
   id: thread.thread_id,
   label:
     thread.metadata?.thread_title ??
     ((thread.values as Record<string, any>)?.messages?.[0]?.content ||
-      "Untitled"),
+      untitled),
   createdAt: new Date(thread.created_at),
   onClick: () => {
     return switchSelectedThreadCallback(thread);
@@ -82,7 +85,8 @@ const convertThreadActualToThreadProps = (
 const groupThreads = (
   threads: Thread[],
   switchSelectedThreadCallback: (thread: Thread) => void,
-  deleteThread: (id: string) => void
+  deleteThread: (id: string) => void,
+  untitled: string
 ) => {
   const today = new Date();
   const yesterday = subDays(today, 1);
@@ -99,7 +103,8 @@ const groupThreads = (
         convertThreadActualToThreadProps(
           t,
           switchSelectedThreadCallback,
-          deleteThread
+          deleteThread,
+          untitled
         )
       ),
     yesterday: threads
@@ -112,7 +117,8 @@ const groupThreads = (
         convertThreadActualToThreadProps(
           t,
           switchSelectedThreadCallback,
-          deleteThread
+          deleteThread,
+          untitled
         )
       ),
     lastSevenDays: threads
@@ -130,7 +136,8 @@ const groupThreads = (
         convertThreadActualToThreadProps(
           t,
           switchSelectedThreadCallback,
-          deleteThread
+          deleteThread,
+          untitled
         )
       ),
     older: threads
@@ -143,22 +150,26 @@ const groupThreads = (
         convertThreadActualToThreadProps(
           t,
           switchSelectedThreadCallback,
-          deleteThread
+          deleteThread,
+          untitled
         )
       ),
   };
 };
 
-const prettifyDateLabel = (group: string): string => {
+const prettifyDateLabel = (
+  group: string,
+  translate: (key: string) => string
+): string => {
   switch (group) {
     case "today":
-      return "Today";
+      return translate("today");
     case "yesterday":
-      return "Yesterday";
+      return translate("yesterday");
     case "lastSevenDays":
-      return "Last 7 days";
+      return translate("last7Days");
     case "older":
-      return "Older";
+      return translate("older");
     default:
       return group;
   }
@@ -174,13 +185,15 @@ interface ThreadsListProps {
 }
 
 function ThreadsList(props: ThreadsListProps) {
+  const t = useTranslations("chat");
+
   return (
     <div className="flex flex-col pt-3 gap-4">
       {Object.entries(props.groupedThreads).map(([group, threads]) =>
         threads.length > 0 ? (
           <div key={group}>
             <TighterText className="text-sm font-medium mb-1 pl-2">
-              {prettifyDateLabel(group)}
+              {prettifyDateLabel(group, t)}
             </TighterText>
             <div className="flex flex-col gap-1">
               {threads.map((thread) => (
@@ -196,6 +209,8 @@ function ThreadsList(props: ThreadsListProps) {
 
 export function ThreadHistoryComponent(props: ThreadHistoryProps) {
   const { toast } = useToast();
+  const t = useTranslations("chat");
+  const commonT = useTranslations("common");
   const {
     graphData: { setMessages, switchSelectedThread },
   } = useGraphContext();
@@ -213,8 +228,8 @@ export function ThreadHistoryComponent(props: ThreadHistoryProps) {
   const handleDeleteThread = async (id: string) => {
     if (!user) {
       toast({
-        title: "Failed to delete thread",
-        description: "User not found",
+        title: t("failedToDeleteThread"),
+        description: commonT("userNotFound"),
         duration: 5000,
         variant: "destructive",
       });
@@ -231,14 +246,15 @@ export function ThreadHistoryComponent(props: ThreadHistoryProps) {
       props.switchSelectedThreadCallback(thread);
       setOpen(false);
     },
-    handleDeleteThread
+    handleDeleteThread,
+    t("untitled")
   );
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <TooltipIconButton
-          tooltip="History"
+          tooltip={t("history")}
           variant="ghost"
           className="w-fit h-fit p-2"
         >
@@ -252,7 +268,7 @@ export function ThreadHistoryComponent(props: ThreadHistoryProps) {
       >
         <SheetTitle>
           <TighterText className="px-2 text-lg text-gray-600">
-            Chat History
+            {t("chatHistory")}
           </TighterText>
         </SheetTitle>
 
@@ -263,7 +279,7 @@ export function ThreadHistoryComponent(props: ThreadHistoryProps) {
             ))}
           </div>
         ) : !userThreads.length ? (
-          <p className="px-3 text-gray-500">No items found in history.</p>
+          <p className="px-3 text-gray-500">{t("noItemsFoundHistory")}</p>
         ) : (
           <ThreadsList groupedThreads={groupedThreads} />
         )}

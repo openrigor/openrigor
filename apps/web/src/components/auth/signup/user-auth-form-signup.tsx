@@ -10,6 +10,7 @@ import { Label } from "../../ui/label";
 import { SignupWithEmailInput } from "./Signup";
 import { useState } from "react";
 import { PasswordInput } from "../../ui/password-input";
+import { useTranslations } from "next-intl";
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
   onSignupWithEmail: (input: SignupWithEmailInput) => Promise<void>;
@@ -28,6 +29,7 @@ export function UserAuthForm({
   showNameField = false,
   ...props
 }: UserAuthFormProps) {
+  const t = useTranslations("auth");
   const [isEmailPasswordLoading, setEmailPasswordIsLoading] = useState(false);
   const [isGoogleLoading, setGoogleIsLoading] = useState(false);
   const [isGithubLoading, setGithubIsLoading] = useState(false);
@@ -62,12 +64,12 @@ export function UserAuthForm({
           <div className="grid gap-1">
             <div className="pt-1 pb-[2px] px-1">
               <Label className="sr-only" htmlFor="email">
-                Email
+                {t("email")}
               </Label>
               <Input
                 id="email"
                 name="email"
-                placeholder="name@example.com"
+                placeholder={t("emailPlaceholder")}
                 type="email"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -85,11 +87,11 @@ export function UserAuthForm({
 
             {showNameField && (
               <div className="pt-[2px] pb-1 px-1">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{t("fullName")}</Label>
                 <Input
                   id="name"
                   name="name"
-                  placeholder="Jane Doe"
+                  placeholder={t("fullNamePlaceholder")}
                   autoComplete="name"
                   disabled={isLoading}
                   required
@@ -104,7 +106,7 @@ export function UserAuthForm({
               )}
             >
               <Label className="sr-only" htmlFor="password">
-                Password
+                {t("password")}
               </Label>
               <PasswordInput
                 id="password"
@@ -121,7 +123,7 @@ export function UserAuthForm({
             {isLoading && (
               <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Sign Up with Email
+            {t("signUpWithEmail")}
           </Button>
         </div>
       </form>
@@ -131,7 +133,7 @@ export function UserAuthForm({
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
+            {t("orContinueWith")}
           </span>
         </div>
       </div>
@@ -150,7 +152,7 @@ export function UserAuthForm({
         ) : (
           <Icons.google className="mr-2 h-4 w-4" />
         )}{" "}
-        Google
+        {t("google")}
       </Button>
       <Button
         onClick={async () => {
@@ -167,7 +169,7 @@ export function UserAuthForm({
         ) : (
           <Icons.gitHub className="mr-2 h-4 w-4" />
         )}{" "}
-        GitHub
+        {t("github")}
       </Button>
     </div>
   );

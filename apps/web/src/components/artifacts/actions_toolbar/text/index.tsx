@@ -7,6 +7,7 @@ import { LengthOptions } from "./LengthOptions";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
 import { MagicPencilSVG } from "@/components/icons/magic_pencil";
 import { GraphInput } from "@opencanvas/shared/types";
+import { useTranslations } from "next-intl";
 
 type SharedComponentProps = {
   streamMessage: (params: GraphInput) => Promise<void>;
@@ -28,13 +29,13 @@ export interface ActionsToolbarProps {
 const toolbarOptions: ToolbarOption[] = [
   {
     id: "translate",
-    tooltip: "Translate",
+    tooltip: "translate",
     icon: <Languages className="w-[26px] h-[26px]" />,
     component: (props: SharedComponentProps) => <TranslateOptions {...props} />,
   },
   {
     id: "readingLevel",
-    tooltip: "Reading level",
+    tooltip: "readingLevel",
     icon: <BookOpen className="w-[26px] h-[26px]" />,
     component: (props: SharedComponentProps) => (
       <ReadingLevelOptions {...props} />
@@ -42,13 +43,13 @@ const toolbarOptions: ToolbarOption[] = [
   },
   {
     id: "adjustLength",
-    tooltip: "Adjust the length",
+    tooltip: "adjustLength",
     icon: <SlidersVertical className="w-[26px] h-[26px]" />,
     component: (props: SharedComponentProps) => <LengthOptions {...props} />,
   },
   {
     id: "addEmojis",
-    tooltip: "Add emojis",
+    tooltip: "addEmojis",
     icon: <SmilePlus className="w-[26px] h-[26px]" />,
     component: null,
   },
@@ -56,6 +57,7 @@ const toolbarOptions: ToolbarOption[] = [
 
 export function ActionsToolbar(props: ActionsToolbarProps) {
   const { streamMessage } = props;
+  const t = useTranslations("artifacts");
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeOption, setActiveOption] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,7 @@ export function ActionsToolbar(props: ActionsToolbarProps) {
             : toolbarOptions.map((option) => (
                 <TooltipIconButton
                   key={option.id}
-                  tooltip={option.tooltip}
+                  tooltip={t(option.tooltip)}
                   variant="ghost"
                   className="transition-colors w-[36px] h-[36px]"
                   delayDuration={400}
@@ -142,8 +144,8 @@ export function ActionsToolbar(props: ActionsToolbarProps) {
         <TooltipIconButton
           tooltip={
             props.isTextSelected
-              ? "Quick actions disabled while text is selected"
-              : "Writing tools"
+              ? t("quickActionsDisabledWhileSelected")
+              : t("writingTools")
           }
           variant="outline"
           className={cn(

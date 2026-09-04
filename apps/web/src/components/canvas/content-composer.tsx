@@ -32,6 +32,7 @@ import { useUserContext } from "@/contexts/UserContext";
 import { useThreadContext } from "@/contexts/ThreadProvider";
 import { PDFAttachmentAdapter } from "../ui/assistant-ui/attachment-adapters/pdf";
 import { OC_HIDE_FROM_UI_KEY } from "@opencanvas/shared/constants";
+import { useTranslations } from "next-intl";
 
 function isHiddenFromUi(message: BaseMessage): boolean {
   const kwargs = message.additional_kwargs as
@@ -67,6 +68,8 @@ export function ContentComposerChatInterfaceComponent(
   props: ContentComposerChatInterfaceProps
 ): React.ReactElement {
   const { toast } = useToast();
+  const t = useTranslations("chat");
+  const commonT = useTranslations("common");
   const userData = useUserContext();
   const { graphData } = useGraphContext();
   const {
@@ -96,7 +99,7 @@ export function ContentComposerChatInterfaceComponent(
     if (message.startRun === false) return;
     if (!userData.user) {
       toast({
-        title: "User not found",
+        title: commonT("userNotFound"),
         variant: "destructive",
         duration: 5000,
       });
@@ -105,7 +108,7 @@ export function ContentComposerChatInterfaceComponent(
 
     if (message.content?.[0]?.type !== "text") {
       toast({
-        title: "Only text messages are supported",
+        title: t("onlyTextMessagesSupported"),
         variant: "destructive",
         duration: 5000,
       });
