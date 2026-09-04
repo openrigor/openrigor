@@ -38,10 +38,12 @@ type PrivateMethodsResponse = {
 
 type RepositoryItem = Extract<WorkspaceItem, { kind: "research_repository" }>;
 
-function readableStatus(
-  value: string,
-  translate?: (key: string, values?: Record<string, unknown>) => string
-): string {
+type TranslateFn = (
+  key: string,
+  values?: Record<string, string | number | Date>
+) => string;
+
+function readableStatus(value: string, translate?: TranslateFn): string {
   return translate?.(`repositoryReason.${value}`) ?? value.replaceAll("_", " ");
 }
 
@@ -52,7 +54,7 @@ function repositoryId(item: RepositoryItem): number | undefined {
 function repositoryName(
   item: RepositoryItem,
   repositories: GithubRepositoryOption[],
-  translate?: (key: string, values?: Record<string, unknown>) => string
+  translate?: TranslateFn
 ): string {
   const id = repositoryId(item);
   return (
