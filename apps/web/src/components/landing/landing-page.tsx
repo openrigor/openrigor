@@ -6,6 +6,7 @@ import { Menu, X, ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   HeroSection,
   HypothesisSection,
@@ -18,17 +19,17 @@ import {
 } from "./landing-sections";
 import { LandingFooter } from "./landing-footer";
 
-const NAV_LINKS = [
-  { href: "#canvas", label: "Workspace" },
-  { href: "#research", label: "Research" },
-  { href: "#open-source", label: "Open source" },
-];
-
 function LandingHeader() {
+  const t = useTranslations("landing");
   const { user } = useUserContext();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const openCanvasHref = user ? postLoginPath(user) : "/auth/login";
+  const navLinks = [
+    { href: "#canvas", label: t("workspace") },
+    { href: "#research", label: t("research") },
+    { href: "#open-source", label: t("openSource") },
+  ];
 
   return (
     <header className="site">
@@ -45,7 +46,7 @@ function LandingHeader() {
         </Link>
 
         <nav className="main" aria-label="Primary">
-          {NAV_LINKS.map((l) => (
+          {navLinks.map((l) => (
             <a key={l.href} href={l.href}>
               {l.label}
             </a>
@@ -56,16 +57,16 @@ function LandingHeader() {
           {user ? (
             <>
               <Link className="hlink" href="/auth/signout">
-                Sign out
+                {t("signOut")}
               </Link>
             </>
           ) : (
             <Link className="hlink" href="/auth/login">
-              Sign in
+              {t("signIn")}
             </Link>
           )}
           <Link className="nav-cta" href={openCanvasHref}>
-            <span>Open Workspace</span>
+            <span>{t("openWorkspace")}</span>
             <ArrowUpRight width={14} height={14} />
           </Link>
           <button
@@ -84,18 +85,18 @@ function LandingHeader() {
       </div>
 
       <div className={`mobile-panel${menuOpen ? " open" : ""}`}>
-        {NAV_LINKS.map((l) => (
+        {navLinks.map((l) => (
           <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}>
             {l.label}
           </a>
         ))}
         {user ? (
-          <a href="/auth/signout">Sign out</a>
+          <a href="/auth/signout">{t("signOut")}</a>
         ) : (
-          <a href="/auth/login">Sign in</a>
+          <a href="/auth/login">{t("signIn")}</a>
         )}
         <a className="nav-cta mcta" href={openCanvasHref}>
-          <span>Open Workspace</span>
+          <span>{t("openWorkspace")}</span>
           <ArrowUpRight width={14} height={14} />
         </a>
       </div>

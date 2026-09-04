@@ -22,6 +22,7 @@ import {
 import { ArrowLeft, ExternalLink, Pencil } from "lucide-react";
 import { CreateAssignmentDialog } from "./create-assignment-dialog";
 import { TeacherAssignmentBreadcrumb } from "./teacher-assignment-breadcrumb";
+import { useTranslations } from "next-intl";
 
 interface TeacherAssignmentDetailProps {
   assignmentId: string;
@@ -53,6 +54,7 @@ async function loadClassesForViewer(
 export function TeacherAssignmentDetail({
   assignmentId,
 }: TeacherAssignmentDetailProps) {
+  const t = useTranslations("teaching");
   const router = useRouter();
   const { user } = useUserContext();
   const { getAllThreadsForAssignment } = useThreadContext();
@@ -126,7 +128,7 @@ export function TeacherAssignmentDetail({
 
         const submission: StudentSubmission = {
           threadId: thread.thread_id,
-          studentEmail: studentLookup[userId]?.email || "Unknown",
+          studentEmail: studentLookup[userId]?.email || t("unknownStudent"),
           supabaseUserId: userId,
           status,
           completionPercent,
@@ -146,7 +148,7 @@ export function TeacherAssignmentDetail({
         if (bestPerStudent[userId]) continue;
         bestPerStudent[userId] = {
           threadId: "",
-          studentEmail: studentLookup[userId]?.email || "Unknown",
+          studentEmail: studentLookup[userId]?.email || t("unknownStudent"),
           supabaseUserId: userId,
           status: "not_started",
           completionPercent: 0,
@@ -187,11 +189,11 @@ export function TeacherAssignmentDetail({
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "submitted":
-        return "Submitted";
+        return t("statusSubmitted");
       case "in_progress":
-        return "In Progress";
+        return t("statusInProgressTitle");
       default:
-        return "Not Started";
+        return t("statusNotStartedTitle");
     }
   };
 
@@ -199,11 +201,13 @@ export function TeacherAssignmentDetail({
     return (
       <div className="container max-w-4xl px-4 py-10">
         <div className="text-center">
-          <TeacherAssignmentBreadcrumb currentLabel="Assignment not found" />
-          <h1 className="text-2xl font-bold mb-4">Assignment Not Found</h1>
+          <TeacherAssignmentBreadcrumb currentLabel={t("assignmentNotFound")} />
+          <h1 className="text-2xl font-bold mb-4">
+            {t("assignmentNotFoundTitle")}
+          </h1>
           <Button onClick={handleBack} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            {t("backToDashboard")}
           </Button>
         </div>
       </div>
@@ -214,13 +218,13 @@ export function TeacherAssignmentDetail({
     return (
       <div className="container max-w-4xl px-4 py-10">
         <div className="space-y-4">
-          <TeacherAssignmentBreadcrumb currentLabel="Loading…" />
+          <TeacherAssignmentBreadcrumb currentLabel={`${t("loading")}…`} />
           <Button onClick={handleBack} variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            {t("backToDashboard")}
           </Button>
           <div className="text-sm text-muted-foreground">
-            Loading submissions...
+            {t("loadingSubmissions")}
           </div>
         </div>
       </div>
@@ -233,12 +237,12 @@ export function TeacherAssignmentDetail({
         <div className="space-y-4">
           <TeacherAssignmentBreadcrumb
             assignmentTitle={assignment.title}
-            currentLabel="Assignment details"
+            currentLabel={t("assignmentDetails")}
           />
           <div className="flex items-center justify-between gap-2">
             <Button onClick={handleBack} variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Assignments
+              {t("backToAssignments")}
             </Button>
             {ownsAssignment ? (
               <Button
@@ -248,11 +252,11 @@ export function TeacherAssignmentDetail({
                 data-testid="edit-assignment-detail"
               >
                 <Pencil className="h-4 w-4 mr-2" />
-                Edit
+                {t("edit")}
               </Button>
             ) : assignment.teacherId ? (
               <Badge variant="secondary" data-testid="assignment-read-only">
-                Read-only
+                {t("readOnly")}
               </Badge>
             ) : null}
           </div>
@@ -263,11 +267,13 @@ export function TeacherAssignmentDetail({
                 <CardTitle className="text-xl">{assignment.title}</CardTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Badge variant="outline">{assignment.courseLabel}</Badge>
-                  <span>Due {assignment.dueLabel}</span>
+                  <span>{t("due", { date: assignment.dueLabel })}</span>
                   <span>•</span>
-                  <span>by {assignment.teacherName}</span>
+                  <span>
+                    {t("byTeacher", { teacher: assignment.teacherName })}
+                  </span>
                   {!assignment.teacherId && (
-                    <Badge variant="secondary">Shared catalog id</Badge>
+                    <Badge variant="secondary">{t("sharedCatalogId")}</Badge>
                   )}
                 </div>
               </div>
@@ -277,25 +283,25 @@ export function TeacherAssignmentDetail({
                 {assignment.prompt}
               </p>
               <p className="mt-3 text-xs text-muted-foreground">
-                Assigned to {assignedCount} student
-                {assignedCount === 1 ? "" : "s"} in{" "}
-                {ownsAssignment ? "your" : "this teacher's"} classes
+                {t("assignedToStudents", {
+                  count: assignedCount,
+                  owner: ownsAssignment ? t("your") : t("thisTeachers"),
+                })}
                 {ownsAssignment && assignedCount === 0
-                  ? " — use Edit → Assign to add students from your roster."
-                  : "."}
+                  ? t("assignStudentsHint")
+                  : ""}
               </p>
               {!assignment.teacherId && submissions.length === 0 && (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  This URL is a shared starter-template id. Assign it from{" "}
+                  {t("sharedStarterTemplateHint")}{" "}
                   <button
                     type="button"
                     className="underline underline-offset-2"
                     onClick={handleBack}
                   >
-                    Starter templates
+                    {t("starterTemplates")}
                   </button>{" "}
-                  on your dashboard to create your own copy — other
-                  teachers&apos; students are never shown here.
+                  {t("sharedStarterTemplateTail")}
                 </p>
               )}
             </CardContent>
@@ -304,12 +310,14 @@ export function TeacherAssignmentDetail({
 
         <Card>
           <CardHeader>
-            <CardTitle>Student Submissions ({submissions.length})</CardTitle>
+            <CardTitle>
+              {t("studentSubmissions", { count: submissions.length })}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {submissions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No students from your classes are assigned yet.
+                {t("noAssignedStudents")}
               </div>
             ) : (
               <div className="space-y-3">
@@ -327,10 +335,12 @@ export function TeacherAssignmentDetail({
                           {submission.studentEmail}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {submission.completionPercent}% complete
+                          {t("percentComplete", {
+                            percent: submission.completionPercent,
+                          })}
                           {submission.lastActivity && (
                             <span className="ml-2">
-                              • Last activity:{" "}
+                              • {t("lastActivity")}{" "}
                               {new Date(
                                 submission.lastActivity
                               ).toLocaleDateString()}
@@ -355,7 +365,7 @@ export function TeacherAssignmentDetail({
                             }
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />
-                            View
+                            {t("view")}
                           </Button>
                         )}
                     </div>

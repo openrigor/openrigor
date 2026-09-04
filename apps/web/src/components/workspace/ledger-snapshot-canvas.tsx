@@ -31,6 +31,7 @@ import { LedgerPublishDialog } from "./ledger-publish-dialog";
 import { renderLedgerSnapshotCanvasMarkdown } from "./ledger-snapshot-markdown";
 import { WorkspaceItemBanner } from "./workspace-item-banner";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
+import { useTranslations } from "next-intl";
 
 const MAX_SNAPSHOT_DIMENSIONS = 24;
 const MAX_SNAPSHOT_VALUES_PER_DIMENSION = 24;
@@ -428,6 +429,7 @@ export function LedgerSnapshotCanvas({
 }: {
   item: LedgerSnapshotWorkspaceItem;
 }) {
+  const t = useTranslations("workspace");
   const router = useRouter();
   const { toast } = useToast();
   const { graphData } = useGraphContext();
@@ -514,8 +516,8 @@ export function LedgerSnapshotCanvas({
         );
         console.error("Ledger snapshot workspace kickoff failed", error);
         toast({
-          title: "Could not open snapshot chat",
-          description: "Please try again.",
+          title: t("couldNotOpenSnapshotChat"),
+          description: t("pleaseTryAgain"),
           variant: "destructive",
         });
       });
@@ -528,13 +530,13 @@ export function LedgerSnapshotCanvas({
         `/api/workspace/items/${encodeURIComponent(item.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not abandon workspace item");
+      if (!response.ok) throw new Error(t("couldNotAbandonWorkspaceItem"));
       router.push("/workspace");
     } catch (error) {
       toast({
-        title: "Could not abandon item",
+        title: t("couldNotAbandonItem"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -554,15 +556,15 @@ export function LedgerSnapshotCanvas({
         actual?: { state?: string; merged?: boolean };
       };
       if (!response.ok || !body.publication) {
-        throw new Error("Could not refresh publication status.");
+        throw new Error(t("couldNotRefreshPublicationStatus"));
       }
       setPublication(body.publication);
       setPullRequestActual(body.actual);
     } catch (error) {
       toast({
-        title: "Could not refresh publication status",
+        title: t("couldNotRefreshPublicationStatus"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -585,8 +587,8 @@ export function LedgerSnapshotCanvas({
                 setPublishDialogOpen(true);
               },
               submitLabel: item.source.privateRepository
-                ? "Commit privately"
-                : "Create Draft PR",
+                ? t("commitPrivately")
+                : t("createDraftPr"),
               submitTestId: "ledger-publish",
             }
           : {
@@ -602,7 +604,7 @@ export function LedgerSnapshotCanvas({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs font-medium text-white underline underline-offset-2"
                     >
-                      Draft PR <ExternalLink className="h-3 w-3" />
+                      {t("draftPr")} <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
                   {publication.status === "draft" && (
@@ -614,7 +616,7 @@ export function LedgerSnapshotCanvas({
                       className="h-auto px-1 py-0 text-xs text-white underline underline-offset-2 hover:bg-transparent hover:text-white"
                       data-testid="ledger-refresh-publication"
                     >
-                      {isRefreshingPublication ? "Refreshing…" : "Refresh"}
+                      {isRefreshingPublication ? t("refreshing") : t("refresh")}
                     </Button>
                   )}
                   {canRepublishClosedPullRequest(
@@ -631,7 +633,7 @@ export function LedgerSnapshotCanvas({
                       className="h-auto px-1 py-0 text-xs text-white underline underline-offset-2 hover:bg-transparent hover:text-white"
                       data-testid="ledger-republish"
                     >
-                      Republish
+                      {t("republish")}
                     </Button>
                   )}
                 </>
@@ -691,11 +693,13 @@ export function LedgerSnapshotCanvas({
             <main className="min-h-0 flex-1 overflow-y-auto bg-white">
               <div className="mx-auto max-w-4xl space-y-5 px-5 py-8 sm:px-10">
                 <header className="rounded-lg border bg-card p-5">
-                  <h1 className="text-lg font-semibold">Ledger Snapshot</h1>
+                  <h1 className="text-lg font-semibold">
+                    {t("ledgerSnapshot")}
+                  </h1>
                   <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                     <div>
                       <dt className="text-muted-foreground">
-                        Method / template
+                        {t("methodTemplate")}
                       </dt>
                       <dd>
                         {item.snapshot.methodId}@{item.snapshot.methodVersion} ·{" "}
@@ -704,17 +708,23 @@ export function LedgerSnapshotCanvas({
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Source commit</dt>
+                      <dt className="text-muted-foreground">
+                        {t("sourceCommit")}
+                      </dt>
                       <dd className="break-all font-mono text-xs">
                         {item.snapshot.sourceCommit}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Generated</dt>
+                      <dt className="text-muted-foreground">
+                        {t("generated")}
+                      </dt>
                       <dd>{item.snapshot.generatedAt}</dd>
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Render hash</dt>
+                      <dt className="text-muted-foreground">
+                        {t("renderHash")}
+                      </dt>
                       <dd className="break-all font-mono text-xs">
                         {item.snapshot.renderHash}
                       </dd>

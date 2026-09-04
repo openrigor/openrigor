@@ -17,12 +17,14 @@ import {
   useWorkspaceItem,
 } from "@/contexts/WorkspaceItemContext";
 import { isUsableResearchRepository } from "@/lib/workspace/types";
+import { useTranslations } from "next-intl";
 
 type GithubRepositoriesResponse = {
   repositories?: Array<{ id: number; nameWithOwner: string }>;
 };
 
 function RepositorySettingsDetail() {
+  const t = useTranslations("settings");
   const { user, loading: userLoading } = useUserContext();
   const { item, loading } = useWorkspaceItem();
   const router = useRouter();
@@ -32,7 +34,7 @@ function RepositorySettingsDetail() {
       : undefined;
   const fallbackName =
     repositoryId === undefined
-      ? "Private research repository"
+      ? t("privateResearchRepository")
       : `Repository #${repositoryId}`;
   const [name, setName] = useState(fallbackName);
 
@@ -52,7 +54,7 @@ function RepositorySettingsDetail() {
     let cancelled = false;
     fetch("/api/workspace/github/repositories", { credentials: "include" })
       .then(async (response) => {
-        if (!response.ok) throw new Error("Could not load repository name");
+        if (!response.ok) throw new Error(t("couldNotLoadRepositoryName"));
         return response.json() as Promise<GithubRepositoriesResponse>;
       })
       .then((body) => {
@@ -70,7 +72,9 @@ function RepositorySettingsDetail() {
   }, [fallbackName, repositoryId]);
 
   if (userLoading || !user || loading || !item) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <div className="p-8 text-sm text-muted-foreground">{t("loading")}</div>
+    );
   }
   if (item.kind !== "research_repository") return null;
 
@@ -78,7 +82,7 @@ function RepositorySettingsDetail() {
     <main className="min-h-screen bg-slate-50">
       <WorkspaceSiteHeader workspaceLabel={name} maxWidthClass="max-w-6xl">
         <Link href="/workspace/settings" className={workspaceNavGhostClass}>
-          Settings
+          {t("settings")}
         </Link>
         <a
           href={DOCS_URL}
@@ -86,7 +90,7 @@ function RepositorySettingsDetail() {
           rel="noopener noreferrer"
           className={workspaceNavGhostClass}
         >
-          Docs
+          {t("docs")}
         </a>
       </WorkspaceSiteHeader>
       <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -104,8 +108,7 @@ function RepositorySettingsDetail() {
           <RepositoryPanel item={item} />
         ) : (
           <section className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-            Repository binding is unusable. Reconnect GitHub from Settings to
-            restore access.
+            {t("repositoryBindingUnusable")}
           </section>
         )}
       </section>
@@ -114,11 +117,12 @@ function RepositorySettingsDetail() {
 }
 
 export default function RepositorySettingsPage() {
+  const t = useTranslations("settings");
   const { id } = useParams<{ id: string }>();
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-sm text-muted-foreground">Loading…</div>
+        <div className="p-8 text-sm text-muted-foreground">{t("loading")}</div>
       }
     >
       <UserProvider>

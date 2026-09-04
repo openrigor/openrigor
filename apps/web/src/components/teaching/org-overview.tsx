@@ -11,6 +11,7 @@ import type {
   StudentClassData,
 } from "@/lib/teaching/types";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type TeacherOverview = {
   teacherId: string;
@@ -24,6 +25,7 @@ function shortId(id: string): string {
 }
 
 export function OrgOverviewPanel() {
+  const t = useTranslations("teaching");
   const router = useRouter();
   const [org, setOrg] = useState<Org | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,13 +41,13 @@ export function OrgOverviewPanel() {
     try {
       const res = await fetch("/api/teacher/org", { cache: "no-store" });
       if (!res.ok) {
-        throw new Error("Failed to load organisation");
+        throw new Error(t("failedToLoadOrganisation"));
       }
       const data = (await res.json()) as { org?: Org | null };
       setOrg(data.org ?? null);
     } catch (loadError) {
       console.error("Failed to load org:", loadError);
-      setError("Could not load organisation roster");
+      setError(t("couldNotLoadOrganisationRoster"));
       setOrg(null);
     } finally {
       setLoading(false);
@@ -67,7 +69,7 @@ export function OrgOverviewPanel() {
       );
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error ?? "Failed to load teacher overview");
+        throw new Error(data.error ?? t("failedToLoadTeacherOverview"));
       }
       setOverview({
         teacherId: data.teacherId as string,
@@ -79,7 +81,7 @@ export function OrgOverviewPanel() {
       setOverviewError(
         loadError instanceof Error
           ? loadError.message
-          : "Could not load teacher overview"
+          : t("couldNotLoadTeacherOverview")
       );
     } finally {
       setOverviewLoading(false);
@@ -99,7 +101,9 @@ export function OrgOverviewPanel() {
 
   if (loading) {
     return (
-      <p className="text-sm text-muted-foreground">Loading organisation…</p>
+      <p className="text-sm text-muted-foreground">
+        {t("loadingOrganisation")}
+      </p>
     );
   }
 
@@ -120,18 +124,18 @@ export function OrgOverviewPanel() {
   return (
     <div className="space-y-4" data-testid="org-overview">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight">Organisation</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          {t("organisation")}
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Read-only view of linked teachers&apos; classes, assignments, and
-          submissions. You cannot edit their work.
+          {t("organisationReadOnlyDescription")}
         </p>
       </div>
 
       {teacherIds.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No linked teachers yet. Invite a teacher to collaborate in this
-            organisation workspace.
+            {t("noLinkedTeachers")}
           </CardContent>
         </Card>
       ) : (
@@ -152,7 +156,7 @@ export function OrgOverviewPanel() {
                         <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <div className="min-w-0">
                           <CardTitle className="truncate text-base">
-                            Teacher {shortId(teacherId)}
+                            {t("teacherShortId", { id: shortId(teacherId) })}
                           </CardTitle>
                           <p className="truncate text-xs text-muted-foreground">
                             {teacherId}
@@ -170,7 +174,7 @@ export function OrgOverviewPanel() {
                     <CardContent className="space-y-4 border-t pt-4">
                       {overviewLoading ? (
                         <p className="text-sm text-muted-foreground">
-                          Loading classes and assignments…
+                          {t("loadingClassesAssignments")}
                         </p>
                       ) : null}
                       {overviewError ? (
@@ -181,10 +185,12 @@ export function OrgOverviewPanel() {
                       {overview && overview.teacherId === teacherId ? (
                         <>
                           <div className="space-y-2">
-                            <h3 className="text-sm font-medium">Classes</h3>
+                            <h3 className="text-sm font-medium">
+                              {t("classes")}
+                            </h3>
                             {overview.classes.length === 0 ? (
                               <p className="text-sm text-muted-foreground">
-                                No classes.
+                                {t("noClasses")}
                               </p>
                             ) : (
                               <ul className="space-y-2">
@@ -198,10 +204,9 @@ export function OrgOverviewPanel() {
                                         {studentClass.name}
                                       </span>
                                       <Badge variant="outline">
-                                        {studentClass.students.length} student
-                                        {studentClass.students.length === 1
-                                          ? ""
-                                          : "s"}
+                                        {t("studentCount", {
+                                          count: studentClass.students.length,
+                                        })}
                                       </Badge>
                                     </div>
                                     {studentClass.students.length > 0 ? (
@@ -217,7 +222,7 @@ export function OrgOverviewPanel() {
                                               {student.email}
                                               {student.acceptedAt
                                                 ? ""
-                                                : " (invited)"}
+                                                : ` (${t("invited")})`}
                                             </li>
                                           )
                                         )}
@@ -230,10 +235,12 @@ export function OrgOverviewPanel() {
                           </div>
 
                           <div className="space-y-2">
-                            <h3 className="text-sm font-medium">Assignments</h3>
+                            <h3 className="text-sm font-medium">
+                              {t("assignments")}
+                            </h3>
                             {overview.assignments.length === 0 ? (
                               <p className="text-sm text-muted-foreground">
-                                No custom assignments.
+                                {t("noCustomAssignments")}
                               </p>
                             ) : (
                               <ul className="space-y-2">
@@ -255,8 +262,10 @@ export function OrgOverviewPanel() {
                                           {assignment.title}
                                         </div>
                                         <div className="truncate text-xs text-muted-foreground">
-                                          {assignment.courseLabel} · Due{" "}
-                                          {assignment.dueLabel}
+                                          {t("courseDue", {
+                                            course: assignment.courseLabel,
+                                            due: assignment.dueLabel,
+                                          })}
                                         </div>
                                       </div>
                                     </Button>
@@ -265,8 +274,7 @@ export function OrgOverviewPanel() {
                               </ul>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              Open an assignment to view submissions
-                              (read-only).
+                              {t("openAssignmentReadOnly")}
                             </p>
                           </div>
                         </>

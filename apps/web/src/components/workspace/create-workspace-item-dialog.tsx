@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { WorkspaceItem } from "@/lib/workspace/types";
+import { useTranslations } from "next-intl";
 
 export type CatalogResult = {
   id: string;
@@ -78,6 +79,7 @@ export function CreateWorkspaceItemDialog({
 }: {
   onCreated: (item: WorkspaceItem) => void;
 }) {
+  const t = useTranslations("workspace");
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"template" | "method" | "ledger">("method");
   const [query, setQuery] = useState("");
@@ -142,7 +144,7 @@ export function CreateWorkspaceItemDialog({
     } catch (error) {
       console.error(error);
       toast({
-        title: "Could not create workspace item",
+        title: t("couldNotCreateWorkspaceItem"),
         variant: "destructive",
       });
     } finally {
@@ -163,15 +165,14 @@ export function CreateWorkspaceItemDialog({
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Create
+          {t("create")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Create workspace item</DialogTitle>
+          <DialogTitle>{t("createWorkspaceItem")}</DialogTitle>
           <DialogDescription>
-            Search reviewed templates, methods, and published evidence-ledger
-            sources. Markdown templates are editable.
+            {t("createWorkspaceItemDescription")}
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3">
@@ -180,7 +181,7 @@ export function CreateWorkspaceItemDialog({
             className="border-0 bg-transparent shadow-none focus-visible:ring-0"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search templates, methods, or ledgers"
+            placeholder={t("searchTemplates")}
             autoFocus
           />
         </div>
@@ -195,22 +196,22 @@ export function CreateWorkspaceItemDialog({
               }}
             >
               {option === "template"
-                ? "Templates"
+                ? t("templates")
                 : option === "ledger"
-                  ? "Evidence Ledger"
-                  : "Methods"}
+                  ? t("evidenceLedger")
+                  : t("methods")}
             </Button>
           ))}
         </div>
         <div className="max-h-72 space-y-2 overflow-y-auto">
           {loading && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Searching…
+              {t("searching")}
             </p>
           )}
           {!loading && results.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No results.
+              {t("noResults")}
             </p>
           )}
           {!loading &&
@@ -227,7 +228,7 @@ export function CreateWorkspaceItemDialog({
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate font-medium">{result.title}</span>
                     {catalogResultBadge(result) && (
-                      <Badge variant="secondary">Private</Badge>
+                      <Badge variant="secondary">{t("private")}</Badge>
                     )}
                   </span>
                   {result.status && (
@@ -244,14 +245,16 @@ export function CreateWorkspaceItemDialog({
                     {result.id}@{result.methodVersion} ·{" "}
                     {result.evidenceTemplate.id}@
                     {result.evidenceTemplate.version} ·{" "}
-                    {result.acceptedEvidenceCount} accepted evidence
+                    {t("acceptedEvidence", {
+                      count: result.acceptedEvidenceCount ?? 0,
+                    })}
                     {result.reason ? ` · ${result.reason}` : ""}
                   </p>
                 )}
                 {result.kind === "template" &&
                   result.templateKind === "form" && (
                     <p className="mt-2 text-xs font-medium text-amber-700">
-                      Protected form · Submit to lock
+                      {t("protectedFormSubmitToLock")}
                     </p>
                   )}
               </button>

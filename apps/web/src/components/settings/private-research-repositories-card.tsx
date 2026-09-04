@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDown, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RESEARCH_REPOSITORY_TRUST_COPY } from "@/components/research-repository/copy";
 import type { WorkspaceItem } from "@/lib/workspace/types";
 import { isUsableResearchRepository } from "@/lib/workspace/types";
 import type {
@@ -38,8 +38,11 @@ type PrivateMethodsResponse = {
 
 type RepositoryItem = Extract<WorkspaceItem, { kind: "research_repository" }>;
 
-function readableStatus(value: string): string {
-  return value.replaceAll("_", " ");
+function readableStatus(
+  value: string,
+  translate?: (key: string, values?: Record<string, unknown>) => string
+): string {
+  return translate?.(`repositoryReason.${value}`) ?? value.replaceAll("_", " ");
 }
 
 function repositoryId(item: RepositoryItem): number | undefined {
@@ -48,12 +51,15 @@ function repositoryId(item: RepositoryItem): number | undefined {
 
 function repositoryName(
   item: RepositoryItem,
-  repositories: GithubRepositoryOption[]
+  repositories: GithubRepositoryOption[],
+  translate?: (key: string, values?: Record<string, unknown>) => string
 ): string {
   const id = repositoryId(item);
   return (
     repositories.find((repository) => repository.id === id)?.nameWithOwner ??
-    (id === undefined ? "Unavailable repository" : `Repository #${id}`)
+    (id === undefined
+      ? (translate?.("unavailableRepository") ?? "Unavailable repository")
+      : (translate?.("repositoryFallback", { id }) ?? `Repository #${id}`))
   );
 }
 
@@ -68,6 +74,7 @@ function RepositoryMethods({
   item: ResearchRepositoryWorkspaceItem;
   disconnected: boolean;
 }) {
+  const t = useTranslations("settings");
   const [methods, setMethods] = useState<PrivateMethodSummary[]>();
   const [selectedMethodIds, setSelectedMethodIds] = useState<string[]>(
     item.selectedMethodIds
@@ -82,7 +89,7 @@ function RepositoryMethods({
       { credentials: "include" }
     )
       .then(async (response) => {
-        if (!response.ok) throw new Error("Could not discover methods");
+        if (!response.ok) throw new Error(t("couldNotDiscoverMethods"));
         return response.json() as Promise<PrivateMethodsResponse>;
       })
       .then((body) => {
@@ -118,7 +125,7 @@ function RepositoryMethods({
           body: JSON.stringify({ selectedMethodIds: next }),
         }
       );
-      if (!response.ok) throw new Error("Could not save method selection");
+      if (!response.ok) throw new Error(t("couldNotSaveMethodSelection"));
       const body = (await response.json()) as PrivateMethodsResponse;
       setSelectedMethodIds(body.selectedMethodIds ?? next);
     } catch {
@@ -132,7 +139,9 @@ function RepositoryMethods({
   return (
     <div className="space-y-3 border-t border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-600">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-slate-800">Repository access</span>
+        <span className="font-medium text-slate-800">
+          {t("repositoryAccess")}
+        </span>
       </div>
       <div
         className="rounded-md border border-slate-200 bg-white p-3"
@@ -144,7 +153,7 @@ function RepositoryMethods({
             id={`private-methods-${item.id}`}
             className="font-medium text-slate-800"
           >
-            Methods available in Create
+            {t("methodsAvailableInCreate")}
           </span>
           <a
             href="https://knowledge.openrigor.org/concepts/private-method-hosts.html"
@@ -152,11 +161,11 @@ function RepositoryMethods({
             rel="noopener noreferrer"
             className="text-blue-700 underline underline-offset-2"
           >
-            Why can&apos;t I see my method?
+            {t("whyCannotSeeMethod")}
           </a>
         </div>
         {methods === undefined && !methodError ? (
-          <p>Discovering methods…</p>
+          <p>{t("discoveringMethods")}</p>
         ) : methods && methods.length > 0 ? (
           <div className="grid gap-2 sm:grid-cols-2">
             {methods.map((method) => (
@@ -186,10 +195,10 @@ function RepositoryMethods({
             ))}
           </div>
         ) : (
-          <p>No conforming methods found.</p>
+          <p>{t("noConformingMethods")}</p>
         )}
         {methodError && (
-          <p className="mt-2 text-red-700">Could not load or save methods.</p>
+          <p className="mt-2 text-red-700">{t("couldNotLoadOrSaveMethods")}</p>
         )}
       </div>
     </div>
@@ -209,8 +218,9 @@ function RepositoryRow({
   onRemove: (item: RepositoryItem, nameWithOwner: string) => void;
   removeError?: string;
 }) {
+  const t = useTranslations("settings");
   const [expanded, setExpanded] = useState(false);
-  const nameWithOwner = repositoryName(item, repositories);
+  const nameWithOwner = repositoryName(item, repositories, t);
   const usable = isUsableResearchRepository(item);
   const initialized = usable && item.binding.initialized;
   const failureReason = usable
@@ -229,18 +239,18 @@ function RepositoryRow({
             >
               {shortRepositoryName(nameWithOwner)}
             </Link>
-            <Badge variant="secondary">Private</Badge>
+            <Badge variant="secondary">{t("private")}</Badge>
             <Badge variant={initialized ? "outline" : "destructive"}>
-              {initialized ? "Initialized" : "Not initialized"}
+              {initialized ? t("initialized") : t("notInitialized")}
             </Badge>
             {failureReason && (
               <Badge variant="destructive">
-                {readableStatus(failureReason)}
+                {readableStatus(failureReason, t)}
               </Badge>
             )}
           </div>
           <p className="mt-1 truncate text-sm text-slate-600">
-            {nameWithOwner} (Private)
+            {nameWithOwner} ({t("private")})
           </p>
           {usable && <ResearchRepositoryStatus item={item} />}
         </div>
@@ -253,7 +263,7 @@ function RepositoryRow({
           aria-label={`Manage ${nameWithOwner}`}
           onClick={() => setExpanded((current) => !current)}
         >
-          Manage
+          {t("manage")}
           <ChevronDown
             className={`ml-2 h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
             aria-hidden
@@ -269,9 +279,11 @@ function RepositoryRow({
             <RepositoryMethods item={item} disconnected={disconnected} />
           ) : (
             <div className="space-y-3 border-t border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700">
-              <p>The stored repository binding is unavailable.</p>
+              <p>{t("storedBindingUnavailable")}</p>
               <Button asChild variant="outline" size="sm">
-                <a href="/api/workspace/github/authorize">Connect GitHub</a>
+                <a href="/api/workspace/github/authorize">
+                  {t("connectGithub")}
+                </a>
               </Button>
             </div>
           )}
@@ -285,7 +297,7 @@ function RepositoryRow({
               aria-label={`Remove ${nameWithOwner}`}
               onClick={() => onRemove(item, nameWithOwner)}
             >
-              Remove
+              {t("remove")}
             </Button>
             {removeError && (
               <p role="alert" className="text-sm text-red-700">
@@ -300,6 +312,7 @@ function RepositoryRow({
 }
 
 export function PrivateResearchRepositoriesCard() {
+  const t = useTranslations("settings");
   const [items, setItems] = useState<RepositoryItem[]>();
   const [githubRepositories, setGithubRepositories] =
     useState<GithubRepositoriesResponse>();
@@ -324,7 +337,7 @@ export function PrivateResearchRepositoriesCard() {
           return { featureAvailable: false as const };
         }
         if (!itemsResponse.ok || !repositoriesResponse.ok) {
-          throw new Error("Could not load private research repositories");
+          throw new Error(t("couldNotLoadPrivateRepositories"));
         }
         const itemsBody = (await itemsResponse.json()) as {
           items?: WorkspaceItem[];
@@ -358,7 +371,7 @@ export function PrivateResearchRepositoriesCard() {
 
   async function bindRepository(repository: GithubRepositoryOption) {
     if (githubRepositories?.installationId === undefined) {
-      setAddError("GitHub installation is unavailable.");
+      setAddError(t("githubInstallationUnavailable"));
       return;
     }
     setCreatingRepositoryId(repository.id);
@@ -379,12 +392,12 @@ export function PrivateResearchRepositoriesCard() {
         error?: string;
       };
       if (!response.ok || body.item?.kind !== "research_repository") {
-        throw new Error(body.error || "Could not bind repository");
+        throw new Error(body.error || t("couldNotBindRepository"));
       }
       setItems((current) => [...(current ?? []), body.item as RepositoryItem]);
     } catch (cause) {
       setAddError(
-        cause instanceof Error ? cause.message : "Could not bind repository"
+        cause instanceof Error ? cause.message : t("couldNotBindRepository")
       );
     } finally {
       setCreatingRepositoryId(undefined);
@@ -402,9 +415,7 @@ export function PrivateResearchRepositoriesCard() {
 
   async function removeRepository(item: RepositoryItem, nameWithOwner: string) {
     if (
-      !window.confirm(
-        `Remove ${nameWithOwner} from your OpenRigor workspace? Artifacts stay in the repository on GitHub.`
-      )
+      !window.confirm(t("removeRepositoryConfirm", { name: nameWithOwner }))
     ) {
       return;
     }
@@ -423,7 +434,7 @@ export function PrivateResearchRepositoriesCard() {
         }
       );
       if (response.status !== 204) {
-        throw new Error("Could not remove repository");
+        throw new Error(t("couldNotRemoveRepository"));
       }
       setItems((current) =>
         (current ?? []).filter((entry) => entry.id !== item.id)
@@ -432,17 +443,13 @@ export function PrivateResearchRepositoriesCard() {
     } catch {
       setRemoveErrorById((current) => ({
         ...current,
-        [item.id]: "Could not remove repository.",
+        [item.id]: t("couldNotRemoveRepository"),
       }));
     }
   }
 
   async function disconnectGithub() {
-    if (
-      !window.confirm(
-        "Disconnect GitHub? Bound repositories become read-only until you reconnect."
-      )
-    ) {
+    if (!window.confirm(t("disconnectGithubConfirm"))) {
       return;
     }
     setDisconnectError(undefined);
@@ -453,7 +460,7 @@ export function PrivateResearchRepositoriesCard() {
         headers: CSRF_HEADERS,
       });
       if (response.status !== 204) {
-        throw new Error("Could not disconnect GitHub");
+        throw new Error(t("couldNotDisconnectGithub"));
       }
       setGithubRepositories({
         connected: false,
@@ -461,7 +468,7 @@ export function PrivateResearchRepositoriesCard() {
       });
       setAddExpanded(true);
     } catch {
-      setDisconnectError("Could not disconnect GitHub.");
+      setDisconnectError(t("couldNotDisconnectGithub"));
     }
   }
 
@@ -476,7 +483,7 @@ export function PrivateResearchRepositoriesCard() {
   return (
     <Card className="bg-white" data-testid="private-repositories-card">
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-        <CardTitle>Private research repositories</CardTitle>
+        <CardTitle>{t("privateResearchRepositories")}</CardTitle>
         <Button
           type="button"
           variant="outline"
@@ -486,21 +493,21 @@ export function PrivateResearchRepositoriesCard() {
           onClick={() => setAddExpanded((current) => !current)}
         >
           <Plus className="mr-2 h-4 w-4" aria-hidden />
-          Add private research repository
+          {t("addPrivateResearchRepository")}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {loadError ? (
           <p className="text-sm text-red-700">
-            Could not load private research repositories.
+            {t("couldNotLoadPrivateRepositories")}
           </p>
         ) : items === undefined ? (
           <p className="text-sm text-muted-foreground">
-            Loading private research repositories…
+            {t("loadingPrivateRepositories")}
           </p>
         ) : items.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No private research repositories are bound yet.
+            {t("noPrivateRepositories")}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -521,8 +528,8 @@ export function PrivateResearchRepositoriesCard() {
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
             <span data-testid="connected-as">
               {githubRepositories.login
-                ? `Connected as ${githubRepositories.login}`
-                : "Connected"}
+                ? t("connectedAs", { login: githubRepositories.login })
+                : t("connected")}
             </span>
             <Button
               type="button"
@@ -531,7 +538,7 @@ export function PrivateResearchRepositoriesCard() {
               data-testid="disconnect-github"
               onClick={() => void disconnectGithub()}
             >
-              Disconnect GitHub
+              {t("disconnectGithub")}
             </Button>
             {disconnectError && (
               <p role="alert" className="w-full text-sm text-red-700">
@@ -550,11 +557,13 @@ export function PrivateResearchRepositoriesCard() {
             {!githubRepositories?.connected ? (
               <>
                 <p className="text-sm text-slate-600">
-                  Connect GitHub to choose an installation repository.{" "}
-                  {RESEARCH_REPOSITORY_TRUST_COPY}
+                  {t("connectGithubChooseRepository")}{" "}
+                  {t("repositoryTrustCopy")}
                 </p>
                 <Button asChild size="sm">
-                  <a href="/api/workspace/github/authorize">Connect GitHub</a>
+                  <a href="/api/workspace/github/authorize">
+                    {t("connectGithub")}
+                  </a>
                 </Button>
               </>
             ) : (
@@ -562,11 +571,11 @@ export function PrivateResearchRepositoriesCard() {
                 {githubRepositories.repositories.length === 0 ? (
                   <div className="rounded-lg border bg-white p-3">
                     <p className="text-sm text-slate-600">
-                      No installation repositories are available.
+                      {t("noInstallationRepositories")}
                     </p>
                     <Button asChild className="mt-3" size="sm">
                       <a href="/api/workspace/github/authorize">
-                        Connect GitHub
+                        {t("connectGithub")}
                       </a>
                     </Button>
                   </div>
@@ -592,10 +601,10 @@ export function PrivateResearchRepositoriesCard() {
                             aria-label={`Bind ${repository.nameWithOwner}`}
                           >
                             {bound
-                              ? "Bound"
+                              ? t("bound")
                               : creatingRepositoryId === repository.id
-                                ? "Binding…"
-                                : "Bind repository"}
+                                ? t("binding")
+                                : t("bindRepository")}
                           </Button>
                         </li>
                       );

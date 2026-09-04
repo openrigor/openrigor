@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { StudentClassData } from "@/lib/teaching/types";
 import { ClassRoster } from "./class-roster";
+import { useTranslations } from "next-intl";
 
 interface InviteStudentsPanelProps {
   onInvited?: () => void;
@@ -41,6 +42,7 @@ export function InviteStudentsPanel({
   showInlineActions = true,
   onStateChange,
 }: InviteStudentsPanelProps) {
+  const t = useTranslations("teaching");
   const { toast } = useToast();
   const [emails, setEmails] = useState("");
   const [className, setClassName] = useState("");
@@ -70,8 +72,8 @@ export function InviteStudentsPanel({
 
       if (!res.ok) {
         toast({
-          title: "Invitations failed",
-          description: data.error ?? "Could not send invitations",
+          title: t("invitationsFailed"),
+          description: data.error ?? t("couldNotSendInvitations"),
           variant: "destructive",
         });
         return;
@@ -101,15 +103,27 @@ export function InviteStudentsPanel({
       ].filter(Boolean);
 
       toast({
-        title: "Invitations processed",
-        description: `${summary.invited} invited (${summary.emailed ?? 0} emailed), ${summary.existing} already registered${failParts.length ? `, ${failParts.join(", ")}` : ""}`,
+        title: t("invitationsProcessed"),
+        description:
+          failParts.length > 0
+            ? t("invitationsSummaryWithFailures", {
+                invited: summary.invited,
+                emailed: summary.emailed ?? 0,
+                existing: summary.existing,
+                failures: failParts.join(", "),
+              })
+            : t("invitationsSummary", {
+                invited: summary.invited,
+                emailed: summary.emailed ?? 0,
+                existing: summary.existing,
+              }),
         variant: summary.failed > 0 ? "destructive" : "default",
       });
       onInvited?.();
     } catch {
       toast({
-        title: "Invitations failed",
-        description: "Could not send invitations",
+        title: t("invitationsFailed"),
+        description: t("couldNotSendInvitations"),
         variant: "destructive",
       });
     } finally {
@@ -120,18 +134,18 @@ export function InviteStudentsPanel({
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="class-name">Class name</Label>
+        <Label htmlFor="class-name">{t("className")}</Label>
         <Input
           id="class-name"
           value={className}
           onChange={(e) => setClassName(e.target.value)}
-          placeholder="English 10A"
+          placeholder={t("classNamePlaceholder")}
           required
           disabled={sending}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="student-emails">Student emails</Label>
+        <Label htmlFor="student-emails">{t("studentEmails")}</Label>
         <Textarea
           id="student-emails"
           value={emails}
@@ -142,29 +156,31 @@ export function InviteStudentsPanel({
           disabled={sending}
         />
         <p className="text-xs text-muted-foreground">
-          Enter email addresses, separated by comma, newline, or semicolon.
+          {t("emailSeparationHint")}
         </p>
       </div>
 
       {result && (
         <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
           <p className="text-green-700">
-            {result.invited} invited
+            {t("invitedCount", { count: result.invited })}
             {typeof result.emailed === "number"
-              ? ` (${result.emailed} emailed)`
+              ? ` (${t("emailedCount", { count: result.emailed })})`
               : ""}
           </p>
           {result.existing > 0 && (
             <p className="text-muted-foreground">
-              {result.existing} already registered
+              {t("alreadyRegisteredCount", { count: result.existing })}
             </p>
           )}
           {result.invalid > 0 && (
-            <p className="text-destructive">{result.invalid} invalid</p>
+            <p className="text-destructive">
+              {t("invalidCount", { count: result.invalid })}
+            </p>
           )}
           {result.failed > 0 && (
             <div className="text-destructive space-y-1">
-              <p>{result.failed} failed</p>
+              <p>{t("failedCount", { count: result.failed })}</p>
               {result.errors?.map((entry) => (
                 <p key={entry.email} className="text-xs">
                   {entry.email}: {entry.reason}
@@ -174,9 +190,7 @@ export function InviteStudentsPanel({
           )}
           {result.manualLinks && result.manualLinks.length > 0 && (
             <div className="space-y-1 pt-1">
-              <p className="text-amber-700">
-                Email not sent — share these links manually:
-              </p>
+              <p className="text-amber-700">{t("emailNotSentShareLinks")}</p>
               {result.manualLinks.map((entry) => (
                 <p key={entry.email} className="text-xs break-all">
                   <span className="font-medium">{entry.email}</span>
@@ -187,7 +201,7 @@ export function InviteStudentsPanel({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    accept link
+                    {t("acceptLink")}
                   </a>
                 </p>
               ))}
@@ -207,7 +221,7 @@ export function InviteStudentsPanel({
       {showInlineActions && (
         <div className="flex justify-end">
           <Button type="submit" disabled={sending}>
-            {sending ? "Sending…" : "Invite"}
+            {sending ? t("sending") : t("invite")}
           </Button>
         </div>
       )}

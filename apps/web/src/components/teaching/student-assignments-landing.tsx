@@ -45,6 +45,7 @@ import {
   WorkspaceSiteHeader,
   workspaceNavGhostClass,
 } from "./workspace-site-header";
+import { useTranslations } from "next-intl";
 
 function statusFromThread(thread?: Thread): AssignmentCompletionStatus {
   if (!thread) return "not_started";
@@ -57,16 +58,19 @@ function statusFromThread(thread?: Thread): AssignmentCompletionStatus {
   return "not_started";
 }
 
-function statusLabel(status: AssignmentCompletionStatus): string {
+function statusLabel(
+  status: AssignmentCompletionStatus,
+  t: (key: string) => string
+): string {
   switch (status) {
     case "submitted":
-      return "Submitted";
+      return t("statusSubmitted");
     case "in_progress":
-      return "In progress";
+      return t("statusInProgress");
     case "abandoned":
-      return "Abandoned";
+      return t("statusAbandoned");
     default:
-      return "Not started";
+      return t("statusNotStarted");
   }
 }
 
@@ -88,6 +92,7 @@ interface AssignmentWithThread extends StudentAssignment {
 }
 
 export function StudentAssignmentsLanding() {
+  const t = useTranslations("teaching");
   const { getActiveThread, getUserThreads } = useThreadContext();
   const { user, loading: userLoading } = useUserContext();
   const router = useRouter();
@@ -134,10 +139,7 @@ export function StudentAssignmentsLanding() {
                   "[StudentAssignments] Registry fetch failed after 3 attempts:",
                   e
                 );
-                if (!cancelled)
-                  setError(
-                    "Could not load your assignment list. Try refreshing the page."
-                  );
+                if (!cancelled) setError(t("couldNotLoadAssignmentList"));
               }
             }
           }
@@ -197,7 +199,7 @@ export function StudentAssignmentsLanding() {
 
   const handleSelfInitiate = async () => {
     if (!selfInitTitle.trim() || !selfInitPrompt.trim()) {
-      setSelfInitError("Give your assignment a title and a prompt.");
+      setSelfInitError(t("titleAndPromptRequired"));
       return;
     }
     setSelfInitSubmitting(true);
@@ -210,7 +212,7 @@ export function StudentAssignmentsLanding() {
           "Act as an AI co-creator and Socratic coach. Help the student develop their own work through questions, challenges and reflection — and prepare them to explain and defend their decisions in an oral defence. Do not ghostwrite the answer.",
       });
       if (!created) {
-        throw new Error("No assignment returned");
+        throw new Error(t("noAssignmentReturned"));
       }
       setSelfInitOpen(false);
       setSelfInitTitle("");
@@ -219,7 +221,7 @@ export function StudentAssignmentsLanding() {
     } catch (e) {
       console.error("[SelfInitiate] failed:", e);
       setSelfInitError(
-        e instanceof Error ? e.message : "Something went wrong. Try again."
+        e instanceof Error ? e.message : t("somethingWentWrong")
       );
     } finally {
       setSelfInitSubmitting(false);
@@ -246,11 +248,11 @@ export function StudentAssignmentsLanding() {
         className={workspaceNavGhostClass}
       >
         <ExternalLink className="h-3.5 w-3.5" />
-        Docs
+        {t("docs")}
       </a>
       <Link href="/auth/signout" className={workspaceNavGhostClass}>
         <LogOut className="h-3.5 w-3.5" />
-        Sign out
+        {t("signOut")}
       </Link>
     </>
   );
@@ -258,11 +260,13 @@ export function StudentAssignmentsLanding() {
   if (loading) {
     return (
       <div className="min-h-screen bg-muted/30">
-        <WorkspaceSiteHeader workspaceLabel="Student workspace">
+        <WorkspaceSiteHeader workspaceLabel={t("studentWorkspace")}>
           {headerActions}
         </WorkspaceSiteHeader>
         <main className="container mx-auto max-w-5xl px-4 py-10">
-          <p className="text-sm text-muted-foreground">Loading assignments…</p>
+          <p className="text-sm text-muted-foreground">
+            {t("loadingAssignments")}
+          </p>
         </main>
       </div>
     );
@@ -270,33 +274,32 @@ export function StudentAssignmentsLanding() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <WorkspaceSiteHeader workspaceLabel="Student workspace">
+      <WorkspaceSiteHeader workspaceLabel={t("studentWorkspace")}>
         {headerActions}
       </WorkspaceSiteHeader>
 
       <main className="container mx-auto max-w-5xl px-4 py-10">
         <div className="mb-8 space-y-1 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Your assignments
+            {t("yourAssignments")}
           </h1>
           <p className="text-sm text-muted-foreground">
             {assignments.length === 0
-              ? "No assignments yet. Your teacher will assign work here."
+              ? t("noAssignmentsTeacherWillAssign")
               : activeCount === 0
-                ? "You're caught up for now."
-                : `${activeCount} assignment${activeCount === 1 ? "" : "s"} to work on.`}
+                ? t("caughtUp")
+                : t("assignmentsToWorkOn", { count: activeCount })}
           </p>
         </div>
 
         <div className="mb-8 flex justify-center">
           <Button variant="outline" onClick={() => setSelfInitOpen(true)}>
             <PlusCircle className="h-4 w-4" />
-            Start your own assignment
+            {t("startOwnAssignment")}
           </Button>
         </div>
         <div className="mb-8 text-center text-xs text-muted-foreground">
-          Create your own assignment-style workspace and prepare it with an AI
-          coach — right through to explaining and defending your work.
+          {t("ownAssignmentDescription")}
         </div>
 
         {error && (
@@ -309,16 +312,16 @@ export function StudentAssignmentsLanding() {
           {assignments.map((assignment) => {
             let buttonText: string;
             if (!assignment.thread) {
-              buttonText = "Start assignment";
+              buttonText = t("startAssignment");
             } else {
               const meta = assignment.thread.metadata as Record<
                 string,
                 unknown
               >;
               if (meta?.completionPercent === 100) {
-                buttonText = "Review submission";
+                buttonText = t("reviewSubmission");
               } else {
-                buttonText = "Continue assignment";
+                buttonText = t("continueAssignment");
               }
             }
 
@@ -342,7 +345,7 @@ export function StudentAssignmentsLanding() {
                         </CardTitle>
                       </div>
                       <Badge variant={statusBadgeVariant(assignment.status)}>
-                        {statusLabel(assignment.status)}
+                        {statusLabel(assignment.status, t)}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -352,7 +355,7 @@ export function StudentAssignmentsLanding() {
                     </p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Completion</span>
+                        <span>{t("completion")}</span>
                         <span>{assignment.completionPercent}%</span>
                       </div>
                       <Progress value={assignment.completionPercent} />
@@ -373,30 +376,28 @@ export function StudentAssignmentsLanding() {
       <Dialog open={selfInitOpen} onOpenChange={setSelfInitOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start your own assignment</DialogTitle>
+            <DialogTitle>{t("startOwnAssignment")}</DialogTitle>
             <DialogDescription>
-              Create an assignment-style workspace and work on it with an AI
-              coach — build the work yourself, then prepare to explain and
-              defend it in an oral defence.
+              {t("ownAssignmentDialogDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="self-title">Title</Label>
+              <Label htmlFor="self-title">{t("title")}</Label>
               <Input
                 id="self-title"
                 value={selfInitTitle}
                 onChange={(e) => setSelfInitTitle(e.target.value)}
-                placeholder="e.g. Why AI shouldn't replace the essay"
+                placeholder={t("selfTitlePlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="self-prompt">Assignment prompt</Label>
+              <Label htmlFor="self-prompt">{t("assignmentPrompt")}</Label>
               <Textarea
                 id="self-prompt"
                 value={selfInitPrompt}
                 onChange={(e) => setSelfInitPrompt(e.target.value)}
-                placeholder="Describe what you want to work on or prepare for…"
+                placeholder={t("selfPromptPlaceholder")}
                 rows={4}
               />
             </div>
@@ -410,10 +411,10 @@ export function StudentAssignmentsLanding() {
               onClick={() => setSelfInitOpen(false)}
               disabled={selfInitSubmitting}
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button onClick={handleSelfInitiate} disabled={selfInitSubmitting}>
-              {selfInitSubmitting ? "Creating…" : "Create workspace"}
+              {selfInitSubmitting ? t("creating") : t("createWorkspace")}
             </Button>
           </DialogFooter>
         </DialogContent>

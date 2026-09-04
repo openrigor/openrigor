@@ -44,6 +44,7 @@ import type {
   StudentClassData,
 } from "@/lib/teaching/types";
 import { FREE_STUDENTS_PER_ASSIGNMENT_CAP } from "@/lib/teaching/assignment-policy";
+import { useTranslations } from "next-intl";
 
 interface CreateAssignmentDialogProps {
   open: boolean;
@@ -70,6 +71,8 @@ export function CreateAssignmentDialog({
   editAssignment,
   templateAssignment,
 }: CreateAssignmentDialogProps) {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
   const { getUser } = useUserContext();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,7 +160,7 @@ export function CreateAssignmentDialog({
     try {
       const response = await fetch("/api/teacher/students");
       if (!response.ok) {
-        throw new Error("Failed to fetch students");
+        throw new Error(t("failedToFetchStudents"));
       }
       const data = await response.json();
       setStudents(data.students || []);
@@ -174,7 +177,7 @@ export function CreateAssignmentDialog({
     try {
       const response = await fetch("/api/teacher/classes");
       if (!response.ok) {
-        throw new Error("Failed to fetch classes");
+        throw new Error(t("failedToFetchClasses"));
       }
       const data = await response.json();
       setClasses(data.classes || []);
@@ -288,7 +291,7 @@ export function CreateAssignmentDialog({
       setCsvResult({
         emails: [],
         matched: [],
-        unmatched: ["Error parsing CSV file"],
+        unmatched: [t("errorParsingCsvFile")],
       });
     }
 
@@ -318,10 +321,10 @@ export function CreateAssignmentDialog({
     try {
       const user = await getUser();
       if (!user) {
-        throw new Error("User not authenticated");
+        throw new Error(t("userNotAuthenticated"));
       }
 
-      const teacherName = user.email || "Unknown Teacher";
+      const teacherName = user.email || t("unknownTeacher");
 
       // Resolve student IDs at save time for "all_students" and "class" modes
       let studentList = students;
@@ -368,8 +371,8 @@ export function CreateAssignmentDialog({
       if (shouldAssign && resolvedStudentIds.length === 0) {
         throw new Error(
           assignMode === "class"
-            ? "Selected class has no enrolled students yet."
-            : "Select at least one student to assign."
+            ? t("selectedClassHasNoStudents")
+            : t("selectStudentToAssign")
         );
       }
 
@@ -446,9 +449,9 @@ export function CreateAssignmentDialog({
     } catch (error) {
       console.error("Error saving assignment:", error);
       toast({
-        title: shouldAssign ? "Assignment failed" : "Save failed",
+        title: shouldAssign ? t("assignmentFailed") : t("saveFailed"),
         description:
-          error instanceof Error ? error.message : "Could not save assignment",
+          error instanceof Error ? error.message : t("couldNotSaveAssignment"),
         variant: "destructive",
       });
     } finally {
@@ -461,17 +464,19 @@ export function CreateAssignmentDialog({
   const renderDetailsTab = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="title">Title *</Label>
+        <Label htmlFor="title">{t("titleRequired")}</Label>
         <Input
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Great Expectations Essay"
+          placeholder={t("assignmentTitlePlaceholder")}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="apparatus-profile">Research apparatus profile</Label>
+        <Label htmlFor="apparatus-profile">
+          {t("researchApparatusProfile")}
+        </Label>
         <select
           id="apparatus-profile"
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -489,7 +494,7 @@ export function CreateAssignmentDialog({
             : [
                 {
                   id: "canonical-constrained-dialogue",
-                  label: "Essays — canonical constrained dialogue",
+                  label: t("canonicalEssayProfile"),
                 },
               ]
           ).map((profile) => (
@@ -499,60 +504,59 @@ export function CreateAssignmentDialog({
           ))}
         </select>
         <p className="text-xs text-muted-foreground">
-          Profiles are immutable research treatments. Teachers select a reviewed
-          profile; treatment parameters cannot be edited here.
+          {t("immutableProfileDescription")}
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="course">Course *</Label>
+        <Label htmlFor="course">{t("courseRequired")}</Label>
         <Input
           id="course"
           value={courseLabel}
           onChange={(e) => setCourseLabel(e.target.value)}
-          placeholder="e.g. English Literature"
+          placeholder={t("coursePlaceholder")}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="dueDate">Due Date *</Label>
+        <Label htmlFor="dueDate">{t("dueDateRequired")}</Label>
         <Input
           id="dueDate"
           value={dueLabel}
           onChange={(e) => setDueLabel(e.target.value)}
-          placeholder="e.g. 15 Jun, End of term"
+          placeholder={t("dueDatePlaceholder")}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="wordTarget">Word Target</Label>
+        <Label htmlFor="wordTarget">{t("wordTarget")}</Label>
         <Input
           id="wordTarget"
           type="number"
           value={wordTarget}
           onChange={(e) => setWordTarget(e.target.value)}
-          placeholder="e.g. 700"
+          placeholder={t("wordTargetPlaceholder")}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="prompt">Essay Prompt *</Label>
+        <Label htmlFor="prompt">{t("essayPromptRequired")}</Label>
         <Textarea
           id="prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Write the assignment prompt students will see..."
+          placeholder={t("essayPromptPlaceholder")}
           rows={4}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="agentInstructions">Agent Instructions</Label>
+        <Label htmlFor="agentInstructions">{t("agentInstructions")}</Label>
         <Textarea
           id="agentInstructions"
           value={agentInstructions}
           onChange={(e) => setAgentInstructions(e.target.value)}
-          placeholder="Instructions for the AI coach. E.g. 'Act as a Socratic writing coach...'"
+          placeholder={t("agentInstructionsPlaceholder")}
           rows={6}
         />
       </div>
@@ -563,11 +567,10 @@ export function CreateAssignmentDialog({
     <div className="space-y-6">
       {/* Assignment Mode Selection */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Assign to:</Label>
+        <Label className="text-sm font-medium">{t("assignTo")}</Label>
         {assignMode === "all_students" && students.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            No students in your classes yet. Invite students from the Classes
-            tab, or pick a class below once it has members.
+            {t("noStudentsInviteOrPickClass")}
           </p>
         )}
 
@@ -581,8 +584,7 @@ export function CreateAssignmentDialog({
               className="h-4 w-4"
             />
             <span className="text-sm">
-              All students in my classes
-              {students.length > 0 ? ` (${students.length})` : ""}
+              {t("allStudentsInClasses", { count: students.length })}
             </span>
           </label>
 
@@ -594,7 +596,7 @@ export function CreateAssignmentDialog({
               onChange={() => setAssignMode("selected_students")}
               className="h-4 w-4"
             />
-            <span className="text-sm">Select Students</span>
+            <span className="text-sm">{t("selectStudents")}</span>
           </label>
 
           <label className="flex items-center space-x-2 cursor-pointer">
@@ -605,32 +607,34 @@ export function CreateAssignmentDialog({
               onChange={() => setAssignMode("class")}
               className="h-4 w-4"
             />
-            <span className="text-sm">Assign to Class</span>
+            <span className="text-sm">{t("assignToClass")}</span>
           </label>
         </div>
       </div>
 
       {assignMode === "class" && (
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Class</Label>
+          <Label className="text-sm font-medium">{t("class")}</Label>
           {loadingClasses ? (
             <div className="text-sm text-muted-foreground">
-              Loading classes...
+              {t("loadingClasses")}
             </div>
           ) : classes.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              No classes found. Create a class first from the Classes tab.
+              {t("noClassesCreateFirst")}
             </div>
           ) : (
             <Select value={selectedClassId} onValueChange={setSelectedClassId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a class" />
+                <SelectValue placeholder={t("selectClass")} />
               </SelectTrigger>
               <SelectContent>
                 {classes.map((studentClass) => (
                   <SelectItem key={studentClass.id} value={studentClass.id}>
-                    {studentClass.name} ({studentClass.students.length}{" "}
-                    students)
+                    {t("classStudentCount", {
+                      name: studentClass.name,
+                      count: studentClass.students.length,
+                    })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -643,7 +647,7 @@ export function CreateAssignmentDialog({
       {assignMode === "selected_students" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Students</Label>
+            <Label className="text-sm font-medium">{t("students")}</Label>
             {students.length > 0 && (
               <Button
                 type="button"
@@ -653,20 +657,19 @@ export function CreateAssignmentDialog({
                 className="text-xs"
               >
                 {selectedStudentIds.size === students.length
-                  ? "Deselect All"
-                  : "Select All"}
+                  ? t("deselectAll")
+                  : t("selectAll")}
               </Button>
             )}
           </div>
 
           {loadingStudents ? (
             <div className="text-sm text-muted-foreground">
-              Loading students...
+              {t("loadingStudents")}
             </div>
           ) : students.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              No students in your classes yet. Invite students from the Classes
-              tab first.
+              {t("noStudentsInviteFirst")}
             </div>
           ) : (
             <div className="max-h-60 overflow-y-auto border rounded-md">
@@ -696,7 +699,7 @@ export function CreateAssignmentDialog({
       {/* CSV Import */}
       {assignMode !== "class" && (
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Import from CSV</Label>
+          <Label className="text-sm font-medium">{t("importFromCsv")}</Label>
 
           <div className="flex items-center space-x-2">
             <Button
@@ -707,7 +710,7 @@ export function CreateAssignmentDialog({
               className="flex items-center space-x-1"
             >
               <Upload className="h-4 w-4" />
-              <span>Upload CSV</span>
+              <span>{t("uploadCsv")}</span>
             </Button>
 
             <Button
@@ -718,7 +721,7 @@ export function CreateAssignmentDialog({
               className="flex items-center space-x-1"
             >
               <Download className="h-4 w-4" />
-              <span>Download Template</span>
+              <span>{t("downloadTemplate")}</span>
             </Button>
           </div>
 
@@ -733,11 +736,11 @@ export function CreateAssignmentDialog({
           {csvResult && (
             <div className="text-sm space-y-1">
               <div className="text-green-600">
-                {csvResult.matched.length} students matched
+                {t("studentsMatched", { count: csvResult.matched.length })}
               </div>
               {csvResult.unmatched.length > 0 && (
                 <div className="text-orange-600">
-                  {csvResult.unmatched.length} emails not found:
+                  {t("emailsNotFound", { count: csvResult.unmatched.length })}
                   <div className="mt-1 text-xs text-muted-foreground">
                     {csvResult.unmatched.join(", ")}
                   </div>
@@ -756,10 +759,10 @@ export function CreateAssignmentDialog({
         <DialogHeader>
           <DialogTitle>
             {templateAssignment
-              ? "Assign from template"
+              ? t("assignFromTemplate")
               : editAssignment
-                ? "Edit Assignment"
-                : "Create Assignment"}
+                ? t("editAssignmentTitle")
+                : t("createAssignmentTitle")}
           </DialogTitle>
         </DialogHeader>
 
@@ -775,7 +778,7 @@ export function CreateAssignmentDialog({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Details
+              {t("details")}
             </button>
             <button
               type="button"
@@ -786,7 +789,7 @@ export function CreateAssignmentDialog({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Assign
+              {t("assign")}
             </button>
           </div>
 
@@ -804,7 +807,7 @@ export function CreateAssignmentDialog({
             onClick={() => handleSave(false)}
             disabled={!isFormValid() || saving}
           >
-            {saving ? "Saving..." : "Save Draft"}
+            {saving ? t("saving") : t("saveDraft")}
           </Button>
 
           <Button
@@ -812,7 +815,7 @@ export function CreateAssignmentDialog({
             onClick={() => handleSave(true)}
             disabled={!canAssign() || saving}
           >
-            {saving ? "Assigning..." : "Assign"}
+            {saving ? t("assigning") : t("assign")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -7,16 +7,18 @@ import { LoaderCircle, Plus, X } from "lucide-react";
 import { UploadedFiles } from "./uploaded-file";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
-const ContextDocumentsWhatsThis = (): React.ReactNode => (
-  <span className="flex flex-col gap-1 text-sm text-gray-600">
-    <p className="text-sm text-gray-600">
-      Context documents are text or PDF files which will be included in the
-      LLM&apos;s context for ALL interactions <i>except</i> quick actions, when
-      generating, re-writing and editing artifacts.
-    </p>
-  </span>
-);
+const ContextDocumentsWhatsThis = (): React.ReactNode => {
+  const t = useTranslations("assistant");
+  return (
+    <span className="flex flex-col gap-1 text-sm text-gray-600">
+      <p className="text-sm text-gray-600">
+        {t("contextDocumentsDescription")}
+      </p>
+    </span>
+  );
+};
 
 interface ContextDocumentsProps {
   documents: FileList | undefined;
@@ -45,11 +47,12 @@ function UrlInputRow({
   isLast,
   disabled,
 }: UrlInputRowProps) {
+  const t = useTranslations("assistant");
   return (
     <div className="flex gap-2 items-center">
       <Input
         type="url"
-        placeholder="Enter URL"
+        placeholder={t("enterUrl")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="flex-1"
@@ -80,6 +83,7 @@ function UrlInputRow({
 }
 
 export function ContextDocuments(props: ContextDocumentsProps) {
+  const t = useTranslations("assistant");
   const {
     documents,
     setDocuments,
@@ -114,10 +118,9 @@ export function ContextDocuments(props: ContextDocumentsProps) {
     <div className="flex flex-col items-start justify-start gap-4 w-full">
       <Label htmlFor="context-documents">
         <TighterText className="flex items-center">
-          Context Documents{" "}
+          {t("contextDocuments")}{" "}
           <span className="text-gray-600 text-sm ml-1">
-            (Max 20 files - Documents: 10MB each, Audio: 25MB each, Video: 1GB
-            each)
+            {t("contextDocumentsLimits")}
           </span>
           <InlineContextTooltip cardContentClassName="w-[500px] ml-10">
             <ContextDocumentsWhatsThis />
@@ -140,7 +143,7 @@ export function ContextDocuments(props: ContextDocumentsProps) {
           const totalFileCount = existingFiles.length + newFiles.length;
 
           if (totalFileCount > 20) {
-            alert("You can only upload up to 20 files in total");
+            alert(t("maxFilesAlert"));
             e.target.value = "";
             return;
           }
@@ -157,15 +160,15 @@ export function ContextDocuments(props: ContextDocumentsProps) {
 
             // Check size limits based on file type
             if (isAudio && file.size > twentyFiveMbBytes) {
-              alert(`Audio file "${file.name}" exceeds the 25MB size limit`);
+              alert(t("audioFileTooLarge", { fileName: file.name }));
               e.target.value = "";
               return;
             } else if (isVideo && file.size > oneGbBytes) {
-              alert(`Video file "${file.name}" exceeds the 1GB size limit`);
+              alert(t("videoFileTooLarge", { fileName: file.name }));
               e.target.value = "";
               return;
             } else if (!isAudio && !isVideo && file.size > tenMbBytes) {
-              alert(`Document "${file.name}" exceeds the 10MB size limit`);
+              alert(t("documentFileTooLarge", { fileName: file.name }));
               e.target.value = "";
               return;
             }
@@ -184,7 +187,7 @@ export function ContextDocuments(props: ContextDocumentsProps) {
       />
       {loadingDocuments && (
         <span className="text-gray-600 text-sm flex gap-2">
-          Loading context documents{" "}
+          {t("loadingContextDocuments")}{" "}
           <LoaderCircle className="animate-spin w-4 h-4" />
         </span>
       )}
@@ -213,7 +216,7 @@ export function ContextDocuments(props: ContextDocumentsProps) {
             }}
             disabled={allDisabled}
           >
-            Add links
+            {t("addLinks")}
           </Button>
         )}
       </div>

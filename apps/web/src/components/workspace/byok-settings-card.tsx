@@ -12,6 +12,7 @@ import {
   SHARED_MODEL_NOTICE_VERSION,
 } from "@/lib/privacy/shared-model-notice";
 import type { ByokShareMode } from "@opencanvas/shared/byok/types";
+import { useTranslations } from "next-intl";
 
 export type ByokTestResult = { ok: boolean; message: string };
 
@@ -224,12 +225,13 @@ export function ByokSettingsCardView({
   onSave,
   onTest,
 }: ByokSettingsCardViewProps) {
+  const t = useTranslations("workspace");
   const testDisabled = savedMaskedKey === null || testing;
 
   return (
     <Card className="bg-white">
       <CardHeader>
-        <CardTitle>Your own AI provider</CardTitle>
+        <CardTitle>{t("yourOwnAiProvider")}</CardTitle>
       </CardHeader>
       <CardContent>
         <form
@@ -247,10 +249,10 @@ export function ByokSettingsCardView({
               onChange={(e) => onEnabledChange(e.target.checked)}
               data-testid="byok-enabled"
             />
-            <Label htmlFor="byok-enabled">Use my provider for AI chat</Label>
+            <Label htmlFor="byok-enabled">{t("useMyProvider")}</Label>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="byok-base-url">Base URL</Label>
+            <Label htmlFor="byok-base-url">{t("baseUrl")}</Label>
             <Input
               id="byok-base-url"
               value={baseUrl}
@@ -261,7 +263,7 @@ export function ByokSettingsCardView({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="byok-model">Model</Label>
+            <Label htmlFor="byok-model">{t("model")}</Label>
             <Input
               id="byok-model"
               value={model}
@@ -272,7 +274,7 @@ export function ByokSettingsCardView({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="byok-api-key">API key</Label>
+            <Label htmlFor="byok-api-key">{t("apiKey")}</Label>
             <Input
               id="byok-api-key"
               type="password"
@@ -281,7 +283,7 @@ export function ByokSettingsCardView({
               placeholder={
                 savedMaskedKey
                   ? `Saved key ${savedMaskedKey}`
-                  : "Paste your API key"
+                  : t("pasteApiKey")
               }
               autoComplete="off"
               data-testid="byok-api-key"
@@ -291,36 +293,34 @@ export function ByokSettingsCardView({
                 className="text-xs text-muted-foreground"
                 data-testid="byok-masked-key"
               >
-                Saved key: {savedMaskedKey}
+                {t("savedKey", { key: savedMaskedKey })}
               </p>
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            Your key is encrypted on the server and only used for your own AI
-            interactions in OpenRigor unless you opt into sharing below. Create
-            a dedicated API key with a sensible usage limit.
+            {t("apiKeyPrivacyDescription")}
           </p>
           <p className="text-xs text-muted-foreground">
-            Read the versioned{" "}
+            {t("readVersioned")}{" "}
             <Link
               href={SHARED_MODEL_NOTICE_PATH}
               className="underline underline-offset-2"
             >
-              shared-model privacy notice
+              {t("sharedModelNoticeLink")}
             </Link>{" "}
-            (version {SHARED_MODEL_NOTICE_VERSION}) before using a shared model.
+            {t("beforeSharedModel", { version: SHARED_MODEL_NOTICE_VERSION })}
           </p>
           <div className="space-y-2" data-testid="byok-share-control">
-            <Label>Share with assignment participants</Label>
+            <Label>{t("shareWithParticipants")}</Label>
             <div
               className="grid grid-cols-2 gap-1 rounded-md border bg-slate-50 p-1"
               role="radiogroup"
-              aria-label="Share with assignment participants"
+              aria-label={t("shareWithParticipants")}
             >
               {(
                 [
-                  ["none", "No sharing"],
-                  ["all_assignments", "All assignments"],
+                  ["none", t("noSharing")],
+                  ["all_assignments", t("allAssignments")],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -346,7 +346,7 @@ export function ByokSettingsCardView({
                 data-testid="byok-share-specific-items"
               >
                 <p className="text-xs text-muted-foreground">
-                  Shared specific assignments
+                  {t("sharedSpecificAssignments")}
                 </p>
                 {sharedItemIds.length > 0 ? (
                   <ul className="space-y-1">
@@ -367,26 +367,25 @@ export function ByokSettingsCardView({
                           onClick={() => onRevokeSharedItem(itemId)}
                           data-testid={`byok-share-revoke-${itemId}`}
                         >
-                          Revoke
+                          {t("revoke")}
                         </Button>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    No specific assignments are currently shared.
+                    {t("noSpecificAssignments")}
                   </p>
                 )}
               </div>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              Participants see only “Provided by instructor” and the model name.
-              They never receive your key or base URL.
+              {t("participantProviderPrivacy")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={saving} data-testid="byok-save">
-              {saving ? "Saving…" : "Save"}
+              {saving ? t("saving") : t("save")}
             </Button>
             <Button
               type="button"
@@ -395,7 +394,7 @@ export function ByokSettingsCardView({
               onClick={onTest}
               data-testid="byok-test"
             >
-              {testing ? "Testing…" : "Test connection"}
+              {testing ? t("testing") : t("testConnection")}
             </Button>
           </div>
           {testResult ? (
@@ -417,6 +416,7 @@ export function ByokSettingsCardView({
 }
 
 export function ByokSettingsCard() {
+  const t = useTranslations("workspace");
   const { toast } = useToast();
   const [enabled, setEnabled] = useState(true);
   const [baseUrl, setBaseUrl] = useState("");
@@ -448,7 +448,7 @@ export function ByokSettingsCard() {
       } catch {
         if (!cancelled) {
           toast({
-            title: "Could not load provider settings",
+            title: t("couldNotLoadProviderSettings"),
             variant: "destructive",
           });
         }
@@ -501,11 +501,11 @@ export function ByokSettingsCard() {
       setShareMode(next.shareMode ?? "none");
       setSharedItemIds(next.sharedItemIds ?? []);
       setShareItemIdsReplace(undefined);
-      toast({ title: "Saved" });
+      toast({ title: t("saved") });
     } catch (err) {
       toast({
-        title: "Could not save",
-        description: err instanceof Error ? err.message : "Please try again.",
+        title: t("couldNotSave"),
+        description: err instanceof Error ? err.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -517,8 +517,8 @@ export function ByokSettingsCard() {
     if (saved === null) return;
     if (isByokFormDirty(form, saved)) {
       toast({
-        title: "Save your settings first",
-        description: "Test uses the saved provider configuration.",
+        title: t("saveSettingsFirst"),
+        description: t("testSavedConfiguration"),
       });
       return;
     }
@@ -530,7 +530,7 @@ export function ByokSettingsCard() {
     } catch (err) {
       setTestResult({
         ok: false,
-        message: err instanceof Error ? err.message : "Test failed",
+        message: err instanceof Error ? err.message : t("testFailed"),
       });
     } finally {
       setTesting(false);

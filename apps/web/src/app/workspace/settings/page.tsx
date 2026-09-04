@@ -67,18 +67,18 @@ function SettingsForm() {
 
       if (error) {
         toast({
-          title: "Could not save",
-          description: error.message ?? "Please try again.",
+          title: t("couldNotSave"),
+          description: error.message ?? t("pleaseTryAgain"),
           variant: "destructive",
         });
         return;
       }
 
-      toast({ title: "Saved" });
+      toast({ title: t("saved") });
     } catch {
       toast({
-        title: "Could not save",
-        description: "Please try again.",
+        title: t("couldNotSave"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -87,14 +87,19 @@ function SettingsForm() {
   }
 
   if (loading || !user) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <div className="p-8 text-sm text-muted-foreground">{t("loading")}</div>
+    );
   }
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <WorkspaceSiteHeader workspaceLabel="Settings" maxWidthClass="max-w-3xl">
+      <WorkspaceSiteHeader
+        workspaceLabel={t("settings")}
+        maxWidthClass="max-w-3xl"
+      >
         <Link href="/workspace/settings" className={workspaceNavGhostClass}>
-          Settings
+          {t("settings")}
         </Link>
         <a
           href={DOCS_URL}
@@ -102,7 +107,7 @@ function SettingsForm() {
           rel="noopener noreferrer"
           className={workspaceNavGhostClass}
         >
-          Docs
+          {t("docs")}
         </a>
       </WorkspaceSiteHeader>
       <section className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
@@ -112,12 +117,12 @@ function SettingsForm() {
         <div className="space-y-6">
           <Card className="bg-white">
             <CardHeader>
-              <CardTitle>Your name</CardTitle>
+              <CardTitle>{t("yourName")}</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">First name</Label>
+                  <Label htmlFor="name">{t("firstName")}</Label>
                   <Input
                     id="name"
                     value={name}
@@ -127,7 +132,7 @@ function SettingsForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="surname">Last name</Label>
+                  <Label htmlFor="surname">{t("lastName")}</Label>
                   <Input
                     id="surname"
                     value={surname}
@@ -136,7 +141,7 @@ function SettingsForm() {
                   />
                 </div>
                 <Button type="submit" disabled={submitting || !name.trim()}>
-                  {submitting ? "Saving…" : "Save"}
+                  {submitting ? t("saving") : t("save")}
                 </Button>
               </form>
             </CardContent>
@@ -159,10 +164,11 @@ function SettingsForm() {
 }
 
 export default function WorkspaceSettingsPage() {
+  const t = useTranslations("settings");
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-sm text-muted-foreground">Loading…</div>
+        <div className="p-8 text-sm text-muted-foreground">{t("loading")}</div>
       }
     >
       <UserProvider>

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ export function WorkspaceItemBanner({
   submitTestId?: string;
   extraActions?: ReactNode;
 }) {
+  const t = useTranslations("workspace");
   const methodHref = methodSpecHref(item);
   const methodLabel =
     item.kind === "method" || item.kind === "method_participant"
@@ -78,7 +80,9 @@ export function WorkspaceItemBanner({
           <div className="min-w-0 text-center">
             <p className="truncate text-xs font-medium uppercase tracking-wide text-white/70">
               <time dateTime={item.createdAt}>
-                Received {new Date(item.createdAt).toLocaleString()}
+                {t("received", {
+                  date: new Date(item.createdAt).toLocaleString(),
+                })}
               </time>
             </p>
             <div className="truncate text-sm font-medium text-white">
@@ -93,7 +97,7 @@ export function WorkspaceItemBanner({
               className="border border-white/25 bg-white/15 text-white hover:bg-white/15"
               data-testid="private-workspace-badge"
             >
-              Private
+              {t("private")}
             </Badge>
           )}
           {methodHref && (
@@ -125,9 +129,11 @@ export function WorkspaceItemBanner({
                 data-testid={submitTestId ?? "workspace-form-banner-submit"}
               >
                 {submitted
-                  ? "Submitted"
+                  ? t("submitted")
                   : submitLabel ||
-                    (item.kind === "method" ? "Start assignment" : "Submit")}
+                    (item.kind === "method"
+                      ? t("startAssignment")
+                      : t("submit"))}
               </Button>
             )}
           <Link
@@ -138,7 +144,7 @@ export function WorkspaceItemBanner({
             )}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Workspace
+            {t("workspace")}
           </Link>
           <Button
             variant="ghost"
@@ -148,7 +154,7 @@ export function WorkspaceItemBanner({
             data-testid="abandon-workspace-item-button"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Abandon
+            {t("abandon")}
           </Button>
         </div>
       </div>

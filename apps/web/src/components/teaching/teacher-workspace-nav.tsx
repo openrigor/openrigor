@@ -7,6 +7,7 @@ import {
   TeacherWorkspaceSection,
   visibleTeacherNavItems,
 } from "@/lib/teaching/teacher-workspace-nav";
+import { useTranslations } from "next-intl";
 
 type Props = {
   section: TeacherWorkspaceSection;
@@ -19,7 +20,17 @@ export function TeacherWorkspaceNav({
   onSectionChange,
   canInviteTeachers,
 }: Props) {
+  const t = useTranslations("teaching");
   const items = visibleTeacherNavItems(canInviteTeachers);
+  const labels: Record<string, string> = {
+    overview: t("overview"),
+    apparatuses: t("researchApparatuses"),
+    assignments: t("assignments"),
+    classes: t("classes"),
+    "invite-teachers": t("inviteTeachers"),
+    "invite-students": t("inviteStudents"),
+    docs: t("docs"),
+  };
   return (
     <nav
       className="flex h-full w-56 shrink-0 flex-col gap-1 border-r bg-background p-3"
@@ -38,7 +49,7 @@ export function TeacherWorkspaceNav({
                 className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 data-testid={`teacher-nav-${item.id}`}
               >
-                {item.label}
+                {labels[item.id] ?? item.label}
                 <ExternalLink className="h-3.5 w-3.5 opacity-70" aria-hidden />
               </a>
             );
@@ -61,7 +72,7 @@ export function TeacherWorkspaceNav({
               aria-current={selected ? "page" : undefined}
               data-testid={`teacher-nav-${item.id}`}
             >
-              {item.label}
+              {labels[item.id] ?? item.label}
             </button>
           );
         })}

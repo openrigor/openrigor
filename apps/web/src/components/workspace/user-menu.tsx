@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { User } from "@supabase/supabase-js";
 import { LogOut, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,6 +52,7 @@ function avatarUrl(user: User): string | undefined {
 }
 
 export function UserMenu({ user }: { user: User }) {
+  const t = useTranslations("workspace");
   const initials = getUserInitials(user);
   const src = avatarUrl(user);
 
@@ -64,7 +66,7 @@ export function UserMenu({ user }: { user: User }) {
                 type="button"
                 className={workspaceNavGhostClass}
                 data-testid="user-menu-trigger"
-                aria-label="Open user settings"
+                aria-label={t("openUserSettings")}
               >
                 <Avatar className="h-7 w-7">
                   {src ? <AvatarImage src={src} alt="" /> : null}
@@ -75,7 +77,7 @@ export function UserMenu({ user }: { user: User }) {
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent>Open user settings</TooltipContent>
+          <TooltipContent>{t("openUserSettings")}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="font-normal">
@@ -86,14 +88,14 @@ export function UserMenu({ user }: { user: User }) {
           <DropdownMenuItem asChild>
             <Link href="/workspace/settings">
               <Settings className="h-4 w-4" />
-              Settings
+              {t("settings")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link href="/auth/signout">
               <LogOut className="h-4 w-4" />
-              Sign out
+              {t("signOut")}
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
