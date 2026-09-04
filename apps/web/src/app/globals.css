@@ -532,6 +532,10 @@
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
+.landing .mobile-language-switcher {
+  width: 100%;
+  padding: 8px;
+}
 .landing .mobile-panel .mcta {
   margin-top: 14px;
   justify-content: center;

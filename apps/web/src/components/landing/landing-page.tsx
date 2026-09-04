@@ -18,6 +18,7 @@ import {
   FinalCtaSection,
 } from "./landing-sections";
 import { LandingFooter } from "./landing-footer";
+import { PreAuthLanguageSwitcher } from "@/components/settings/language-switcher";
 
 function LandingHeader() {
   const t = useTranslations("landing");
@@ -54,6 +55,7 @@ function LandingHeader() {
         </nav>
 
         <div className="header-actions">
+          <PreAuthLanguageSwitcher />
           {user ? (
             <>
               <Link className="hlink" href="/auth/signout">
@@ -90,6 +92,9 @@ function LandingHeader() {
             {l.label}
           </a>
         ))}
+        <div className="mobile-language-switcher">
+          <PreAuthLanguageSwitcher mobile />
+        </div>
         {user ? (
           <a href="/auth/signout">{t("signOut")}</a>
         ) : (

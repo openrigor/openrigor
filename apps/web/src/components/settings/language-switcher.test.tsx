@@ -2,10 +2,15 @@
 
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
+const routerMock = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  replace: vi.fn(),
+  push: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => routerMock,
 }));
 
 // Controlled useLocale: the test re-renders with a new locale to simulate
@@ -16,11 +21,17 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-import { CompactLanguageSwitcher, LanguageSwitcher } from "./language-switcher";
+import {
+  CompactLanguageSwitcher,
+  LanguageSwitcher,
+  PreAuthLanguageSwitcher,
+} from "./language-switcher";
 
 afterEach(() => {
   cleanup();
   currentLocale = "en";
+  routerMock.refresh.mockClear();
+  document.cookie = "NEXT_LOCALE=; Max-Age=0; path=/";
 });
 
 function renderWithLocale(locale: string) {
@@ -29,6 +40,14 @@ function renderWithLocale(locale: string) {
 }
 
 describe("CompactLanguageSwitcher", () => {
+  it("shows the locale code instead of a translation icon", () => {
+    renderWithLocale("de");
+    const trigger = screen.getByLabelText("Deutsch");
+
+    expect(trigger.textContent).toBe("DE");
+    expect(trigger.querySelector("svg")).toBeNull();
+  });
+
   it("derives the selected locale from useLocale, not mount-time state", () => {
     const view = renderWithLocale("en");
     const select = screen.getByLabelText("English") as HTMLSelectElement;
@@ -58,5 +77,45 @@ describe("LanguageSwitcher", () => {
       "language-switcher"
     ) as HTMLSelectElement;
     expect(select.value).toBe("de");
+  });
+});
+
+describe("PreAuthLanguageSwitcher", () => {
+  it("lists every locale and writes the selected locale cookie", () => {
+    render(createElement(PreAuthLanguageSwitcher));
+    const trigger = screen.getByTestId("preauth-language-switcher");
+
+    expect(trigger.textContent).toBe("EN");
+
+    fireEvent.click(trigger);
+
+    const items = screen.getAllByRole("menuitem");
+    expect(items).toHaveLength(5);
+    expect(items.map((item) => item.textContent)).toEqual([
+      "English",
+      "Deutsch",
+      "Français",
+      "Español",
+      "Italiano",
+    ]);
+    expect(items[1].getAttribute("data-locale")).toBe("de");
+    expect(items[1].getAttribute("data-value")).toBe("de");
+
+    fireEvent.click(items[1]);
+
+    expect(document.cookie).toContain("NEXT_LOCALE=de");
+    expect(routerMock.refresh).toHaveBeenCalledTimes(1);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes on Escape with aria-expanded false", () => {
+    render(createElement(PreAuthLanguageSwitcher));
+    const trigger = screen.getByTestId("preauth-language-switcher");
+
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 });
