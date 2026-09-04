@@ -72,7 +72,6 @@ export function CreateAssignmentDialog({
   templateAssignment,
 }: CreateAssignmentDialogProps) {
   const t = useTranslations("teaching");
-  const commonT = useTranslations("common");
   const { getUser } = useUserContext();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
