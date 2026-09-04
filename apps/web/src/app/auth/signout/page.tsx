@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createSupabaseClient } from "@/lib/supabase/client";
 
 export default function Page() {
+  const t = useTranslations("auth");
   const [errorOccurred, setErrorOccurred] = useState(false);
 
   useEffect(() => {
@@ -25,14 +27,11 @@ export default function Page() {
     <>
       {errorOccurred ? (
         <div>
-          <h1>Sign out error</h1>
-          <p>
-            There was an error signing out. Please refresh the page to try
-            again.
-          </p>
+          <h1>{t("signOutError")}</h1>
+          <p>{t("signOutErrorDescription")}</p>
         </div>
       ) : (
-        <p>Signing out...</p>
+        <p>{t("signingOut")}</p>
       )}
     </>
   );

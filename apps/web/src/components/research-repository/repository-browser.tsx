@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { RepositoryArtifactRef } from "@opencanvas/shared/research-repository";
 
 type RepositoryBrowserProps = {
@@ -128,6 +129,7 @@ export function RepositoryBrowser({
   onSelectArtifact,
   onArtifactsLoaded,
 }: RepositoryBrowserProps) {
+  const t = useTranslations("researchRepository");
   const [artifacts, setArtifacts] = useState<RepositoryArtifactRef[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -154,10 +156,10 @@ export function RepositoryBrowser({
       .then(async (response) => {
         const body = (await response.json()) as ArtifactListResponse;
         if (!response.ok) {
-          throw new Error(body.error || "Could not load repository artifacts");
+          throw new Error(body.error || t("couldNotLoadArtifacts"));
         }
         if (!body.artifacts || !body.headCommitSha) {
-          throw new Error("Repository artifacts response was incomplete");
+          throw new Error(t("artifactsResponseIncomplete"));
         }
         return {
           artifacts: body.artifacts,
@@ -181,9 +183,7 @@ export function RepositoryBrowser({
         if (!cancelled) {
           setArtifacts([]);
           setError(
-            cause instanceof Error
-              ? cause.message
-              : "Could not load repository artifacts"
+            cause instanceof Error ? cause.message : t("couldNotLoadArtifacts")
           );
         }
       })
@@ -202,16 +202,16 @@ export function RepositoryBrowser({
         id="repository-artifacts-heading"
         className="mb-3 text-sm font-semibold text-slate-900"
       >
-        Artifacts
+        {t("artifacts")}
       </h2>
       {loading ? (
-        <p className="text-sm text-slate-500">Loading artifacts…</p>
+        <p className="text-sm text-slate-500">{t("loadingArtifacts")}</p>
       ) : error ? (
         <p role="alert" className="text-sm text-red-700">
           {error}
         </p>
       ) : artifacts.length === 0 ? (
-        <p className="text-sm text-slate-500">No managed artifacts found.</p>
+        <p className="text-sm text-slate-500">{t("noManagedArtifacts")}</p>
       ) : (
         <ArtifactTree
           directory={buildArtifactTree(artifacts)}

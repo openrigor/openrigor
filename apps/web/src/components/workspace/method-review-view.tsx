@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +40,7 @@ function messageText(content: unknown): string {
 }
 
 export function MethodReviewView() {
+  const t = useTranslations("workspace");
   const params = useParams<{ id: string; participantItemId: string }>();
   const router = useRouter();
   const [payload, setPayload] = useState<ReviewPayload>();
@@ -56,8 +58,8 @@ export function MethodReviewView() {
         if (!response.ok) {
           throw new Error(
             response.status === 401 || response.status === 403
-              ? "You cannot review this participant."
-              : "Could not load review"
+              ? t("cannotReviewParticipant")
+              : t("couldNotLoadReview")
           );
         }
         const nextPayload = (await response.json()) as ReviewPayload;
@@ -66,7 +68,7 @@ export function MethodReviewView() {
       .catch((err) => {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "Could not load review"
+            err instanceof Error ? err.message : t("couldNotLoadReview")
           );
         }
       });
@@ -86,16 +88,19 @@ export function MethodReviewView() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <WorkspaceSiteHeader workspaceLabel="Review" maxWidthClass="max-w-6xl">
+      <WorkspaceSiteHeader
+        workspaceLabel={t("review")}
+        maxWidthClass="max-w-6xl"
+      >
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="mr-1 h-4 w-4" />
-          Back
+          {t("back")}
         </Button>
       </WorkspaceSiteHeader>
       <section className="mx-auto max-w-6xl space-y-6 px-4 py-6">
         {error && <p className="text-sm text-destructive">{error}</p>}
         {!payload && !error && (
-          <p className="text-sm text-muted-foreground">Loading review…</p>
+          <p className="text-sm text-muted-foreground">{t("loadingReview")}</p>
         )}
         {payload && (
           <>
@@ -109,12 +114,12 @@ export function MethodReviewView() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card className="min-h-[560px]">
                   <CardHeader>
-                    <CardTitle>Transcript</CardTitle>
+                    <CardTitle>{t("transcript")}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {messages.length === 0 && (
                       <p className="text-sm text-muted-foreground">
-                        No messages yet.
+                        {t("noMessagesYet")}
                       </p>
                     )}
                     {messages.map((message, index) => (
@@ -127,7 +132,7 @@ export function MethodReviewView() {
                 </Card>
                 <Card className="min-h-[560px]">
                   <CardHeader>
-                    <CardTitle>Canvas</CardTitle>
+                    <CardTitle>{t("canvas")}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ReadonlyMarkdownRendererSuspense
@@ -138,7 +143,7 @@ export function MethodReviewView() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                This participant has not started yet.
+                {t("participantNotStarted")}
               </p>
             )}
           </>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslations } from "next-intl";
 
 function parseEmailList(text: string): string[] {
   return Array.from(
@@ -28,6 +29,7 @@ export function StudentInviteForm({
   defaultClassName = "",
   onInvited,
 }: StudentInviteFormProps) {
+  const t = useTranslations("teaching");
   const [emailsText, setEmailsText] = useState("");
   const [classNameValue, setClassNameValue] = useState(defaultClassName);
   const [sending, setSending] = useState(false);
@@ -49,13 +51,13 @@ export function StudentInviteForm({
     const trimmedClassName = classNameValue.trim();
 
     if (!trimmedClassName) {
-      setError("Class name is required");
+      setError(t("classNameRequired"));
       setSending(false);
       return;
     }
 
     if (emails.length === 0) {
-      setError("Enter at least one valid email address");
+      setError(t("validEmailRequired"));
       setSending(false);
       return;
     }
@@ -72,7 +74,7 @@ export function StudentInviteForm({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? "Could not send invitations");
+        setError(data.error ?? t("couldNotSendInvitations"));
         return;
       }
 
@@ -84,7 +86,7 @@ export function StudentInviteForm({
       setEmailsText("");
       onInvited?.();
     } catch {
-      setError("Could not send invitations");
+      setError(t("couldNotSendInvitations"));
     } finally {
       setSending(false);
     }
@@ -93,19 +95,19 @@ export function StudentInviteForm({
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className ?? ""}`}>
       <div className="space-y-2">
-        <Label htmlFor="invite-class-name">Class name</Label>
+        <Label htmlFor="invite-class-name">{t("className")}</Label>
         <Input
           id="invite-class-name"
           value={classNameValue}
           onChange={(e) => setClassNameValue(e.target.value)}
-          placeholder="English 10A"
+          placeholder={t("classNamePlaceholder")}
           required
           disabled={sending}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="invite-emails">Student emails</Label>
+        <Label htmlFor="invite-emails">{t("studentEmails")}</Label>
         <Textarea
           id="invite-emails"
           value={emailsText}
@@ -116,7 +118,7 @@ export function StudentInviteForm({
           disabled={sending}
         />
         <p className="text-xs text-muted-foreground">
-          Separate emails with commas, semicolons, or new lines.
+          {t("emailSeparationHint")}
         </p>
       </div>
 
@@ -128,20 +130,24 @@ export function StudentInviteForm({
 
       {result && (
         <div className="rounded-md border bg-muted/40 p-3 text-sm">
-          <p className="text-green-700">{result.invited} invited</p>
+          <p className="text-green-700">
+            {t("invitedCount", { count: result.invited })}
+          </p>
           {result.existing > 0 && (
             <p className="text-muted-foreground">
-              {result.existing} already registered
+              {t("alreadyRegisteredCount", { count: result.existing })}
             </p>
           )}
           {result.failed > 0 && (
-            <p className="text-destructive">{result.failed} failed</p>
+            <p className="text-destructive">
+              {t("failedCount", { count: result.failed })}
+            </p>
           )}
         </div>
       )}
 
       <Button type="submit" disabled={sending}>
-        {sending ? "Sending…" : "Send invites"}
+        {sending ? t("sending") : t("sendInvites")}
       </Button>
     </form>
   );

@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 
 type ExportFormat = "markdown" | "evidence-packet";
 
@@ -22,6 +23,7 @@ export function ExportButton({
   artifactId: string;
   artifactName?: string;
 }) {
+  const t = useTranslations("workspace");
   const { toast } = useToast();
   const [downloading, setDownloading] = useState<ExportFormat>();
 
@@ -36,7 +38,7 @@ export function ExportButton({
         { credentials: "include" }
       );
       if (!response.ok) {
-        let message = "Could not export artifact";
+        let message = t("couldNotExportArtifact");
         try {
           const body = (await response.json()) as { error?: string };
           message = body.error || message;
@@ -57,9 +59,9 @@ export function ExportButton({
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
     } catch (error) {
       toast({
-        title: "Could not export artifact",
+        title: t("couldNotExportArtifact"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -80,7 +82,7 @@ export function ExportButton({
           data-testid="export-button"
         >
           <Download className="mr-1.5 h-3.5 w-3.5" />
-          {busy ? "Exporting…" : "Export"}
+          {busy ? t("exporting") : t("export")}
           <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
@@ -89,13 +91,13 @@ export function ExportButton({
           disabled={busy}
           onSelect={() => void download("markdown")}
         >
-          Export as Markdown
+          {t("exportAsMarkdown")}
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={busy}
           onSelect={() => void download("evidence-packet")}
         >
-          Export evidence packet
+          {t("exportEvidencePacket")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

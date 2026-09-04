@@ -12,6 +12,7 @@ import {
   type TeacherOverviewMetricsInput,
 } from "@/lib/teaching/teacher-overview-metrics";
 import { registryTouchesTeacherStudents } from "@/lib/teaching/teacher-submission-scope";
+import { useTranslations } from "next-intl";
 
 type InvitationResponse = {
   invitations?: Array<{ status?: unknown }>;
@@ -60,6 +61,7 @@ export function TeacherOverviewDashboard({
 }: {
   canInviteTeachers: boolean;
 }) {
+  const t = useTranslations("teaching");
   const { user } = useUserContext();
   const [metrics, setMetrics] = useState<TeacherOverviewMetrics>(emptyMetrics);
 
@@ -181,7 +183,7 @@ export function TeacherOverviewDashboard({
   const tiles = [
     {
       testId: "overview-tile-teachers",
-      label: "Teachers",
+      label: t("teachers"),
       value: formatActiveAndInvited(
         metrics.teachersActive,
         metrics.teachersInvited
@@ -189,12 +191,12 @@ export function TeacherOverviewDashboard({
     },
     {
       testId: "overview-tile-classes",
-      label: "Classes",
+      label: t("classes"),
       value: formatMetric(metrics.classes),
     },
     {
       testId: "overview-tile-students",
-      label: "Students",
+      label: t("students"),
       value: formatActiveAndInvited(
         metrics.studentsActive,
         metrics.studentsInvited
@@ -202,7 +204,7 @@ export function TeacherOverviewDashboard({
     },
     {
       testId: "overview-tile-assignments",
-      label: "Assignments",
+      label: t("assignments"),
       value: formatMetric(metrics.assignments),
     },
   ];
@@ -210,10 +212,11 @@ export function TeacherOverviewDashboard({
   return (
     <section className="space-y-4" data-testid="teacher-overview">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("overview")}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Manage your organisation, assignments, classes, invitations, and
-          research apparatuses.
+          {t("overviewDescription")}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

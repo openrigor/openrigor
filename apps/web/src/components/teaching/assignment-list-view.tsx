@@ -31,6 +31,7 @@ import {
 } from "@/lib/teaching/teacher-submission-scope";
 import { normalizeLifecycleStatus } from "@/lib/teaching/assignment-policy";
 import { CloseAssignmentDialog } from "./close-assignment-dialog";
+import { useTranslations } from "next-intl";
 import { Archive, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -42,6 +43,8 @@ import {
 } from "@/components/ui/dialog";
 
 export function AssignmentListView() {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
   const router = useRouter();
   const { user, loading: userLoading } = useUserContext();
   const { getAllThreadsForAssignment } = useThreadContext();
@@ -236,7 +239,9 @@ export function AssignmentListView() {
   if (loading || userLoading) {
     return (
       <div className="space-y-6">
-        <p className="text-sm text-muted-foreground">Loading assignments…</p>
+        <p className="text-sm text-muted-foreground">
+          {t("loadingAssignments")}
+        </p>
       </div>
     );
   }
@@ -253,7 +258,7 @@ export function AssignmentListView() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Assignments
+          {t("assignments")}
         </button>
         <button
           type="button"
@@ -264,7 +269,7 @@ export function AssignmentListView() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Classes
+          {t("classes")}
         </button>
       </div>
 
@@ -275,12 +280,12 @@ export function AssignmentListView() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Your assignments
+                {t("yourAssignments")}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {assignmentViews.length === 0
-                  ? "No assignments yet."
-                  : `${assignmentViews.length} assignment${assignmentViews.length === 1 ? "" : "s"} to manage.`}
+                  ? t("noAssignmentsYet")
+                  : t("assignmentsToManage", { count: assignmentViews.length })}
               </p>
             </div>
             <Button
@@ -288,7 +293,7 @@ export function AssignmentListView() {
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Create Assignment
+              {t("createAssignment")}
             </Button>
           </div>
 
@@ -304,13 +309,17 @@ export function AssignmentListView() {
                       <div className="space-y-1 flex-1">
                         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           {assignment.courseLabel} · {assignment.teacherName} ·
-                          Due {assignment.dueLabel}
+                          {t("courseTeacherDue", {
+                            course: assignment.courseLabel,
+                            teacher: assignment.teacherName,
+                            due: assignment.dueLabel,
+                          })}
                         </div>
                         <CardTitle className="text-lg">
                           {assignment.title}
                           {draftIds.has(assignment.id) && (
                             <Badge variant="outline" className="ml-2 text-xs">
-                              Draft
+                              {t("draft")}
                             </Badge>
                           )}
                           {assignment.apparatusProfileId && (
@@ -326,7 +335,7 @@ export function AssignmentListView() {
                             assignment.lifecycleStatus
                           ) === "closed" && (
                             <Badge variant="outline" className="ml-2 text-xs">
-                              Closed
+                              {t("closed")}
                             </Badge>
                           )}
                         </CardTitle>
@@ -342,7 +351,7 @@ export function AssignmentListView() {
                               className="h-8 w-8 text-muted-foreground hover:text-foreground"
                               data-testid={`close-assignment-${assignment.id}`}
                               onClick={(e) => handleCloseClick(e, assignment)}
-                              title="Close assignment"
+                              title={t("closeAssignment")}
                             >
                               <Archive className="h-4 w-4" />
                             </Button>
@@ -353,7 +362,7 @@ export function AssignmentListView() {
                           className="h-8 w-8 text-muted-foreground hover:text-foreground"
                           data-testid={`edit-assignment-${assignment.id}`}
                           onClick={(e) => handleEditClick(e, assignment)}
-                          title="Edit assignment"
+                          title={t("editAssignment")}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -363,7 +372,7 @@ export function AssignmentListView() {
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           data-testid={`delete-assignment-${assignment.id}`}
                           onClick={(e) => handleDeleteClick(e, assignment)}
-                          title="Delete assignment"
+                          title={t("deleteAssignment")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -373,7 +382,7 @@ export function AssignmentListView() {
                           {assignment.submittedCount}/{assignment.totalStudents}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          submitted
+                          {t("submittedLowercase")}
                         </div>
                       </div>
                     </div>
@@ -381,7 +390,7 @@ export function AssignmentListView() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Submission rate</span>
+                        <span>{t("submissionRate")}</span>
                         <span>{assignment.submissionRate}%</span>
                       </div>
                       <Progress value={assignment.submissionRate} />
@@ -390,19 +399,19 @@ export function AssignmentListView() {
                           <Badge variant="default" className="mr-1">
                             {assignment.submittedCount}
                           </Badge>
-                          Submitted
+                          {t("submitted")}
                         </span>
                         <span>
                           <Badge variant="secondary" className="mr-1">
                             {assignment.inProgressCount}
                           </Badge>
-                          In progress
+                          {t("inProgress")}
                         </span>
                         <span>
                           <Badge variant="outline" className="mr-1">
                             {assignment.notStartedCount}
                           </Badge>
-                          Not started
+                          {t("notStarted")}
                         </span>
                       </div>
                     </div>
@@ -414,8 +423,7 @@ export function AssignmentListView() {
             {assignmentViews.length === 0 && (
               <Card className="w-full max-w-2xl">
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  No assignments yet. Create one, or assign a starter template
-                  below.
+                  {t("noAssignmentsCreateOrAssign")}
                 </CardContent>
               </Card>
             )}
@@ -425,10 +433,10 @@ export function AssignmentListView() {
             <div className="space-y-3 pt-4">
               <div className="space-y-1">
                 <h2 className="text-lg font-semibold tracking-tight">
-                  Starter templates
+                  {t("starterTemplates")}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Shared catalog — not yours until you assign them to students.
+                  {t("sharedCatalogAssignmentTemplates")}
                 </p>
               </div>
               <ul className="flex flex-col items-center gap-4">
@@ -443,8 +451,10 @@ export function AssignmentListView() {
                         <div className="flex items-center justify-between">
                           <div className="space-y-1 flex-1">
                             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {assignment.courseLabel} · Template · Due{" "}
-                              {assignment.dueLabel}
+                              {t("courseTemplateDue", {
+                                course: assignment.courseLabel,
+                                due: assignment.dueLabel,
+                              })}
                             </div>
                             <CardTitle className="text-lg">
                               {assignment.title}
@@ -452,7 +462,7 @@ export function AssignmentListView() {
                                 variant="secondary"
                                 className="ml-2 text-xs"
                               >
-                                Template
+                                {t("template")}
                               </Badge>
                             </CardTitle>
                           </div>
@@ -489,11 +499,12 @@ export function AssignmentListView() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Trash2 className="h-5 w-5" />
-                  Delete Assignment
+                  {t("deleteAssignmentTitle")}
                 </DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to delete &ldquo;{deleteTarget?.title}
-                  &rdquo;? This action cannot be undone.
+                  {t("aboutToDeleteAssignment", {
+                    title: deleteTarget?.title ?? "",
+                  })}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="gap-2">
@@ -502,7 +513,7 @@ export function AssignmentListView() {
                   onClick={() => setDeleteTarget(null)}
                   disabled={deleting}
                 >
-                  Cancel
+                  {commonT("cancel")}
                 </Button>
                 <Button
                   variant="destructive"
@@ -513,12 +524,12 @@ export function AssignmentListView() {
                   {deleting ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Deleting...
+                      {t("deleting")}
                     </>
                   ) : (
                     <>
                       <Trash2 className="h-4 w-4" />
-                      Delete
+                      {t("delete")}
                     </>
                   )}
                 </Button>

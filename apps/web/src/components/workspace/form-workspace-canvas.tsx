@@ -12,6 +12,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,13 +71,14 @@ function MethodByokShareControl({
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
+  const t = useTranslations("workspace");
   if (loading) {
     return (
       <p
         className="text-xs text-muted-foreground"
         data-testid="byok-share-loading"
       >
-        Loading provider settings…
+        {t("loadingProviderSettings")}
       </p>
     );
   }
@@ -87,7 +89,7 @@ function MethodByokShareControl({
         className="text-xs text-muted-foreground"
         data-testid="byok-share-all-note"
       >
-        Your provider is shared with all assignments — participants will use it.
+        {t("providerSharedWithAssignments")}
       </p>
     );
   }
@@ -103,12 +105,12 @@ function MethodByokShareControl({
           onChange={(event) => onCheckedChange(event.target.checked)}
           data-testid="share-byok"
         />
-        <span>Share my BYOK provider with participants</span>
+        <span>{t("shareByokWithParticipants")}</span>
       </label>
       <p className="pl-6 text-xs text-muted-foreground">
         {disabled
-          ? "Configure a provider in workspace settings first"
-          : `Participants see “Provided by instructor — ${settings.model}”, never your key.`}
+          ? t("configureProviderFirst")
+          : t("participantsSeeProvider", { model: settings.model })}
       </p>
     </div>
   );
@@ -202,6 +204,7 @@ function FormFieldControl({
     node: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null
   ) => void;
 }) {
+  const t = useTranslations("workspace");
   const id = `workspace-form-${field.id}`;
   const describedBy = error ? `${id}-error` : undefined;
   const baseClassName =
@@ -244,7 +247,7 @@ function FormFieldControl({
         className={className}
         data-testid={`form-field-${field.id}`}
       >
-        <option value="">Select…</option>
+        <option value="">{t("selectOption")}</option>
         {field.options?.map((option) => (
           <option key={option} value={option}>
             {option}
@@ -273,7 +276,7 @@ function FormFieldControl({
     <span className="my-1 flex w-full flex-col align-middle">
       <label htmlFor={id} className="sr-only">
         {field.label}
-        {field.required ? " (required)" : ""}
+        {field.required ? ` (${t("required")})` : ""}
       </label>
       <span
         className="flex w-full items-start"
@@ -421,6 +424,7 @@ export function FormWorkspaceCanvas({
 }: {
   item: FormBackedWorkspaceItem;
 }) {
+  const t = useTranslations("workspace");
   const { refresh } = useWorkspaceItem();
   const { graphData } = useGraphContext();
   const { threadId, setThreadId, getThread } = useThreadContext();
@@ -479,7 +483,7 @@ export function FormWorkspaceCanvas({
     setByokLoading(true);
     fetch("/api/byok", { credentials: "include" })
       .then(async (response) => {
-        if (!response.ok) throw new Error("Could not load provider settings");
+        if (!response.ok) throw new Error(t("couldNotLoadProviderSettings"));
         return (await response.json()) as {
           settings?: {
             enabled: boolean;
@@ -773,7 +777,7 @@ export function FormWorkspaceCanvas({
             block: "center",
           });
         }
-        throw new Error(body.error || "Please correct the highlighted fields.");
+        throw new Error(body.error || t("correctHighlightedFields"));
       }
       setCurrentItem(body.item);
       setValues(body.item.submission?.values || values);
@@ -785,9 +789,9 @@ export function FormWorkspaceCanvas({
       await refresh();
     } catch (error) {
       toast({
-        title: "Submission failed",
+        title: t("submissionFailed"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -802,13 +806,13 @@ export function FormWorkspaceCanvas({
         `/api/workspace/items/${encodeURIComponent(item.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not abandon workspace item");
+      if (!response.ok) throw new Error(t("couldNotAbandonWorkspaceItem"));
       router.push("/workspace");
     } catch (error) {
       toast({
-        title: "Could not abandon item",
+        title: t("couldNotAbandonItem"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -825,7 +829,7 @@ export function FormWorkspaceCanvas({
         submitDisabled={submitted || isSubmitting}
         submitted={submitted}
         submitLabel={
-          currentItem.kind === "method" ? "Start assignment" : undefined
+          currentItem.kind === "method" ? t("startAssignment") : undefined
         }
       />
       <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
@@ -882,7 +886,7 @@ export function FormWorkspaceCanvas({
               {submitted && (
                 <span className="flex items-center gap-1 text-xs font-medium text-emerald-700">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Submitted
+                  {t("submitted")}
                 </span>
               )}
             </div>
@@ -934,19 +938,19 @@ export function FormWorkspaceCanvas({
           <DialogHeader>
             <DialogTitle>
               {currentItem.kind === "method"
-                ? "Start this assignment?"
-                : "Submit and lock this form?"}
+                ? t("startThisAssignment")
+                : t("submitAndLockForm")}
             </DialogTitle>
             <DialogDescription>
               {currentItem.kind === "method"
-                ? "This launches the assignment for the listed recipients. The published method is frozen for this run."
-                : "Submission validates the fields and permanently locks this form. You can still view the resolved Markdown afterwards."}
+                ? t("startAssignmentDescription")
+                : t("submitAndLockFormDescription")}
             </DialogDescription>
           </DialogHeader>
           {currentItem.kind === "method" && (
             <div className="space-y-2 text-sm">
               <p>
-                <span className="font-medium">Method:</span>{" "}
+                <span className="font-medium">{t("methodLabel")}:</span>{" "}
                 {currentItem.methodSource.title || currentItem.methodSource.id}
               </p>
               <p>
@@ -956,7 +960,7 @@ export function FormWorkspaceCanvas({
                   rel="noopener noreferrer"
                   className="text-primary underline-offset-4 hover:underline"
                 >
-                  Read the method
+                  {t("readMethod")}
                 </a>
               </p>
               <MethodByokShareControl
@@ -965,7 +969,7 @@ export function FormWorkspaceCanvas({
                 checked={shareByok}
                 onCheckedChange={setShareByok}
               />
-              <p className="font-medium">Recipients</p>
+              <p className="font-medium">{t("recipients")}</p>
               <ul className="list-disc pl-5 text-muted-foreground">
                 {Array.from(
                   new Set(
@@ -988,7 +992,7 @@ export function FormWorkspaceCanvas({
               onClick={() => setConfirmOpen(false)}
               disabled={isSubmitting}
             >
-              Continue editing
+              {t("continueEditing")}
             </Button>
             <Button
               onClick={() => void submit()}
@@ -997,11 +1001,11 @@ export function FormWorkspaceCanvas({
             >
               {isSubmitting
                 ? currentItem.kind === "method"
-                  ? "Starting…"
-                  : "Submitting…"
+                  ? t("starting")
+                  : t("submitting")
                 : currentItem.kind === "method"
-                  ? "Start assignment"
-                  : "Submit and lock"}
+                  ? t("startAssignment")
+                  : t("submitAndLock")}
             </Button>
           </DialogFooter>
         </DialogContent>

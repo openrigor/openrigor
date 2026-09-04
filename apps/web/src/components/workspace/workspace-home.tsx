@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
 import { AiModeOnboardingDialog } from "./ai-mode-settings-card";
+import { useTranslations } from "next-intl";
 
 export function shouldShowGithubResearchOnboarding(
   repositoriesResponse: Pick<Response, "ok" | "status">,
@@ -56,6 +57,7 @@ export function shouldShowGithubResearchOnboarding(
 }
 
 function GithubResearchOnboarding() {
+  const t = useTranslations("workspace");
   return (
     <Card
       className="mb-4 border-blue-200 bg-blue-50/70"
@@ -64,15 +66,14 @@ function GithubResearchOnboarding() {
       <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
         <div>
           <p className="font-medium text-slate-900">
-            Connect your private research repository
+            {t("connectPrivateResearchRepository")}
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            Connect GitHub to choose the private repository you will use for
-            your research workspace.
+            {t("connectGithubResearchDescription")}
           </p>
         </div>
         <Button asChild>
-          <a href="/api/workspace/github/authorize">Connect GitHub</a>
+          <a href="/api/workspace/github/authorize">{t("connectGithub")}</a>
         </Button>
       </CardContent>
     </Card>
@@ -113,6 +114,7 @@ function MethodCatalog({
 }: {
   onCreated: (item: WorkspaceItem) => void;
 }) {
+  const t = useTranslations("workspace");
   const [methods, setMethods] = useState<CatalogResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -125,7 +127,7 @@ function MethodCatalog({
       credentials: "include",
     })
       .then((response) => {
-        if (!response.ok) throw new Error("Could not load Methods");
+        if (!response.ok) throw new Error(t("couldNotLoadMethods"));
         return response.json() as Promise<{
           results?: Array<Omit<CatalogResult, "kind">>;
         }>;
@@ -162,13 +164,13 @@ function MethodCatalog({
         credentials: "include",
         body: JSON.stringify(buildWorkspaceItemCreateBody(result)),
       });
-      if (!response.ok) throw new Error("Could not create workspace item");
+      if (!response.ok) throw new Error(t("couldNotCreateWorkspaceItem"));
       const responseBody = (await response.json()) as { item: WorkspaceItem };
       onCreated(responseBody.item);
     } catch (createError) {
       console.error("Failed to create workspace item from Method", createError);
       toast({
-        title: "Could not create workspace item",
+        title: t("couldNotCreateWorkspaceItem"),
         variant: "destructive",
       });
     } finally {
@@ -187,33 +189,31 @@ function MethodCatalog({
           id="method-catalog-heading"
           className="text-2xl font-semibold tracking-tight text-slate-900"
         >
-          Start with a Method
+          {t("startWithMethod")}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-slate-600">
-          Choose a reviewed Method to create your first workspace artifact.
-          Public catalog Methods and private repository Methods are available
-          here.
+          {t("chooseReviewedMethod")}
         </p>
       </div>
 
       {loading && (
         <Card className="border-dashed bg-white/70">
           <CardContent className="p-6 text-sm text-muted-foreground">
-            Loading Methods…
+            {t("loadingMethods")}
           </CardContent>
         </Card>
       )}
       {!loading && error && (
         <Card className="border-dashed bg-white/70">
           <CardContent className="p-6 text-sm text-muted-foreground">
-            Methods could not be loaded. Please refresh and try again.
+            {t("methodsCouldNotLoad")}
           </CardContent>
         </Card>
       )}
       {!loading && !error && methods.length === 0 && (
         <Card className="border-dashed bg-white/70">
           <CardContent className="p-6 text-sm text-muted-foreground">
-            No Methods are currently available.
+            {t("noMethodsAvailable")}
           </CardContent>
         </Card>
       )}
@@ -231,7 +231,7 @@ function MethodCatalog({
                           {result.title}
                         </h2>
                         {result.private && (
-                          <Badge variant="secondary">Private</Badge>
+                          <Badge variant="secondary">{t("private")}</Badge>
                         )}
                       </div>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -246,7 +246,7 @@ function MethodCatalog({
                         aria-label={`Start ${result.title}`}
                         onClick={() => void startMethod(result)}
                       >
-                        {creatingKey === key ? "Starting…" : "Start"}
+                        {creatingKey === key ? t("starting") : t("start")}
                       </Button>
                     </div>
                   </CardContent>
@@ -261,6 +261,7 @@ function MethodCatalog({
 }
 
 export function WorkspaceHome() {
+  const t = useTranslations("workspace");
   const [items, setItems] = useState<WorkspaceItem[]>([]);
   const [showGithubResearchOnboarding, setShowGithubResearchOnboarding] =
     useState(false);
@@ -279,7 +280,7 @@ export function WorkspaceHome() {
     ])
       .then(async ([itemsResponse, repositoriesResponse]) => {
         if (!itemsResponse.ok) {
-          throw new Error("Could not load workspace");
+          throw new Error(t("couldNotLoadWorkspace"));
         }
         const body = (await itemsResponse.json()) as {
           items?: WorkspaceItem[];
@@ -299,8 +300,8 @@ export function WorkspaceHome() {
         console.error("Failed to load workspace", error);
         setShowGithubResearchOnboarding(false);
         toast({
-          title: "Could not load workspace",
-          description: "Please refresh and try again.",
+          title: t("couldNotLoadWorkspace"),
+          description: t("pleaseRefreshAndTryAgain"),
           variant: "destructive",
         });
       })
@@ -315,7 +316,7 @@ export function WorkspaceHome() {
         `/api/workspace/items/${encodeURIComponent(itemToDelete.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not delete workspace item");
+      if (!response.ok) throw new Error(t("couldNotDeleteWorkspaceItem"));
       setItems((current) =>
         current.filter((item) => item.id !== itemToDelete.id)
       );
@@ -323,8 +324,8 @@ export function WorkspaceHome() {
     } catch (error) {
       console.error("Failed to delete workspace item", error);
       toast({
-        title: "Could not delete item",
-        description: "Please try again.",
+        title: t("couldNotDeleteItem"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -335,14 +336,17 @@ export function WorkspaceHome() {
   return (
     <main className="min-h-screen bg-slate-50">
       <AiModeOnboardingDialog />
-      <WorkspaceSiteHeader workspaceLabel="Workspace" maxWidthClass="max-w-6xl">
+      <WorkspaceSiteHeader
+        workspaceLabel={t("workspace")}
+        maxWidthClass="max-w-6xl"
+      >
         <a
           href={DOCS_URL}
           target="_blank"
           rel="noopener noreferrer"
           className={workspaceNavGhostClass}
         >
-          Docs
+          {t("docs")}
         </a>
         {!userLoading && user ? <UserMenu user={user} /> : null}
       </WorkspaceSiteHeader>
@@ -354,7 +358,9 @@ export function WorkspaceHome() {
         </div>
         {showGithubResearchOnboarding && <GithubResearchOnboarding />}
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading workspace…</p>
+          <p className="text-sm text-muted-foreground">
+            {t("loadingWorkspace")}
+          </p>
         ) : items.length === 0 ? (
           <MethodCatalog
             onCreated={(item) => setItems((current) => [item, ...current])}
@@ -443,6 +449,7 @@ export function WorkspaceHome() {
 }
 
 export function AuthenticatedWorkspaceHome() {
+  const t = useTranslations("workspace");
   const { user, loading } = useUserContext();
   const router = useRouter();
 
@@ -451,7 +458,9 @@ export function AuthenticatedWorkspaceHome() {
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <div className="p-8 text-sm text-muted-foreground">{t("loading")}</div>
+    );
   }
   return <WorkspaceHome />;
 }

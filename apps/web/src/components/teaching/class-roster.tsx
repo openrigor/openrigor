@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import type { ClassStudent } from "@/lib/teaching/types";
 import { Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ClassRosterProps {
   classId: string;
@@ -27,6 +28,8 @@ export function ClassRoster({
   students: initialStudents,
   onChanged,
 }: ClassRosterProps) {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
   const [students, setStudents] = useState<ClassStudent[]>(
     initialStudents ?? []
   );
@@ -42,7 +45,7 @@ export function ClassRoster({
     try {
       const res = await fetch(`/api/teacher/classes/${classId}/students`);
       if (!res.ok) {
-        throw new Error("Failed to load class roster");
+        throw new Error(t("failedToLoadClassRoster"));
       }
 
       const data = await res.json();
@@ -59,7 +62,7 @@ export function ClassRoster({
       setStudents(mapped);
     } catch (loadError) {
       console.error("Failed to load roster:", loadError);
-      setError("Could not load students");
+      setError(t("couldNotLoadStudents"));
     } finally {
       setLoading(false);
     }
@@ -92,7 +95,7 @@ export function ClassRoster({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error ?? "Failed to remove student");
+        throw new Error(data.error ?? t("failedToRemoveStudent"));
       }
 
       setRemoveTarget(null);
@@ -103,7 +106,7 @@ export function ClassRoster({
       setError(
         removeError instanceof Error
           ? removeError.message
-          : "Failed to remove student"
+          : t("failedToRemoveStudent")
       );
     } finally {
       setRemovingId(null);
@@ -113,7 +116,7 @@ export function ClassRoster({
   if (loading) {
     return (
       <p className="text-sm text-muted-foreground">
-        Loading roster for {className}…
+        {t("loadingRosterFor", { className })}
       </p>
     );
   }
@@ -121,8 +124,12 @@ export function ClassRoster({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">{className} roster</h3>
-        <Badge variant="secondary">{students.length} students</Badge>
+        <h3 className="text-sm font-medium">
+          {t("classRoster", { className })}
+        </h3>
+        <Badge variant="secondary">
+          {t("studentCount", { count: students.length })}
+        </Badge>
       </div>
 
       {error && (
@@ -133,7 +140,7 @@ export function ClassRoster({
 
       {students.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No students in this class yet.
+          {t("noStudentsInClass")}
         </p>
       ) : (
         <div className="divide-y rounded-md border">
@@ -148,7 +155,7 @@ export function ClassRoster({
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">
-                    {student.name || "Pending name"}
+                    {student.name || t("pendingName")}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
                     {student.email}
@@ -156,7 +163,7 @@ export function ClassRoster({
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={student.acceptedAt ? "default" : "outline"}>
-                    {status}
+                    {status === "Joined" ? t("joined") : t("invited")}
                   </Badge>
                   <Button
                     type="button"
@@ -165,7 +172,7 @@ export function ClassRoster({
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => setRemoveTarget(student)}
                     disabled={removingId === key}
-                    title="Remove student"
+                    title={t("removeStudent")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -184,10 +191,12 @@ export function ClassRoster({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Remove student</DialogTitle>
+            <DialogTitle>{t("removeStudent")}</DialogTitle>
             <DialogDescription>
-              Remove {removeTarget?.email} from {className}? They will no longer
-              be associated with this class.
+              {t("removeStudentWarning", {
+                email: removeTarget?.email ?? "",
+                className,
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -196,14 +205,14 @@ export function ClassRoster({
               onClick={() => setRemoveTarget(null)}
               disabled={!!removingId}
             >
-              Cancel
+              {commonT("cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmRemove}
               disabled={!!removingId}
             >
-              {removingId ? "Removing…" : "Remove"}
+              {removingId ? t("removing") : t("remove")}
             </Button>
           </DialogFooter>
         </DialogContent>

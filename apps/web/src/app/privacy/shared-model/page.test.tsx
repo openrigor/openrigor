@@ -1,13 +1,10 @@
-import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import SharedModelPrivacyNoticePage from "./page";
 
 describe("/privacy/shared-model", () => {
-  it("renders the public versioned notice route", () => {
-    const html = renderToStaticMarkup(
-      createElement(SharedModelPrivacyNoticePage)
-    );
+  it("renders the public versioned notice route", async () => {
+    const html = renderToStaticMarkup(await SharedModelPrivacyNoticePage());
 
     expect(html).toContain("Shared-model privacy notice");
     expect(html).toContain("Version:");

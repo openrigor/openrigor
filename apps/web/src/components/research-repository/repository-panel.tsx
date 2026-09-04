@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type {
   RepositoryArtifactRef,
   RepositoryStatus,
@@ -9,14 +10,6 @@ import type {
 } from "@opencanvas/shared/research-repository";
 import { ArtifactEditor } from "./artifact-editor";
 import { Badge } from "@/components/ui/badge";
-import {
-  REPOSITORY_AUTHORIZATION_COPY,
-  REPOSITORY_DISCONNECTED_COPY,
-  REPOSITORY_PERMISSION_COPY,
-  RESEARCH_REPOSITORY_TRUST_COPY,
-  REPOSITORY_PUBLIC_COPY,
-  REPOSITORY_UNAVAILABLE_COPY,
-} from "./copy";
 import { RepositoryBrowser } from "./repository-browser";
 import { statusLabel } from "@/components/workspace/research-repository-status";
 
@@ -46,6 +39,7 @@ function BoundRepositoryPanel({
 }: {
   item: { id: string; binding: ResearchRepositoryBinding };
 }) {
+  const t = useTranslations("researchRepository");
   const searchParams = useSearchParams();
   const urlArtifactId = searchParams.get("artifactId") ?? undefined;
   const [selectedArtifactId, setSelectedArtifactId] = useState(
@@ -88,10 +82,10 @@ function BoundRepositoryPanel({
         }
         if (!response.ok) {
           throw new Error(
-            body.message || body.error || "Could not check repository binding"
+            body.message || body.error || t("couldNotCheckBinding")
           );
         }
-        throw new Error("Could not check repository binding");
+        throw new Error(t("couldNotCheckBinding"));
       })
       .then((result) => {
         if (cancelled) return;
@@ -102,9 +96,7 @@ function BoundRepositoryPanel({
         if (cancelled) return;
         setAvailable(true);
         setCheckingError(
-          cause instanceof Error
-            ? cause.message
-            : "Could not check repository binding"
+          cause instanceof Error ? cause.message : t("couldNotCheckBinding")
         );
       });
 
@@ -131,18 +123,18 @@ function BoundRepositoryPanel({
         return;
       }
       if (!response.ok || !body.status) {
-        throw new Error(body.error || "Could not reconcile repository");
+        throw new Error(body.error || t("couldNotReconcileRepository"));
       }
       setCheckingError(undefined);
       setStatus(body.status);
       setBrowserRefreshKey((current) => current + 1);
       setEditorRefreshKey((current) => current + 1);
-      setReconcileConfirmation("Repository reconciled");
+      setReconcileConfirmation(t("repositoryReconciled"));
     } catch (cause) {
       setReconcileError(
         cause instanceof Error
           ? cause.message
-          : "Could not reconcile repository"
+          : t("couldNotReconcileRepository")
       );
     } finally {
       setReconciling(false);
@@ -152,7 +144,7 @@ function BoundRepositoryPanel({
   if (available === undefined) {
     return (
       <section className="rounded-lg border bg-white p-6 text-sm text-slate-500">
-        Checking repository binding…
+        {t("checkingBinding")}
       </section>
     );
   }
@@ -166,27 +158,27 @@ function BoundRepositoryPanel({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-slate-950">
-              Private research repository
+              {t("privateResearchRepository")}
             </h1>
-            <Badge variant="secondary">Private</Badge>
+            <Badge variant="secondary">{t("private")}</Badge>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-slate-600">
-            {RESEARCH_REPOSITORY_TRUST_COPY}
+            {t("trustCopy")}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
             <span>
               {status?.repositoryFullName ??
                 item.binding.repositoryFullName ??
-                `Repository #${item.binding.repositoryId}`}
+                t("repositoryFallback", { id: item.binding.repositoryId })}
             </span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
-              {statusLabel(status)}
+              {statusLabel(status, t)}
             </span>
             <span>{item.binding.branch}</span>
             <span>
               {item.binding.layoutVersion === "2.0"
-                ? "Layout 2.0"
-                : `Layout ${item.binding.layoutVersion}`}
+                ? t("layoutV2")
+                : t("layout", { version: item.binding.layoutVersion })}
             </span>
             <code className="rounded bg-slate-100 px-1.5 py-0.5">
               {shortCommit(headCommitSha)}
@@ -199,7 +191,7 @@ function BoundRepositoryPanel({
           onClick={() => void reconcile()}
           className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {reconciling ? "Reconciling…" : "Reconcile"}
+          {reconciling ? t("reconciling") : t("reconcile")}
         </button>
       </div>
 
@@ -210,7 +202,7 @@ function BoundRepositoryPanel({
           role="status"
           className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          {REPOSITORY_UNAVAILABLE_COPY}
+          {t("unavailableCopy")}
         </p>
       )}
       {status?.reason === "permission_lost" && (
@@ -218,12 +210,12 @@ function BoundRepositoryPanel({
           role="status"
           className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          {REPOSITORY_PERMISSION_COPY}{" "}
+          {t("permissionCopy")}{" "}
           <a
             href="/api/workspace/github/authorize"
             className="font-semibold underline"
           >
-            Reconnect GitHub
+            {t("reconnectGithub")}
           </a>
         </p>
       )}
@@ -232,12 +224,12 @@ function BoundRepositoryPanel({
           role="status"
           className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          {REPOSITORY_AUTHORIZATION_COPY}{" "}
+          {t("authorizationCopy")}{" "}
           <a
             href="/api/workspace/github/authorize"
             className="font-semibold underline"
           >
-            Re-authorize GitHub
+            {t("reauthorizeGithub")}
           </a>
         </p>
       )}
@@ -246,12 +238,12 @@ function BoundRepositoryPanel({
           role="status"
           className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          {REPOSITORY_DISCONNECTED_COPY}{" "}
+          {t("disconnectedCopy")}{" "}
           <a
             href="/api/workspace/github/authorize"
             className="font-semibold underline"
           >
-            Reconnect GitHub
+            {t("reconnectGithub")}
           </a>
         </p>
       )}
@@ -261,7 +253,7 @@ function BoundRepositoryPanel({
           role="status"
           className="mx-5 mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          {REPOSITORY_PUBLIC_COPY}
+          {t("publicCopy")}
         </p>
       )}
       {(checkingError || reconcileError) && (

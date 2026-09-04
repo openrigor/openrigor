@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { RepositoryArtifactRef } from "@opencanvas/shared/research-repository";
 import {
   artifactKindFromId,
@@ -49,6 +50,7 @@ export function ArtifactEditor({
   readOnly = false,
   onCommitted,
 }: ArtifactEditorProps) {
+  const t = useTranslations("researchRepository");
   const artifactId = artifact?.artifactId;
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
@@ -80,14 +82,14 @@ export function ArtifactEditor({
       );
       const body = (await response.json()) as ArtifactContentResponse;
       if (!response.ok) {
-        throw new Error(body.error || "Could not load repository artifact");
+        throw new Error(body.error || t("couldNotLoadArtifact"));
       }
       if (
         !body.artifact ||
         body.artifact.artifactId !== artifactId ||
         typeof body.content !== "string"
       ) {
-        throw new Error("Repository artifact response was incomplete");
+        throw new Error(t("artifactResponseIncomplete"));
       }
       if (version !== loadVersion.current) return;
       setContent(body.content);
@@ -99,9 +101,7 @@ export function ArtifactEditor({
       setBaseCommitSha(undefined);
       setError({
         message:
-          cause instanceof Error
-            ? cause.message
-            : "Could not load repository artifact",
+          cause instanceof Error ? cause.message : t("couldNotLoadArtifact"),
       });
     } finally {
       if (version === loadVersion.current) setLoading(false);
@@ -137,8 +137,8 @@ export function ArtifactEditor({
     const validation = validateArtifactFrontMatter(artifactId, content);
     return validation.ok
       ? undefined
-      : `Front-matter is not valid YAML: ${validation.reason}`;
-  }, [artifactId, content, dirty]);
+      : t("invalidYaml", { reason: validation.reason });
+  }, [artifactId, content, dirty, t]);
 
   async function commitChanges() {
     if (
@@ -156,7 +156,7 @@ export function ArtifactEditor({
       );
       if (!validation.ok) {
         setError({
-          message: `Front-matter is not valid YAML: ${validation.reason}`,
+          message: t("invalidYaml", { reason: validation.reason }),
         });
         return;
       }
@@ -200,37 +200,35 @@ export function ArtifactEditor({
       if (!response.ok) {
         if (response.status === 409 && body.error === "stale_repository") {
           setError({
-            message: "The repository changed since this artifact was opened.",
+            message: t("repositoryChanged"),
             stale: true,
           });
         } else if (response.status === 422) {
           setError({
-            message: "The repository rejected this artifact.",
+            message: t("repositoryRejectedArtifact"),
             code: body.error || "VALIDATION_ERROR",
           });
         } else {
           setError({
-            message: body.error || "Could not commit repository artifact",
+            message: body.error || t("couldNotCommitArtifact"),
           });
         }
         return;
       }
 
       if (!body.commitSha) {
-        throw new Error("Repository commit response was incomplete");
+        throw new Error(t("commitResponseIncomplete"));
       }
       setSavedContent(content);
       setBaseCommitSha(body.commitSha);
-      setConfirmation("Changes committed");
+      setConfirmation(t("changesCommitted"));
       idempotencyKeyRef.current = undefined;
       onCommitted?.(body.commitSha);
     } catch (cause) {
       if (!isCurrentOperation()) return;
       setError({
         message:
-          cause instanceof Error
-            ? cause.message
-            : "Could not commit repository artifact",
+          cause instanceof Error ? cause.message : t("couldNotCommitArtifact"),
       });
     } finally {
       if (isCurrentOperation()) setCommitting(false);
@@ -244,9 +242,9 @@ export function ArtifactEditor({
         className="flex min-h-72 items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 p-6"
       >
         <h2 id="artifact-editor-heading" className="sr-only">
-          Artifact editor
+          {t("artifactEditor")}
         </h2>
-        <p className="text-sm text-slate-500">Select an artifact to edit.</p>
+        <p className="text-sm text-slate-500">{t("selectArtifactToEdit")}</p>
       </section>
     );
   }
@@ -266,7 +264,7 @@ export function ArtifactEditor({
             role="status"
             className={`text-xs ${dirty ? "text-amber-700" : "text-slate-500"}`}
           >
-            {dirty ? "Unsaved changes" : "No unsaved changes"}
+            {dirty ? t("unsavedChanges") : t("noUnsavedChanges")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -289,7 +287,7 @@ export function ArtifactEditor({
             onClick={() => void commitChanges()}
             className="rounded border border-slate-300 bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {committing ? "Committing…" : "Commit changes"}
+            {committing ? t("committing") : t("commitChanges")}
           </button>
         </div>
       </div>
@@ -305,17 +303,14 @@ export function ArtifactEditor({
             <button
               type="button"
               onClick={() => {
-                if (
-                  dirty &&
-                  !window.confirm("Refresh and discard unsaved edits?")
-                ) {
+                if (dirty && !window.confirm(t("refreshDiscardEdits"))) {
                   return;
                 }
                 void loadArtifact();
               }}
               className="mt-2 block rounded border border-red-300 bg-white px-2.5 py-1 font-medium text-red-800 hover:bg-red-100"
             >
-              Refresh first
+              {t("refreshFirst")}
             </button>
           )}
         </div>
@@ -341,7 +336,7 @@ export function ArtifactEditor({
           role="note"
           className="mb-3 rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800"
         >
-          This artifact version is not supported by this workspace
+          {t("artifactVersionUnsupported")}
         </p>
       )}
       {readOnly && (
@@ -349,14 +344,13 @@ export function ArtifactEditor({
           role="note"
           className="mb-3 rounded border border-slate-200 bg-slate-50 p-2 text-sm text-slate-700"
         >
-          Current-session local content is not synced / last locally available
-          state.
+          {t("localContentNotSynced")}
         </p>
       )}
 
       {loading ? (
         <div className="flex min-h-72 items-center justify-center rounded border border-slate-300 bg-slate-50 text-sm text-slate-500">
-          Loading artifact…
+          {t("loadingArtifact")}
         </div>
       ) : (
         <textarea

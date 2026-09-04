@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { MergedLedger } from "@/lib/workspace/ledger-reference";
+import { useTranslations } from "next-intl";
 
 export function FindingLedgerPickerDialog({
   open,
@@ -20,6 +21,7 @@ export function FindingLedgerPickerDialog({
   onOpenChange: (open: boolean) => void;
   onSelect: (ledger: MergedLedger) => void;
 }) {
+  const t = useTranslations("workspace");
   const [ledgers, setLedgers] = useState<MergedLedger[]>([]);
   const [loading, setLoading] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -36,7 +38,7 @@ export function FindingLedgerPickerDialog({
           if (!cancelled) setUnavailable(true);
           return;
         }
-        if (!response.ok) throw new Error("Could not list published ledgers");
+        if (!response.ok) throw new Error(t("couldNotListPublishedLedgers"));
         const body = (await response.json()) as { ledgers?: MergedLedger[] };
         if (!cancelled) setLedgers(body.ledgers || []);
       })
@@ -58,15 +60,14 @@ export function FindingLedgerPickerDialog({
         data-testid="finding-ledger-picker"
       >
         <DialogHeader>
-          <DialogTitle>Cite a published evidence ledger</DialogTitle>
+          <DialogTitle>{t("citePublishedEvidenceLedger")}</DialogTitle>
           <DialogDescription>
-            Inserts a read-only reference card and an evidence_ledgers entry.
-            Research questions are selected independently.
+            {t("citePublishedEvidenceLedgerDescription")}
           </DialogDescription>
         </DialogHeader>
         {loading && (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            Loading published ledgers…
+            {t("loadingPublishedLedgers")}
           </p>
         )}
         {!loading && unavailable && (
@@ -74,12 +75,12 @@ export function FindingLedgerPickerDialog({
             className="py-6 text-center text-sm text-muted-foreground"
             data-testid="ledger-picker-unavailable"
           >
-            Ledger picker unavailable
+            {t("ledgerPickerUnavailable")}
           </p>
         )}
         {!loading && !unavailable && ledgers.length === 0 && (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            No merged evidence ledgers are published yet.
+            {t("noPublishedLedgers")}
           </p>
         )}
         {!loading && !unavailable && (
@@ -106,7 +107,7 @@ export function FindingLedgerPickerDialog({
         )}
         <div className="flex justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("close")}
           </Button>
         </div>
       </DialogContent>

@@ -25,8 +25,10 @@ import { AssignmentListView } from "./assignment-list-view";
 import { InviteStudentsDialog } from "./invite-students-dialog";
 import { OrgOverviewPanel } from "./org-overview";
 import { Toaster } from "@/components/ui/toaster";
+import { useTranslations } from "next-intl";
 
 export function TeacherDashboard() {
+  const t = useTranslations("teaching");
   const router = useRouter();
   const { user, loading: userLoading } = useUserContext();
   const [inviteStudentsOpen, setInviteStudentsOpen] = useState(false);
@@ -46,7 +48,7 @@ export function TeacherDashboard() {
         <header className="border-b bg-background">
           <div className="container mx-auto flex h-14 max-w-5xl items-center justify-center gap-6 px-4">
             <div className="flex items-center gap-2 text-sm font-medium">
-              Organisation workspace
+              {t("organisationWorkspace")}
             </div>
             <Link
               href="/auth/signout"
@@ -56,12 +58,14 @@ export function TeacherDashboard() {
               )}
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sign out
+              {t("signOut")}
             </Link>
           </div>
         </header>
         <main className="container mx-auto max-w-5xl px-4 py-10">
-          <p className="text-sm text-muted-foreground">Loading assignments…</p>
+          <p className="text-sm text-muted-foreground">
+            {t("loadingAssignments")}
+          </p>
         </main>
       </div>
     );
@@ -72,7 +76,7 @@ export function TeacherDashboard() {
       <header className="border-b bg-background">
         <div className="container mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            Organisation workspace
+            {t("organisationWorkspace")}
           </div>
           <div className="flex items-center gap-2">
             {showInviteTeachers ? (
@@ -84,7 +88,7 @@ export function TeacherDashboard() {
                 data-testid="invite-teacher-button"
               >
                 <UserPlus className="h-3.5 w-3.5" />
-                Invite teacher
+                {t("inviteTeacher")}
               </Button>
             ) : null}
             <Button
@@ -94,7 +98,7 @@ export function TeacherDashboard() {
               onClick={() => setInviteStudentsOpen(true)}
             >
               <Users className="h-3.5 w-3.5" />
-              Import students
+              {t("importStudents")}
             </Button>
             <Link
               href="/auth/signout"
@@ -104,7 +108,7 @@ export function TeacherDashboard() {
               )}
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sign out
+              {t("signOut")}
             </Link>
           </div>
         </div>
@@ -122,10 +126,9 @@ export function TeacherDashboard() {
       <Dialog open={inviteTeachersOpen} onOpenChange={setInviteTeachersOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Invite teacher</DialogTitle>
+            <DialogTitle>{t("inviteTeacher")}</DialogTitle>
             <DialogDescription>
-              Delegated teachers can manage their own classes and students. They
-              cannot invite other teachers.
+              {t("delegatedTeacherDescription")}
             </DialogDescription>
           </DialogHeader>
           <InviteTeacherDialog />

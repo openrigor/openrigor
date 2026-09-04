@@ -1,4 +1,5 @@
 import { Dispatch, SetStateAction, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,10 +33,11 @@ export function EditDeleteDropdown({
   selectedAssistant,
   disabled,
 }: EditDeleteDropdownProps) {
+  const t = useTranslations("assistant");
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
-  const tooltipText = allowDelete ? "Edit/Delete" : "Edit";
+  const tooltipText = allowDelete ? t("editDelete") : t("edit");
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -68,13 +70,13 @@ export function EditDeleteDropdown({
               const res = await deleteAssistant(selectedAssistant.assistant_id);
               if (res) {
                 toast({
-                  title: "Assistant deleted",
+                  title: t("assistantDeleted"),
                   duration: 5000,
                 });
               } else {
                 toast({
-                  title: "Error",
-                  description: "Failed to delete the assistant.",
+                  title: t("error"),
+                  description: t("failedToDeleteAssistant"),
                   variant: "destructive",
                   duration: 5000,
                 });
