@@ -59,7 +59,16 @@ function LocaleCodeMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const openBeforePointerDown = useRef(false);
+  const suppressTriggerFocusOpen = useRef(false);
   const selectedLabel = localeLabel(selectedLocale);
+
+  function closeAndRestoreFocus() {
+    setOpen(false);
+    if (triggerRef.current) {
+      suppressTriggerFocusOpen.current = true;
+      triggerRef.current.focus();
+    }
+  }
 
   function focusItem(index: number) {
     setOpen(true);
@@ -110,8 +119,7 @@ function LocaleCodeMenu({
       itemRefs.current[LOCALES.length - 1]?.focus();
     } else if (event.key === "Escape") {
       event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
+      closeAndRestoreFocus();
     }
   }
 
@@ -148,7 +156,13 @@ function LocaleCodeMenu({
           openBeforePointerDown.current =
             event.pointerType === "touch" ? false : open;
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (suppressTriggerFocusOpen.current) {
+            suppressTriggerFocusOpen.current = false;
+            return;
+          }
+          setOpen(true);
+        }}
         onKeyDown={handleTriggerKeyDown}
         className={cn(
           "inline-flex h-full min-w-full items-center justify-center rounded-md px-2 font-mono text-xs font-semibold tracking-[0.14em] outline-none hover:bg-white/10",
@@ -164,7 +178,6 @@ function LocaleCodeMenu({
         onKeyDown={handleMenuKeyDown}
         className={cn(
           "invisible absolute right-0 top-full z-50 pt-1 opacity-0 transition-opacity duration-150",
-          "group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
           open && "visible opacity-100"
         )}
       >
@@ -181,8 +194,7 @@ function LocaleCodeMenu({
               data-value={code}
               onClick={() => {
                 onSelect(code);
-                setOpen(false);
-                triggerRef.current?.focus();
+                closeAndRestoreFocus();
               }}
               className="block w-full rounded-sm px-3 py-1.5 text-left text-sm outline-none hover:bg-slate-100 focus:bg-slate-100"
             >

@@ -105,5 +105,17 @@ describe("PreAuthLanguageSwitcher", () => {
 
     expect(document.cookie).toContain("NEXT_LOCALE=de");
     expect(routerMock.refresh).toHaveBeenCalledTimes(1);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("closes on Escape with aria-expanded false", () => {
+    render(createElement(PreAuthLanguageSwitcher));
+    const trigger = screen.getByTestId("preauth-language-switcher");
+
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 });
