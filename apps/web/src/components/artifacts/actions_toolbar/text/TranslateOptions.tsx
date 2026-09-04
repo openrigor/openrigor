@@ -4,7 +4,13 @@ import { GraphInput } from "@opencanvas/shared/types";
 import { LOCALES, type LocaleCode } from "@/lib/i18n/locales";
 
 // E3 (#98) will replace the graph's current translation-language union.
-const TRANSLATION_LANGUAGE_BY_LOCALE: Record<LocaleCode, string> = {
+// The map is keyed on the graph contract itself (no cast) so the compiler
+// enforces that every registry locale maps to a supported value; new
+// graph targets must widen LanguageOptions in @opencanvas/shared.
+const TRANSLATION_LANGUAGE_BY_LOCALE: Record<
+  LocaleCode,
+  NonNullable<GraphInput["language"]>
+> = {
   en: "english",
   de: "german",
   fr: "french",

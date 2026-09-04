@@ -34,26 +34,15 @@ import MathInlineExtension from "./MathInlineExtension";
 import { computeDiffRanges, type DiffRange } from "@/lib/diffing";
 import { EditActionBar } from "./EditActionBar";
 import { canvasSchema } from "./canvas-schema";
+import { resolveBlockNoteLocale } from "@/lib/i18n/blocknote-locale";
 
 import "katex/dist/katex.min.css";
 import {
   exportCanvasBlocksToMarkdown,
   parseMarkdownToCanvasBlocks,
 } from "./mermaid-markdown";
-import {
-  DEFAULT_LOCALE,
-  isLocaleCode,
-  type LocaleCode,
-} from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, isLocaleCode } from "@/lib/i18n/locales";
 
-const BLOCKNOTE_LOCALE_BY_APP_LOCALE: Record<LocaleCode, keyof typeof locales> =
-  {
-    en: "en",
-    de: "de",
-    fr: "fr",
-    es: "es",
-    it: "en",
-  };
 type BlockNoteDictionary = NonNullable<
   Parameters<typeof useCreateBlockNote>[0]
 >["dictionary"];
@@ -151,15 +140,20 @@ export interface TextRendererProps {
 export function TextRendererComponent(props: TextRendererProps) {
   const locale = useLocale();
   const appLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
-  const editor = useCreateBlockNote({
-    schema: canvasSchema,
-    dictionary: locales[
-      BLOCKNOTE_LOCALE_BY_APP_LOCALE[appLocale]
-    ] as BlockNoteDictionary,
-    _tiptapOptions: {
-      extensions: [TrackChangesExtension, MathInlineExtension],
+  const editor = useCreateBlockNote(
+    {
+      schema: canvasSchema,
+      dictionary: locales[
+        resolveBlockNoteLocale(appLocale)
+      ] as BlockNoteDictionary,
+      _tiptapOptions: {
+        extensions: [TrackChangesExtension, MathInlineExtension],
+      },
     },
-  });
+    // Recreate the editor when the app locale changes so BlockNote's
+    // dictionary (UI strings) follows the switched language.
+    [appLocale]
+  );
   const { graphData } = useGraphContext();
   const {
     setCursorPosition,
@@ -259,10 +253,12 @@ export function TextRendererComponent(props: TextRendererProps) {
 
   // When a new artifact version arrives (thread switch, streaming update,
   // or bootstrap), mark content as not-yet-loaded so the guard in the
-  // content-loading effect doesn't block the initial parse.
+  // content-loading effect doesn't block the initial parse. The editor
+  // dependency covers editor recreation (locale switch): a fresh editor
+  // instance is empty, so existing content must be re-loaded into it.
   useEffect(() => {
     contentLoadedRef.current = false;
-  }, [artifact?.currentIndex]);
+  }, [artifact?.currentIndex, editor]);
 
   useEffect(() => {
     const selectedText = editor.getSelectedText();

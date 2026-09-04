@@ -16,20 +16,8 @@ import type { DiffRange } from "@/lib/diffing";
 import { canvasSchema } from "./canvas-schema";
 import "katex/dist/katex.min.css";
 import { parseMarkdownToCanvasBlocks } from "./mermaid-markdown";
-import {
-  DEFAULT_LOCALE,
-  isLocaleCode,
-  type LocaleCode,
-} from "@/lib/i18n/locales";
-
-const BLOCKNOTE_LOCALE_BY_APP_LOCALE: Record<LocaleCode, keyof typeof locales> =
-  {
-    en: "en",
-    de: "de",
-    fr: "fr",
-    es: "es",
-    it: "en",
-  };
+import { resolveBlockNoteLocale } from "@/lib/i18n/blocknote-locale";
+import { DEFAULT_LOCALE, isLocaleCode } from "@/lib/i18n/locales";
 type BlockNoteDictionary = NonNullable<
   Parameters<typeof useCreateBlockNote>[0]
 >["dictionary"];
@@ -149,15 +137,20 @@ export function ReadonlyMarkdownRenderer({
 }: ReadonlyMarkdownRendererProps) {
   const locale = useLocale();
   const appLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
-  const editor = useCreateBlockNote({
-    schema: canvasSchema,
-    dictionary: locales[
-      BLOCKNOTE_LOCALE_BY_APP_LOCALE[appLocale]
-    ] as BlockNoteDictionary,
-    _tiptapOptions: {
-      extensions: [TrackChangesExtension, MathInlineExtension],
+  const editor = useCreateBlockNote(
+    {
+      schema: canvasSchema,
+      dictionary: locales[
+        resolveBlockNoteLocale(appLocale)
+      ] as BlockNoteDictionary,
+      _tiptapOptions: {
+        extensions: [TrackChangesExtension, MathInlineExtension],
+      },
     },
-  });
+    // Recreate the editor when the app locale changes so BlockNote's
+    // dictionary (UI strings) follows the switched language.
+    [appLocale]
+  );
 
   const isSyncingRef = useRef(false);
   const lastScrolledOffsetRef = useRef<number | null>(null);
