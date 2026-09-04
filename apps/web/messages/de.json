@@ -1100,7 +1100,7 @@
     "sending": "Senden",
     "sentDate": "Sendedatum",
     "teacherEmail": "E-Mail des Lehrers",
-    "tokenUsage": "{input} Eingabe · {output} Ausgabe-Tokens",
+    "tokenUsage": "{input} Eingabe-Tokens · {output} Ausgabe-Tokens",
     "topUsersByInvitations": "Top-Benutzer nach Einladungen",
     "topUsersByWorkspaceItems": "Top-Benutzer nach Arbeitsbereichselementen",
     "unknownDate": "Unbekanntes Datum",

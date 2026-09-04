@@ -1100,7 +1100,7 @@
     "sending": "Envoi",
     "sentDate": "Date d'envoi",
     "teacherEmail": "Courriel de l'enseignant",
-    "tokenUsage": "{input} en entrée · {output} en sortie (jetons)",
+    "tokenUsage": "{input} jetons en entrée · {output} jetons en sortie",
     "topUsersByInvitations": "Principaux utilisateurs par invitations",
     "topUsersByWorkspaceItems": "Principaux utilisateurs par éléments de l'espace de travail",
     "unknownDate": "Date inconnue",
