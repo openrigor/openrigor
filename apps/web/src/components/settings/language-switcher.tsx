@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Languages } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -62,30 +61,23 @@ export function LanguageSwitcher() {
 
 export function CompactLanguageSwitcher() {
   const router = useRouter();
-  const [selectedLocale, setSelectedLocale] = useState(DEFAULT_LOCALE);
-
-  useEffect(() => {
-    const cookieLocale = document.cookie
-      .split("; ")
-      .find((cookie) => cookie.startsWith(`${LOCALE_COOKIE}=`))
-      ?.split("=")[1];
-    if (cookieLocale && isLocaleCode(cookieLocale)) {
-      setSelectedLocale(cookieLocale);
-    }
-  }, []);
+  const locale = useLocale();
+  // Derive from useLocale() (server-provided, updates on router.refresh())
+  // rather than mount-time cookie state — the settings switcher shares the
+  // same source, so both controls stay in sync after a locale change.
+  const selectedLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const nextLocale = event.target.value;
     if (!isLocaleCode(nextLocale)) return;
 
-    setSelectedLocale(nextLocale);
     writeLocaleCookie(nextLocale);
     router.refresh();
   }
 
   return (
     <div
-      className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-white/90 hover:bg-white/10"
+      className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-white/90 hover:bg-white/10 focus-within:ring-2 focus-within:ring-white"
       title={localeLabel(selectedLocale)}
     >
       <Languages className="h-4 w-4" aria-hidden />
