@@ -1,22 +1,11 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ArtifactMarkdownV3 } from "@opencanvas/shared/types";
 
-// Regression: the raw-markdown toggle must render on every canvas surface.
-// PR #50-era `minimalCanvas` mode (workspace canvases) suppressed the toggle
-// entirely, so workspace items had no way to switch between rendered and raw
-// markdown. The toggle is decoupled from minimalCanvas; only the formatting
-// toolbar and slash menu stay gated.
-
+// ---- hoisted shared fixture ----
 const harness = vi.hoisted(() => {
   const content = {
     index: 1,
@@ -24,29 +13,25 @@ const harness = vi.hoisted(() => {
     title: "Test canvas",
     fullMarkdown: "# Hello\n\nWorld.",
   } satisfies ArtifactMarkdownV3;
-  const artifact = {
-    currentIndex: 1,
-    contents: [content],
-  };
-  const editor = {
-    document: [] as unknown[],
-    replaceBlocks: vi.fn(),
+  const editor: any = {
+    document: [],
     getSelectedText: () => "",
-    getSelection: () => undefined,
-    _tiptapEditor: {
-      on: vi.fn(),
-      off: vi.fn(),
-      dispatch: vi.fn(),
-      state: {
-        tr: {},
-        selection: { $head: { pos: 0 }, from: 0, to: 0 },
-        doc: { textContent: "" },
-      },
+    getSelection: () => null,
+    blocksToMarkdownLossy: vi.fn(async () => ""),
+    replaceBlocks: vi.fn(),
+  };
+  editor._tiptapEditor = {
+    on: vi.fn(),
+    off: vi.fn(),
+    state: {
+      tr: {},
+      selection: { $head: { pos: 0 }, from: 0, to: 0 },
+      doc: { textContent: "" },
     },
   };
   return {
+    content,
     editor,
-    artifact,
     setArtifact: vi.fn(),
     setUpdateRenderedArtifactRequired: vi.fn(),
     setPendingEdit: vi.fn(),
@@ -55,7 +40,7 @@ const harness = vi.hoisted(() => {
     setCursorPosition: vi.fn(),
     setEditorHasFocus: vi.fn(),
     graphData: {
-      artifact,
+      artifact: { currentIndex: 1, contents: [content] },
       isStreaming: false,
       isArtifactSaved: true,
       artifactUpdateFailed: false,
@@ -85,15 +70,15 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
 }));
 
+vi.mock("@blocknote/core", () => ({
+  locales: {},
+}));
+
 vi.mock("@blocknote/react", () => ({
   useCreateBlockNote: () => harness.editor,
   FormattingToolbarController: () => null,
   SuggestionMenuController: () => null,
   getDefaultReactSlashMenuItems: () => [],
-}));
-
-vi.mock("@blocknote/core", () => ({
-  locales: {},
 }));
 
 vi.mock("@blocknote/shadcn", () => ({
@@ -133,18 +118,6 @@ vi.mock("@/components/ui/assistant-ui/tooltip-icon-button", () => ({
   }),
 }));
 
-vi.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, ...rest }: React.PropsWithChildren) => (
-      <div {...rest}>{children}</div>
-    ),
-  },
-}));
-
-vi.mock("./components/CopyText", () => ({
-  CopyText: () => <button type="button" data-testid="copy-text-stub" />,
-}));
-
 vi.mock("./CustomFormattingToolbar", () => ({
   CustomFormattingToolbar: () => null,
 }));
@@ -171,72 +144,54 @@ vi.mock("./mermaid-markdown", () => ({
 import { TextRenderer } from "./TextRenderer";
 
 function renderCanvas(minimalCanvas: boolean) {
-  return render(
+  const toggleRef = { current: null as (() => void) | null };
+  const onRawViewChange = vi.fn();
+  const view = render(
     <TextRenderer
       isEditing={false}
       isHovering
       isInputVisible
       minimalCanvas={minimalCanvas}
+      toggleRef={toggleRef}
+      onRawViewChange={onRawViewChange}
     />
   );
+  return { toggleRef, onRawViewChange, view };
 }
 
-describe("TextRenderer raw markdown toggle", () => {
+describe("TextRenderer raw markdown toggle (header-bar contract)", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
   });
 
-  it("shows the raw toggle on the minimal (workspace) canvas on hover", async () => {
-    renderCanvas(true);
-    await waitFor(() =>
-      expect(screen.getByTestId("toggle-raw-view")).toBeTruthy()
-    );
+  it("publishes toggleRawView via toggleRef on the minimal (workspace) canvas", async () => {
+    const { toggleRef } = renderCanvas(true);
+    await waitFor(() => expect(toggleRef.current).toBeTypeOf("function"));
   });
 
-  it("round-trips rendered → raw → rendered on the minimal canvas", async () => {
-    renderCanvas(true);
-    const toggle = await screen.findByTestId("toggle-raw-view");
+  it("round-trips rendered → raw → rendered via the header toggle", async () => {
+    const { toggleRef, onRawViewChange } = renderCanvas(true);
+    await waitFor(() => expect(toggleRef.current).toBeTypeOf("function"));
 
-    fireEvent.click(toggle);
+    toggleRef.current?.();
     const raw = await screen.findByTestId("canvas-editor-raw");
     expect((raw as HTMLTextAreaElement).value).toContain("# Hello");
 
-    fireEvent.click(screen.getByTestId("toggle-raw-view"));
+    toggleRef.current?.();
     await waitFor(() =>
       expect(screen.getByTestId("canvas-editor")).toBeTruthy()
     );
+    // state reported upstream for the header icon (Eye ↔ EyeOff)
+    await waitFor(() =>
+      expect(onRawViewChange).toHaveBeenLastCalledWith(false)
+    );
   });
 
-  it("keeps the toggle visible in raw view after hover ends", async () => {
-    const view = renderCanvas(true);
-    const toggle = await screen.findByTestId("toggle-raw-view");
-
-    fireEvent.click(toggle);
-    await screen.findByTestId("canvas-editor-raw");
-
-    // Hover is gone; the raw view must keep the controls mounted so the
-    // user can still toggle back.
-    view.rerender(
-      <TextRenderer
-        isEditing={false}
-        isHovering={false}
-        isInputVisible
-        minimalCanvas
-      />
-    );
-    expect(screen.getByTestId("toggle-raw-view")).toBeTruthy();
-  });
-
-  it("still hides the toggle when not hovering and not in raw view", () => {
-    render(
-      <TextRenderer
-        isEditing={false}
-        isHovering={false}
-        isInputVisible
-        minimalCanvas
-      />
-    );
-    expect(screen.queryByTestId("toggle-raw-view")).toBeNull();
+  it("clears toggleRef on unmount", async () => {
+    const { toggleRef, view } = renderCanvas(true);
+    await waitFor(() => expect(toggleRef.current).toBeTypeOf("function"));
+    view.unmount();
+    expect(toggleRef.current).toBeNull();
   });
 });
