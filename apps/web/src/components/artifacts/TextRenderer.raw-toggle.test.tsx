@@ -208,6 +208,26 @@ describe("TextRenderer raw markdown toggle", () => {
     );
   });
 
+  it("keeps the toggle visible in raw view after hover ends", async () => {
+    const view = renderCanvas(true);
+    const toggle = await screen.findByTestId("toggle-raw-view");
+
+    fireEvent.click(toggle);
+    await screen.findByTestId("canvas-editor-raw");
+
+    // Hover is gone; the raw view must keep the controls mounted so the
+    // user can still toggle back.
+    view.rerender(
+      <TextRenderer
+        isEditing={false}
+        isHovering={false}
+        isInputVisible
+        minimalCanvas
+      />
+    );
+    expect(screen.getByTestId("toggle-raw-view")).toBeTruthy();
+  });
+
   it("still hides the toggle when not hovering and not in raw view", () => {
     render(
       <TextRenderer
