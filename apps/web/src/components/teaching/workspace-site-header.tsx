@@ -30,18 +30,25 @@ export function WorkspaceSiteHeader({
 }) {
   return (
     <header
-      className="relative sticky top-0 z-50 overflow-hidden border-b border-white/[0.08] text-white"
+      className="relative sticky top-0 z-50 border-b border-white/[0.08] text-white"
       style={{ backgroundColor: BRAND_PANEL_COLOR }}
       data-testid="workspace-site-header"
     >
+      {/* Gradient wash is clipped by its own overflow-hidden layer instead of
+          the header, so absolutely-positioned dropdowns (e.g. the language
+          menu at top-full) can render below the 60px bar. */}
       <div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden"
         aria-hidden
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 80% at 85% 20%, rgba(255,255,255,0.07), transparent 55%)",
-        }}
-      />
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 80% at 85% 20%, rgba(255,255,255,0.07), transparent 55%)",
+          }}
+        />
+      </div>
       <div
         className={cn(
           "relative container mx-auto flex h-[60px] items-center justify-between gap-4 px-6",

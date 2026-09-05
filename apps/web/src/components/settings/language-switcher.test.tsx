@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createElement } from "react";
+import { createElement, type ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -26,6 +26,7 @@ import {
   LanguageSwitcher,
   PreAuthLanguageSwitcher,
 } from "./language-switcher";
+import { WorkspaceSiteHeader } from "@/components/teaching/workspace-site-header";
 
 afterEach(() => {
   cleanup();
@@ -33,6 +34,25 @@ afterEach(() => {
   routerMock.refresh.mockClear();
   document.cookie = "NEXT_LOCALE=; Max-Age=0; path=/";
 });
+
+vi.mock("next/image", () => ({
+  default: (props: ComponentProps<"img">) => createElement("img", props),
+}));
+
+function walkAncestorsUntil(element: Element, stopAt: Element) {
+  const ancestors: Element[] = [];
+  let current: Element | null = element.parentElement;
+  while (current && current !== stopAt) {
+    ancestors.push(current);
+    current = current.parentElement;
+  }
+  if (current !== stopAt) {
+    throw new Error(
+      "language menu is not rendered inside WorkspaceSiteHeader — regression test would pass vacuously"
+    );
+  }
+  return ancestors;
+}
 
 function renderWithLocale(locale: string) {
   currentLocale = locale;
@@ -117,5 +137,35 @@ describe("PreAuthLanguageSwitcher", () => {
 
     fireEvent.keyDown(trigger, { key: "Escape" });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("WorkspaceSiteHeader language dropdown", () => {
+  it("does not clip the dropdown: header and ancestors carry no overflow-hidden", () => {
+    // Regression for the clipped language menu: the header previously carried
+    // `overflow-hidden` (added for the gradient wash), which cut the menu
+    // rendered at `absolute right-0 top-full` inside the header down to its
+    // 60px bar. jsdom cannot measure pixels, so assert on classes/styles:
+    // neither the header itself nor any element between the open menu and the
+    // header may clip, and the wash must live in its own overflow-hidden
+    // layer instead.
+    // WorkspaceSiteHeader renders CompactLanguageSwitcher in its own nav, so
+    // no children are needed for the dropdown to be present.
+    render(
+      createElement(WorkspaceSiteHeader, { workspaceLabel: "Research tools" })
+    );
+
+    const header = screen.getByTestId("workspace-site-header");
+    expect(header.className).not.toContain("overflow-hidden");
+
+    const menu = screen.getByRole("menu", { name: "Language options" });
+    for (const ancestor of walkAncestorsUntil(menu, header)) {
+      expect(ancestor.className).not.toContain("overflow-hidden");
+      expect(getComputedStyle(ancestor).overflow).not.toBe("hidden");
+    }
+
+    const wash = header.querySelector("div[aria-hidden]");
+    expect(wash).not.toBeNull();
+    expect(wash?.className).toContain("overflow-hidden");
   });
 });
