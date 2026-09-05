@@ -64,10 +64,10 @@ describe.skipIf(!process.env.OPENAI_API_KEY)(
         const response = await model.invoke([
           {
             role: "system",
-            content: [
-              directive,
-              `Answer the student in ${fixture.language}. Keep the response to two sentences.`,
-            ]
+            // The directive alone must control response language — do not
+            // restate fixture.language here, or the eval can pass while the
+            // directive contract is broken (CodeRabbit #111).
+            content: [directive, "Keep the response to two sentences."]
               .filter(Boolean)
               .join("\n\n"),
           },
