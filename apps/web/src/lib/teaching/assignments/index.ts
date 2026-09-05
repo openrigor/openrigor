@@ -12,6 +12,7 @@
  */
 
 import type { StudentAssignment } from "../types";
+import { normalizeAssignmentFields } from "../assignment-policy";
 
 /**
  * Look up a seed assignment by ID via the API.
@@ -22,7 +23,9 @@ export async function getAssignmentById(
   try {
     const res = await fetch("/api/teaching/seeds");
     const data = await res.json();
-    const seeds = (data.seeds ?? []) as StudentAssignment[];
+    const seeds = ((data.seeds ?? []) as StudentAssignment[]).map(
+      normalizeAssignmentFields
+    );
     return seeds.find((a) => a.id === id);
   } catch {
     return undefined;
@@ -36,7 +39,9 @@ export async function getSeedAssignments(): Promise<StudentAssignment[]> {
   try {
     const res = await fetch("/api/teaching/seeds");
     const data = await res.json();
-    return (data.seeds ?? []) as StudentAssignment[];
+    return ((data.seeds ?? []) as StudentAssignment[]).map(
+      normalizeAssignmentFields
+    );
   } catch {
     return [];
   }

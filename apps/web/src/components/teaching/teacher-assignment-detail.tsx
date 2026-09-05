@@ -13,6 +13,7 @@ import {
   filterThreadsByStudentIds,
   studentIdsFromClasses,
 } from "@/lib/teaching/teacher-submission-scope";
+import { assignmentLocaleLabel } from "@/lib/teaching/assignment-policy";
 import {
   StudentAssignment,
   StudentClassData,
@@ -267,6 +268,15 @@ export function TeacherAssignmentDetail({
                 <CardTitle className="text-xl">{assignment.title}</CardTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Badge variant="outline">{assignment.courseLabel}</Badge>
+                  {assignmentLocaleLabel(assignment.locale) && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs"
+                      data-testid={`assignment-locale-${assignment.id}`}
+                    >
+                      {assignmentLocaleLabel(assignment.locale)}
+                    </Badge>
+                  )}
                   <span>{t("due", { date: assignment.dueLabel })}</span>
                   <span>•</span>
                   <span>

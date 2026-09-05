@@ -10,6 +10,8 @@ import type {
   StudentAssignment,
   StudentClassData,
 } from "@/lib/teaching/types";
+import { normalizeAssignmentFields } from "@/lib/teaching/assignment-policy";
+import { assignmentLocaleLabel } from "@/lib/teaching/assignment-policy";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -74,7 +76,9 @@ export function OrgOverviewPanel() {
       setOverview({
         teacherId: data.teacherId as string,
         classes: (data.classes ?? []) as StudentClassData[],
-        assignments: (data.assignments ?? []) as StudentAssignment[],
+        assignments: ((data.assignments ?? []) as StudentAssignment[]).map(
+          normalizeAssignmentFields
+        ),
       });
     } catch (loadError) {
       console.error("Failed to load teacher overview:", loadError);
@@ -260,6 +264,19 @@ export function OrgOverviewPanel() {
                                       <div className="min-w-0 space-y-0.5">
                                         <div className="truncate text-sm font-medium">
                                           {assignment.title}
+                                          {assignmentLocaleLabel(
+                                            assignment.locale
+                                          ) && (
+                                            <Badge
+                                              variant="secondary"
+                                              className="ml-2 text-xs"
+                                              data-testid={`assignment-locale-${assignment.id}`}
+                                            >
+                                              {assignmentLocaleLabel(
+                                                assignment.locale
+                                              )}
+                                            </Badge>
+                                          )}
                                         </div>
                                         <div className="truncate text-xs text-muted-foreground">
                                           {t("courseDue", {

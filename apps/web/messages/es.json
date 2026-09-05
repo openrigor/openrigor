@@ -278,6 +278,7 @@
     "assignmentNotFound": "Tarea no encontrada",
     "assignmentNotFoundTitle": "Título de la tarea no encontrada",
     "assignmentPrompt": "Mensaje de tarea",
+    "assignmentLanguage": "Idioma de la tarea",
     "assignmentTitlePlaceholder": "Título de la tarea",
     "assignments": "Asignaciones",
     "assignmentsToManage": "{count} tareas a gestionar.",

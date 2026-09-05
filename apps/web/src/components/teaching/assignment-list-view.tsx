@@ -30,6 +30,7 @@ import {
   studentIdsFromClasses,
 } from "@/lib/teaching/teacher-submission-scope";
 import { normalizeLifecycleStatus } from "@/lib/teaching/assignment-policy";
+import { assignmentLocaleLabel } from "@/lib/teaching/assignment-policy";
 import { CloseAssignmentDialog } from "./close-assignment-dialog";
 import { useTranslations } from "next-intl";
 import { Archive, Pencil, Plus, Trash2 } from "lucide-react";
@@ -317,6 +318,15 @@ export function AssignmentListView() {
                         </div>
                         <CardTitle className="text-lg">
                           {assignment.title}
+                          {assignmentLocaleLabel(assignment.locale) && (
+                            <Badge
+                              variant="secondary"
+                              className="ml-2 text-xs"
+                              data-testid={`assignment-locale-${assignment.id}`}
+                            >
+                              {assignmentLocaleLabel(assignment.locale)}
+                            </Badge>
+                          )}
                           {draftIds.has(assignment.id) && (
                             <Badge variant="outline" className="ml-2 text-xs">
                               {t("draft")}
@@ -458,6 +468,15 @@ export function AssignmentListView() {
                             </div>
                             <CardTitle className="text-lg">
                               {assignment.title}
+                              {assignmentLocaleLabel(assignment.locale) && (
+                                <Badge
+                                  variant="secondary"
+                                  className="ml-2 text-xs"
+                                  data-testid={`assignment-locale-${assignment.id}`}
+                                >
+                                  {assignmentLocaleLabel(assignment.locale)}
+                                </Badge>
+                              )}
                               <Badge
                                 variant="secondary"
                                 className="ml-2 text-xs"

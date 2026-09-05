@@ -66,7 +66,10 @@ export function useAssignmentKickoff() {
         const firstName = studentFirstNameFromUser(user);
         const kickoffHuman = new HumanMessage({
           id: uuidv4(),
-          content: buildAssignmentKickoffUserMessage(firstName),
+          content: buildAssignmentKickoffUserMessage(
+            firstName,
+            assignment.locale ?? "en"
+          ),
           additional_kwargs: {
             [OC_HIDE_FROM_UI_KEY]: true,
           },

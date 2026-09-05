@@ -12,6 +12,7 @@ import type {
   StudentAssignment,
 } from "@/lib/teaching/types";
 import { createSelfInitiatedAssignment } from "@/lib/teaching/assignment-store";
+import { assignmentLocaleLabel } from "@/lib/teaching/assignment-policy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -342,6 +343,15 @@ export function StudentAssignmentsLanding() {
                         </CardDescription>
                         <CardTitle className="text-lg">
                           {assignment.title}
+                          {assignmentLocaleLabel(assignment.locale) && (
+                            <Badge
+                              variant="secondary"
+                              className="ml-2 text-xs"
+                              data-testid={`assignment-locale-${assignment.id}`}
+                            >
+                              {assignmentLocaleLabel(assignment.locale)}
+                            </Badge>
+                          )}
                         </CardTitle>
                       </div>
                       <Badge variant={statusBadgeVariant(assignment.status)}>
