@@ -278,6 +278,7 @@
     "assignmentNotFound": "Aufgabe nicht gefunden",
     "assignmentNotFoundTitle": "Titel der Aufgabe nicht gefunden",
     "assignmentPrompt": "Zuweisungsaufforderung",
+    "assignmentLanguage": "Sprache der Aufgabe",
     "assignmentTitlePlaceholder": "Titel der Aufgabe",
     "assignments": "Aufgaben",
     "assignmentsToManage": "{count} zu verwaltende Zuweisungen.",

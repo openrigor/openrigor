@@ -3,6 +3,7 @@ import type {
   AssignmentTier,
   StudentAssignment,
 } from "./types";
+import { DEFAULT_LOCALE, LOCALES, isLocaleCode } from "@/lib/i18n/locales";
 
 /**
  * Education assignments are free in the public beta.  These helpers keep
@@ -25,13 +26,32 @@ export function normalizeLifecycleStatus(
   return status === "closed" ? "closed" : "open";
 }
 
+/** Normalize assignment content language for legacy and untrusted rows. */
+export function normalizeAssignmentLocale(locale: unknown): string {
+  return typeof locale === "string" && isLocaleCode(locale)
+    ? locale
+    : DEFAULT_LOCALE;
+}
+
+/** Return the registry label for a non-English assignment locale. */
+export function assignmentLocaleLabel(locale: unknown): string | undefined {
+  const normalized = normalizeAssignmentLocale(locale);
+  if (normalized === DEFAULT_LOCALE) return undefined;
+  return LOCALES.find(({ code }) => code === normalized)?.label;
+}
+
 export function normalizeAssignmentFields<T extends Partial<StudentAssignment>>(
   assignment: T
-): T & { tier: AssignmentTier; lifecycleStatus: AssignmentLifecycleStatus } {
+): T & {
+  tier: AssignmentTier;
+  lifecycleStatus: AssignmentLifecycleStatus;
+  locale: string;
+} {
   return {
     ...assignment,
     tier: normalizeAssignmentTier(assignment.tier),
     lifecycleStatus: normalizeLifecycleStatus(assignment.lifecycleStatus),
+    locale: normalizeAssignmentLocale(assignment.locale),
   };
 }
 

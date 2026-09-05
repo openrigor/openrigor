@@ -43,6 +43,8 @@ import type {
   StudentAssignment,
   StudentClassData,
 } from "@/lib/teaching/types";
+import { DEFAULT_LOCALE, LOCALES } from "@/lib/i18n/locales";
+import { normalizeAssignmentLocale } from "@/lib/teaching/assignment-policy";
 import { FREE_STUDENTS_PER_ASSIGNMENT_CAP } from "@/lib/teaching/assignment-policy";
 import { useTranslations } from "next-intl";
 
@@ -86,6 +88,7 @@ export function CreateAssignmentDialog({
   const [wordTarget, setWordTarget] = useState("");
   const [prompt, setPrompt] = useState("");
   const [agentInstructions, setAgentInstructions] = useState("");
+  const [locale, setLocale] = useState<string>(DEFAULT_LOCALE);
   const [tier, setTier] = useState<AssignmentTier>("free");
   const [apparatuses, setApparatuses] = useState<
     Array<{
@@ -129,6 +132,7 @@ export function CreateAssignmentDialog({
       setWordTarget(prefillSource.wordTarget?.toString() || "");
       setPrompt(prefillSource.prompt);
       setAgentInstructions(prefillSource.agentInstructions);
+      setLocale(normalizeAssignmentLocale(prefillSource.locale));
       setTier(prefillSource.tier === "premium" ? "premium" : "free");
       setApparatusProfileId(
         prefillSource.apparatusProfileId || "canonical-constrained-dialogue"
@@ -214,6 +218,7 @@ export function CreateAssignmentDialog({
     setWordTarget("");
     setPrompt("");
     setAgentInstructions("");
+    setLocale(DEFAULT_LOCALE);
     setTier("free");
     setApparatusProfileId("canonical-constrained-dialogue");
     setAssignMode("all_students");
@@ -394,6 +399,7 @@ export function CreateAssignmentDialog({
 
       const assignmentInput: CreateAssignmentInput = {
         title: title.trim(),
+        locale,
         courseLabel: courseLabel.trim(),
         dueLabel: dueLabel.trim(),
         prompt: prompt.trim(),
@@ -470,6 +476,22 @@ export function CreateAssignmentDialog({
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t("assignmentTitlePlaceholder")}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="assignment-locale">{t("assignmentLanguage")}</Label>
+        <select
+          id="assignment-locale"
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          value={locale}
+          onChange={(event) => setLocale(event.target.value)}
+        >
+          {LOCALES.map(({ code, label }) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-2">

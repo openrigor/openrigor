@@ -278,6 +278,7 @@
     "assignmentNotFound": "Assignment Not Found",
     "assignmentNotFoundTitle": "Assignment Not Found Title",
     "assignmentPrompt": "Assignment Prompt",
+    "assignmentLanguage": "Assignment language",
     "assignmentTitlePlaceholder": "Assignment title",
     "assignments": "Assignments",
     "assignmentsToManage": "{count} assignments to manage.",

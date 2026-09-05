@@ -278,6 +278,7 @@
     "assignmentNotFound": "Devoir introuvable",
     "assignmentNotFoundTitle": "Titre du devoir introuvable",
     "assignmentPrompt": "Invite d'affectation",
+    "assignmentLanguage": "Langue de la tâche",
     "assignmentTitlePlaceholder": "Titre de la mission",
     "assignments": "Missions",
     "assignmentsToManage": "{count} missions à gérer.",

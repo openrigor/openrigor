@@ -278,6 +278,7 @@
     "assignmentNotFound": "Compito non trovato",
     "assignmentNotFoundTitle": "Titolo del compito non trovato",
     "assignmentPrompt": "Richiesta di assegnazione",
+    "assignmentLanguage": "Lingua dell'incarico",
     "assignmentTitlePlaceholder": "Titolo dell'incarico",
     "assignments": "Incarichi",
     "assignmentsToManage": "{count} assegnazioni da gestire.",
