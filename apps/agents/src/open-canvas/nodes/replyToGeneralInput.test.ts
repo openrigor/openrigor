@@ -142,6 +142,32 @@ describe("replyToGeneralInput", () => {
     ]);
   });
 
+  it("appends the session language after the configured system prompt", async () => {
+    const assignmentPrompt = "Assignment instructions";
+    const state = createMockState({
+      phase_state: "socratic",
+      _messages: [
+        new HumanMessage({ content: "Help me with my thesis", id: "1" }),
+      ],
+    });
+    const config = createMockConfig({
+      assistant_id: "test-123",
+      sessionLocale: "de",
+    });
+    const utils = vi.mocked(await import("../../utils.js"));
+    utils.optionallyGetSystemPromptFromConfig.mockReturnValue(assignmentPrompt);
+
+    await replyToGeneralInput(state, config);
+
+    const systemPrompt = String(
+      mockModel.invoke.mock.calls[0]?.[0]?.[0]?.content
+    );
+    expect(systemPrompt.indexOf(assignmentPrompt)).toBeGreaterThanOrEqual(0);
+    expect(systemPrompt.indexOf("Respond in German")).toBeGreaterThan(
+      systemPrompt.indexOf(assignmentPrompt)
+    );
+  });
+
   it("should include submitted phase instructions when phase_state is submitted", async () => {
     const state = createMockState({
       phase_state: "submitted",

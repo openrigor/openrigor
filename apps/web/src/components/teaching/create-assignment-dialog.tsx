@@ -43,7 +43,7 @@ import type {
   StudentAssignment,
   StudentClassData,
 } from "@/lib/teaching/types";
-import { DEFAULT_LOCALE, LOCALES } from "@/lib/i18n/locales";
+import { DEFAULT_LANGUAGE_LOCALE, LANGUAGE_LOCALES } from "@opencanvas/shared";
 import { normalizeAssignmentLocale } from "@/lib/teaching/assignment-policy";
 import { FREE_STUDENTS_PER_ASSIGNMENT_CAP } from "@/lib/teaching/assignment-policy";
 import { useTranslations } from "next-intl";
@@ -88,7 +88,7 @@ export function CreateAssignmentDialog({
   const [wordTarget, setWordTarget] = useState("");
   const [prompt, setPrompt] = useState("");
   const [agentInstructions, setAgentInstructions] = useState("");
-  const [locale, setLocale] = useState<string>(DEFAULT_LOCALE);
+  const [locale, setLocale] = useState<string>(DEFAULT_LANGUAGE_LOCALE);
   const [tier, setTier] = useState<AssignmentTier>("free");
   const [apparatuses, setApparatuses] = useState<
     Array<{
@@ -218,7 +218,7 @@ export function CreateAssignmentDialog({
     setWordTarget("");
     setPrompt("");
     setAgentInstructions("");
-    setLocale(DEFAULT_LOCALE);
+    setLocale(DEFAULT_LANGUAGE_LOCALE);
     setTier("free");
     setApparatusProfileId("canonical-constrained-dialogue");
     setAssignMode("all_students");
@@ -486,7 +486,7 @@ export function CreateAssignmentDialog({
           value={locale}
           onChange={(event) => setLocale(event.target.value)}
         >
-          {LOCALES.map(({ code, label }) => (
+          {LANGUAGE_LOCALES.map(({ code, label }) => (
             <option key={code} value={code}>
               {label}
             </option>

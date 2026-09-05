@@ -26,6 +26,7 @@ import {
   OpenCanvasGraphAnnotation,
   OpenCanvasGraphReturnType,
 } from "../state.js";
+import { getLanguageDirective } from "../language-directive.js";
 
 const FORM_UPDATE_INSTRUCTIONS = `
 ## Structured Form Template
@@ -472,11 +473,21 @@ export const replyToGeneralInput = async (
       : "";
 
   const userSystemPrompt = optionallyGetSystemPromptFromConfig(config);
+  const sessionLocale = config.configurable?.sessionLocale as
+    | string
+    | undefined;
+  const languageDirective = getLanguageDirective(sessionLocale ?? "en");
   const fullSystemPrompt = (
     state.ledgerSnapshotContext
-      ? [userSystemPrompt, formattedSnapshotPrompt, ledgerSnapshotPrompt]
+      ? [
+          userSystemPrompt,
+          languageDirective,
+          formattedSnapshotPrompt,
+          ledgerSnapshotPrompt,
+        ]
       : [
           userSystemPrompt,
+          languageDirective,
           formattedPrompt,
           formPrompt,
           ledgerPrompt,

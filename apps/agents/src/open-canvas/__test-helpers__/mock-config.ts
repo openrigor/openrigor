@@ -61,6 +61,7 @@ export function createMockConfig(
   overrides: {
     customModelName?: string;
     systemPrompt?: string;
+    sessionLocale?: string;
     assistant_id?: string;
     store?: any;
     supabase_session?: any;
