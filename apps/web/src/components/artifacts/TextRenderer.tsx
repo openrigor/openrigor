@@ -557,7 +557,7 @@ export function TextRendererComponent(props: TextRendererProps) {
         onKeep={handleKeep}
         onUndo={handleUndo}
       />
-      {!props.minimalCanvas && (props.isHovering || isRawView) && artifact && (
+      {artifact && (props.isHovering || isRawView) && (
         <div className="absolute flex gap-2 top-2 right-4 z-10">
           <CopyText currentArtifactContent={getArtifactContent(artifact)} />
           <ViewRawText isRawView={isRawView} onToggle={toggleRawView} />
