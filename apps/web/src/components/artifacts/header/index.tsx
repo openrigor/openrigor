@@ -3,7 +3,6 @@ import { Assistant } from "@langchain/langgraph-sdk";
 import { Eye, EyeOff, PanelRightClose, Printer } from "lucide-react";
 import { ReflectionsDialog } from "../../reflections-dialog/ReflectionsDialog";
 import { ArtifactTitle } from "./artifact-title";
-import { UndoRedoButtons } from "./undo-redo-buttons";
 import { CopyText } from "../components/CopyText";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
 
@@ -14,7 +13,6 @@ interface ArtifactHeaderProps {
   artifactUpdateFailed: boolean;
   chatCollapsed: boolean;
   setChatCollapsed: (c: boolean) => void;
-  blockNoteEditorRef?: React.MutableRefObject<any | null>;
   onTitleChange?: (newTitle: string) => void;
   onPrint?: () => void;
   minimalCanvas?: boolean;
@@ -50,7 +48,7 @@ export function ArtifactHeader(props: ArtifactHeaderProps) {
           onTitleChange={props.onTitleChange}
         />
       </div>
-      <div className="flex gap-1 items-center shrink-0">
+      <div className="flex gap-1 items-center justify-end shrink-0">
         {props.onPrint && (
           <TooltipIconButton
             tooltip="Print canvas"
@@ -63,25 +61,28 @@ export function ArtifactHeader(props: ArtifactHeaderProps) {
           </TooltipIconButton>
         )}
         {props.copyContent && (
-          <CopyText currentArtifactContent={props.copyContent} />
+          <CopyText
+            currentArtifactContent={props.copyContent}
+            variant="ghost"
+            className="w-8 h-8"
+            iconClassName="w-4 h-4 text-gray-600"
+          />
         )}
         {props.onToggleRawView && (
           <TooltipIconButton
             tooltip={`View ${props.isRawView ? "rendered" : "raw"} markdown`}
-            variant="outline"
+            variant="ghost"
+            className="w-8 h-8"
             delayDuration={400}
             onClick={props.onToggleRawView}
             data-testid="toggle-raw-view"
           >
             {props.isRawView ? (
-              <EyeOff className="w-5 h-5 text-gray-600" />
+              <EyeOff className="w-4 h-4 text-gray-600" />
             ) : (
-              <Eye className="w-5 h-5 text-gray-600" />
+              <Eye className="w-4 h-4 text-gray-600" />
             )}
           </TooltipIconButton>
-        )}
-        {props.blockNoteEditorRef && (
-          <UndoRedoButtons editorRef={props.blockNoteEditorRef} />
         )}
         {!props.minimalCanvas && (
           <ReflectionsDialog selectedAssistant={props.selectedAssistant} />
