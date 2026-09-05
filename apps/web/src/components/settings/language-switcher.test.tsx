@@ -46,6 +46,11 @@ function walkAncestorsUntil(element: Element, stopAt: Element) {
     ancestors.push(current);
     current = current.parentElement;
   }
+  if (current !== stopAt) {
+    throw new Error(
+      "language menu is not rendered inside WorkspaceSiteHeader — regression test would pass vacuously"
+    );
+  }
   return ancestors;
 }
 
