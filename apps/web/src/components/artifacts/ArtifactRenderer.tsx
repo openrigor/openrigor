@@ -454,7 +454,6 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
         artifactUpdateFailed={artifactUpdateFailed}
         chatCollapsed={props.chatCollapsed}
         setChatCollapsed={props.setChatCollapsed}
-        blockNoteEditorRef={blockNoteEditorRef}
         copyContent={
           currentArtifactContent.type === "text"
             ? currentArtifactContent
