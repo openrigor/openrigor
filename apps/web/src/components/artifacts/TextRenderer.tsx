@@ -18,13 +18,8 @@ import {
   buildTextHighlight,
   normalizeCanvasMarkdown,
 } from "@opencanvas/shared/utils/markdown-canvas";
-import { CopyText } from "./components/CopyText";
-import { getArtifactContent } from "@opencanvas/shared/utils/artifacts";
 import { useGraphContext, PendingEditState } from "@/contexts/GraphContext";
 import React from "react";
-import { TooltipIconButton } from "../ui/assistant-ui/tooltip-icon-button";
-import { Eye, EyeOff } from "lucide-react";
-import { motion } from "framer-motion";
 import { Textarea } from "../ui/textarea";
 import TrackChangesExtension, {
   setTrackChangesRanges,
@@ -98,43 +93,19 @@ function filterEmptyTableRows(blocks: any[]): any[] {
   });
 }
 
-function ViewRawText({
-  isRawView,
-  onToggle,
-}: {
-  isRawView: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-    >
-      <TooltipIconButton
-        tooltip={`View ${isRawView ? "rendered" : "raw"} markdown`}
-        variant="outline"
-        delayDuration={400}
-        onClick={onToggle}
-        data-testid="toggle-raw-view"
-      >
-        {isRawView ? (
-          <EyeOff className="w-5 h-5 text-gray-600" />
-        ) : (
-          <Eye className="w-5 h-5 text-gray-600" />
-        )}
-      </TooltipIconButton>
-    </motion.div>
-  );
-}
-
 export interface TextRendererProps {
   isEditing: boolean;
   isHovering: boolean;
   isInputVisible: boolean;
   minimalCanvas?: boolean;
   editorRef?: React.MutableRefObject<any | null>;
+  /**
+   * Receives toggleRawView so the raw-markdown control can live in the
+   * artifact header bar (next to Print) instead of an in-canvas overlay.
+   */
+  toggleRef?: React.MutableRefObject<(() => void) | null>;
+  /** Reports raw-view enter/exit so the header control can reflect state. */
+  onRawViewChange?: (isRawView: boolean) => void;
 }
 
 export function TextRendererComponent(props: TextRendererProps) {
@@ -244,6 +215,21 @@ export function TextRendererComponent(props: TextRendererProps) {
     setRawMarkdown(normalizeCanvasMarkdown(md));
     setIsRawView(true);
   };
+
+  // Wire the header-bar control: expose toggleRawView upstream and report
+  // raw-view state so the header button (next to Print) reflects it.
+  const { toggleRef, onRawViewChange } = props;
+  useEffect(() => {
+    if (toggleRef) {
+      toggleRef.current = () => {
+        void toggleRawView();
+      };
+    }
+    onRawViewChange?.(isRawView);
+    return () => {
+      if (toggleRef) toggleRef.current = null;
+    };
+  }, [isRawView, toggleRef, onRawViewChange, toggleRawView]);
 
   // New artifact version (e.g. applyTextEdits) → formatted canvas only
   useEffect(() => {
@@ -557,12 +543,6 @@ export function TextRendererComponent(props: TextRendererProps) {
         onKeep={handleKeep}
         onUndo={handleUndo}
       />
-      {artifact && (props.isHovering || isRawView) && (
-        <div className="absolute flex gap-2 top-2 right-4 z-10">
-          <CopyText currentArtifactContent={getArtifactContent(artifact)} />
-          <ViewRawText isRawView={isRawView} onToggle={toggleRawView} />
-        </div>
-      )}
       {isRawView ? (
         <Textarea
           className="whitespace-pre-wrap font-mono text-sm px-[54px] border-0 shadow-none h-full outline-none ring-0 rounded-none  focus-visible:ring-0 focus-visible:ring-offset-0"

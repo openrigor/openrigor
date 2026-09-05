@@ -77,6 +77,14 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
 
   const editorRef = useRef<EditorView | null>(null);
   const blockNoteEditorRef = useRef<any | null>(null);
+  // Raw-markdown toggle wiring: TextRenderer publishes its toggle via
+  // toggleRef; the header button (next to Print) invokes it and mirrors
+  // raw-view state via onRawViewChange.
+  const rawToggleRef = useRef<(() => void) | null>(null);
+  const [isRawView, setIsRawView] = useState(false);
+  const handleToggleRawView = useCallback(() => {
+    rawToggleRef.current?.();
+  }, []);
   const artifactContentRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -447,6 +455,17 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
         chatCollapsed={props.chatCollapsed}
         setChatCollapsed={props.setChatCollapsed}
         blockNoteEditorRef={blockNoteEditorRef}
+        copyContent={
+          currentArtifactContent.type === "text"
+            ? currentArtifactContent
+            : undefined
+        }
+        isRawView={isRawView}
+        onToggleRawView={
+          currentArtifactContent.type === "text"
+            ? handleToggleRawView
+            : undefined
+        }
         onPrint={
           currentArtifactContent.type === "text" ? handlePrint : undefined
         }
@@ -488,6 +507,8 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
                   isEditing={props.isEditing}
                   isHovering={isHoveringOverArtifact}
                   editorRef={blockNoteEditorRef}
+                  toggleRef={rawToggleRef}
+                  onRawViewChange={setIsRawView}
                 />
               </Suspense>
             ) : null}
