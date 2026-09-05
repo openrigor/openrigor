@@ -3,7 +3,11 @@ import type {
   AssignmentTier,
   StudentAssignment,
 } from "./types";
-import { DEFAULT_LOCALE, LOCALES, isLocaleCode } from "@/lib/i18n/locales";
+import {
+  DEFAULT_LANGUAGE_LOCALE,
+  LANGUAGE_LOCALES,
+  isLanguageLocale,
+} from "@opencanvas/shared";
 
 /**
  * Education assignments are free in the public beta.  These helpers keep
@@ -28,16 +32,16 @@ export function normalizeLifecycleStatus(
 
 /** Normalize assignment content language for legacy and untrusted rows. */
 export function normalizeAssignmentLocale(locale: unknown): string {
-  return typeof locale === "string" && isLocaleCode(locale)
+  return typeof locale === "string" && isLanguageLocale(locale)
     ? locale
-    : DEFAULT_LOCALE;
+    : DEFAULT_LANGUAGE_LOCALE;
 }
 
 /** Return the registry label for a non-English assignment locale. */
 export function assignmentLocaleLabel(locale: unknown): string | undefined {
   const normalized = normalizeAssignmentLocale(locale);
-  if (normalized === DEFAULT_LOCALE) return undefined;
-  return LOCALES.find(({ code }) => code === normalized)?.label;
+  if (normalized === DEFAULT_LANGUAGE_LOCALE) return undefined;
+  return LANGUAGE_LOCALES.find(({ code }) => code === normalized)?.label;
 }
 
 export function normalizeAssignmentFields<T extends Partial<StudentAssignment>>(

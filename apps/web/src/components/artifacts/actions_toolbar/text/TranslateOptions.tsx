@@ -1,25 +1,24 @@
 import { UsaFlag, SpanishFlag, FrenchFlag } from "@/components/icons/flags";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
-import { GraphInput } from "@opencanvas/shared/types";
-import { LOCALES, type LocaleCode } from "@/lib/i18n/locales";
+import {
+  LANGUAGE_LOCALES,
+  type GraphInput,
+  type LanguageLocale,
+} from "@opencanvas/shared";
 
-// E3 (#98) will replace the graph's current translation-language union.
-// The map is keyed on the graph contract itself (no cast) so the compiler
-// enforces that every registry locale maps to a supported value; new
-// graph targets must widen LanguageOptions in @opencanvas/shared.
 const TRANSLATION_LANGUAGE_BY_LOCALE: Record<
-  LocaleCode,
+  LanguageLocale,
   NonNullable<GraphInput["language"]>
 > = {
   en: "english",
-  de: "german",
+  de: "de",
   fr: "french",
   es: "spanish",
-  it: "italian",
+  it: "it",
 };
 
 const LANGUAGE_ICON_BY_LOCALE: Partial<
-  Record<LocaleCode, () => React.ReactNode>
+  Record<LanguageLocale, () => React.ReactNode>
 > = {
   en: UsaFlag,
   fr: FrenchFlag,
@@ -34,7 +33,7 @@ export interface TranslateOptionsProps {
 export function TranslateOptions(props: TranslateOptionsProps) {
   const { streamMessage } = props;
 
-  const handleSubmit = async (locale: LocaleCode) => {
+  const handleSubmit = async (locale: LanguageLocale) => {
     props.handleClose();
     await streamMessage({
       language: TRANSLATION_LANGUAGE_BY_LOCALE[
@@ -45,7 +44,7 @@ export function TranslateOptions(props: TranslateOptionsProps) {
 
   return (
     <div className="flex flex-col gap-3 items-center w-full">
-      {LOCALES.map(({ code, label }) => {
+      {LANGUAGE_LOCALES.map(({ code, label }) => {
         const Icon = LANGUAGE_ICON_BY_LOCALE[code];
         return (
           <TooltipIconButton

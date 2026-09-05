@@ -70,10 +70,8 @@ export type RewriteArtifactMetaToolResponse =
       language: ProgrammingLanguageOptions;
     };
 
-// "german"/"italian" back the de/it UI locales (translate action): the graph
-// interpolates this value into CHANGE_ARTIFACT_LANGUAGE_PROMPT, which accepts
-// any language name. Slice E3 (#98) replaces this union with the locale
-// registry.
+// Language names are retained for the original translate-action contract.
+// Locale codes are also accepted for registry-driven targets.
 export type LanguageOptions =
   | "english"
   | "mandarin"
@@ -81,7 +79,9 @@ export type LanguageOptions =
   | "french"
   | "hindi"
   | "german"
-  | "italian";
+  | "italian"
+  | "de"
+  | "it";
 
 export type ProgrammingLanguageOptions =
   | "typescript"

@@ -962,6 +962,9 @@ export function GraphProvider({ children }: { children: ReactNode }) {
               ...(assignmentSystemPrompt
                 ? { systemPrompt: assignmentSystemPrompt }
                 : {}),
+              ...(teachingAssignment?.locale
+                ? { sessionLocale: teachingAssignment.locale }
+                : {}),
               ...(apparatusConfiguration ? { apparatusConfiguration } : {}),
             },
           },

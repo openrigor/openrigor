@@ -19,6 +19,7 @@ import {
   getArtifactContent,
   isArtifactMarkdownContent,
 } from "@opencanvas/shared/utils/artifacts";
+import { appendLanguageDirective } from "../open-canvas/language-directive.js";
 
 export const reflect = async (
   state: typeof ReflectionGraphAnnotation.State,
@@ -72,10 +73,13 @@ export const reflect = async (
       : currentArtifactContent.code
     : undefined;
 
-  const formattedSystemPrompt = REFLECT_SYSTEM_PROMPT.replace(
-    "{artifact}",
-    artifactContent ?? "No artifact found."
-  ).replace("{reflections}", memoriesAsString);
+  const formattedSystemPrompt = appendLanguageDirective(
+    REFLECT_SYSTEM_PROMPT.replace(
+      "{artifact}",
+      artifactContent ?? "No artifact found."
+    ).replace("{reflections}", memoriesAsString),
+    config.configurable?.sessionLocale as string | undefined
+  );
 
   const formattedUserPrompt = REFLECT_USER_PROMPT.replace(
     "{conversation}",

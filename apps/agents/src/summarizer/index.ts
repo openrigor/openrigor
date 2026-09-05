@@ -9,6 +9,7 @@ import { OC_SUMMARIZED_MESSAGE_KEY } from "@opencanvas/shared/constants";
 import { v4 as uuidv4 } from "uuid";
 import { Client } from "@langchain/langgraph-sdk";
 import { formatMessages, getModelFromConfig } from "../utils.js";
+import { appendLanguageDirective } from "../open-canvas/language-directive.js";
 
 const SUMMARIZER_PROMPT = `You're a professional AI summarizer assistant.
 As a professional summarizer, create a concise and comprehensive summary of the provided text, while adhering to these guidelines:
@@ -36,7 +37,13 @@ export async function summarizer(
   const messagesToSummarize = formatMessages(state.messages);
 
   const response = await model.invoke([
-    ["system", SUMMARIZER_PROMPT],
+    [
+      "system",
+      appendLanguageDirective(
+        SUMMARIZER_PROMPT,
+        config.configurable?.sessionLocale as string | undefined
+      ),
+    ],
     ["user", `Here are the messages to summarize:\n${messagesToSummarize}`],
   ]);
 

@@ -15,6 +15,7 @@ import {
   TitleGenerationReturnType,
 } from "./state.js";
 import { getModelFromConfig } from "../utils.js";
+import { appendLanguageDirective } from "../open-canvas/language-directive.js";
 
 export const generateTitle = async (
   state: typeof TitleGenerationAnnotation.State,
@@ -66,7 +67,10 @@ export const generateTitle = async (
   const result = await model.invoke([
     {
       role: "system",
-      content: TITLE_SYSTEM_PROMPT,
+      content: appendLanguageDirective(
+        TITLE_SYSTEM_PROMPT,
+        config.configurable?.sessionLocale as string | undefined
+      ),
     },
     {
       role: "user",
