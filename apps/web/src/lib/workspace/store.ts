@@ -10,6 +10,7 @@ import {
   type RepositoryStatus,
 } from "@opencanvas/shared/research-repository";
 import { LANGGRAPH_API_URL } from "@/constants";
+import { normalizeAssignmentLocale } from "@/lib/teaching/assignment-policy";
 import { githubErrorStatus } from "./research-repository/github-error-status";
 import {
   FormValidationError,
@@ -295,7 +296,55 @@ function normaliseWorkspaceItem(value: unknown): WorkspaceItem | undefined {
       } as MarkdownTemplateSnapshot,
     } as MarkdownWorkspaceItem;
   }
+  if (item.kind === "method") {
+    return {
+      ...item,
+      ...(item.run
+        ? {
+            run: {
+              ...item.run,
+              assignment: normaliseMethodRunAssignment(item.run.assignment),
+            },
+          }
+        : {}),
+    };
+  }
+  if (item.kind === "method_participant") {
+    return {
+      ...item,
+      assignment: normaliseMethodRunAssignment(item.assignment),
+    };
+  }
   return item;
+}
+
+function normaliseMethodRunAssignment(
+  assignment: MethodRunAssignment
+): MethodRunAssignment {
+  return {
+    ...assignment,
+    locale: normalizeAssignmentLocale(assignment?.locale),
+  };
+}
+
+function normaliseMethodRunFormInput(
+  item: MethodWorkspaceItem,
+  rawValues: unknown
+): unknown {
+  if (
+    !item.templateSnapshot.fields.locale ||
+    rawValues === null ||
+    typeof rawValues !== "object" ||
+    Array.isArray(rawValues)
+  ) {
+    return rawValues;
+  }
+  return {
+    ...(rawValues as Record<string, unknown>),
+    locale: normalizeAssignmentLocale(
+      (rawValues as Record<string, unknown>).locale
+    ),
+  };
 }
 
 async function readManifest(userId: string): Promise<WorkspaceManifest> {
@@ -2115,7 +2164,12 @@ export async function submitWorkspaceForm(
 
     let values: Record<string, FormValue>;
     try {
-      values = validateFormValues(item.templateSnapshot.fields, rawValues);
+      values = validateFormValues(
+        item.templateSnapshot.fields,
+        item.kind === "method"
+          ? normaliseMethodRunFormInput(item, rawValues)
+          : rawValues
+      );
     } catch (error) {
       if (error instanceof FormValidationError) throw error;
       throw error;
@@ -2396,11 +2450,12 @@ async function submitMethodParticipant(
   return { item, idempotent: false, deferred };
 }
 
-function assignmentFromValues(
+export function assignmentFromValues(
   values: Record<string, FormValue>
 ): MethodRunAssignment {
   const wordTarget = values.word_target;
   return {
+    locale: normalizeAssignmentLocale(values.locale),
     title: String(values.title || ""),
     course: String(values.course || ""),
     dueDate: String(values.due_date || ""),
@@ -2480,7 +2535,7 @@ function createParticipantRecord(
     methodSource: invite.methodSource,
     profileId: invite.profileId,
     apparatusConfiguration: invite.apparatusConfiguration,
-    assignment: invite.assignment,
+    assignment: normaliseMethodRunAssignment(invite.assignment),
   };
 }
 

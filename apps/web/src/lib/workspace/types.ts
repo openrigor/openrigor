@@ -31,6 +31,7 @@ export type FormFieldDefinition = {
   displayChars?: number;
   displayLines?: number;
   options?: string[];
+  default?: string;
   min?: number;
   max?: number;
   minDate?: string;
@@ -151,6 +152,8 @@ export type MethodProfileOption = {
 };
 
 export type MethodRunAssignment = {
+  /** Registry locale code; legacy runs default to "en" when read. */
+  locale?: string;
   title: string;
   course: string;
   dueDate: string;

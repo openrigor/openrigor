@@ -19,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import { z } from "zod";
+import { LANGUAGE_LOCALES } from "../packages/shared/src/language";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -30,6 +31,7 @@ const fieldId = /^[a-z][a-z0-9_-]*$/;
 const locale = /^[a-z]{2}(?:-[A-Z]{2})?$/;
 const dateValue = /^\d{4}-\d{2}-\d{2}$/;
 const placeholder = /^\{\{([a-z][a-z0-9_-]*)\}\}$/;
+const LANGUAGE_LOCALE_SOURCE = "language_locales";
 
 const FormFieldSource = z
   .object({
@@ -40,6 +42,8 @@ const FormFieldSource = z
     display_chars: z.number().int().positive().optional(),
     display_lines: z.number().int().positive().optional(),
     options: z.array(z.string().min(1)).min(1).optional(),
+    default: z.string().optional(),
+    source: z.literal(LANGUAGE_LOCALE_SOURCE).optional(),
     min: z.number().finite().optional(),
     max: z.number().finite().optional(),
     min_date: z.string().regex(dateValue).optional(),
@@ -86,6 +90,8 @@ export type FormFieldDefinition = {
   displayChars?: number;
   displayLines?: number;
   options?: string[];
+  default?: string;
+  source?: string;
   min?: number;
   max?: number;
   minDate?: string;
@@ -154,14 +160,29 @@ function validateFormFields(
       throw new Error(`Invalid form field id "${id}" in ${sourcePath}`);
     }
     const field = fields[id];
-    if (field.options && new Set(field.options).size !== field.options.length) {
+    const options =
+      field.source === LANGUAGE_LOCALE_SOURCE
+        ? LANGUAGE_LOCALES.map(({ code }) => code)
+        : field.options;
+    if (field.source && field.type !== "select") {
+      throw new Error(`Only select fields may declare a source for "${id}"`);
+    }
+    if (field.options && field.source) {
+      throw new Error(`Select field "${id}" cannot declare options and source`);
+    }
+    if (options && new Set(options).size !== options.length) {
       throw new Error(`Duplicate select options for "${id}" in ${sourcePath}`);
     }
-    if (field.type === "select" && !field.options) {
+    if (field.type === "select" && !options) {
       throw new Error(`Select field "${id}" needs options in ${sourcePath}`);
     }
-    if (field.type !== "select" && field.options) {
+    if (field.type !== "select" && (field.options || field.default)) {
       throw new Error(`Only select fields may declare options for "${id}"`);
+    }
+    if (field.default !== undefined && !options?.includes(field.default)) {
+      throw new Error(
+        `Default value for "${id}" must be one of its options in ${sourcePath}`,
+      );
     }
     if (
       field.type !== "number" &&
@@ -200,7 +221,9 @@ function validateFormFields(
       ...(field.display_lines === undefined
         ? {}
         : { displayLines: field.display_lines }),
-      ...(field.options === undefined ? {} : { options: field.options }),
+      ...(options === undefined ? {} : { options }),
+      ...(field.default === undefined ? {} : { default: field.default }),
+      ...(field.source === undefined ? {} : { source: field.source }),
       ...(field.min === undefined ? {} : { min: field.min }),
       ...(field.max === undefined ? {} : { max: field.max }),
       ...(field.min_date === undefined ? {} : { minDate: field.min_date }),
