@@ -120,7 +120,7 @@ yarn build          # turbo build (all workspaces)
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) — setup, conventions, and the PR checklist.
+See [CONTRIBUTING.md](CONTRIBUTING.md) — setup, conventions, and the PR checklist. UI locales (en/de/fr/es/it) and how to add one: [supported languages](docs/contributing/supported-languages.md).
 External contributions are welcome; this is a small project, so please open an issue
 before large changes. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 

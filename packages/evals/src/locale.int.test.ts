@@ -5,43 +5,36 @@ import { getLanguageDirective } from "@opencanvas/agents/dist/open-canvas/langua
 type LocaleFixture = {
   locale: "en" | "de" | "fr" | "es" | "it";
   language: string;
-  conversation: string;
   markers: RegExp[];
 };
+
+const NEUTRAL_CONVERSATION =
+  "I am developing a thesis about how stories show courage.";
 
 const LOCALE_FIXTURES: LocaleFixture[] = [
   {
     locale: "en",
     language: "English",
-    conversation: "I am developing a thesis about how stories show courage.",
     markers: [/\b(the|and|you|can|is)\b/i],
   },
   {
     locale: "de",
     language: "German",
-    conversation:
-      "Ich entwickle eine These darüber, wie Geschichten Mut zeigen.",
     markers: [/\b(der|die|das|und|ich|nicht)\b/i],
   },
   {
     locale: "fr",
     language: "French",
-    conversation:
-      "Je développe une thèse sur la manière dont les récits montrent le courage.",
     markers: [/\b(le|la|les|et|je|pas)\b/i],
   },
   {
     locale: "es",
     language: "Spanish",
-    conversation:
-      "Estoy desarrollando una tesis sobre cómo las historias muestran el valor.",
     markers: [/\b(el|la|las|y|yo|no)\b/i],
   },
   {
     locale: "it",
     language: "Italian",
-    conversation:
-      "Sto sviluppando una tesi su come le storie mostrano il coraggio.",
     markers: [/\b(il|la|le|e|io|non)\b/i],
   },
 ];
@@ -71,7 +64,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY)(
               .filter(Boolean)
               .join("\n\n"),
           },
-          { role: "user", content: fixture.conversation },
+          { role: "user", content: NEUTRAL_CONVERSATION },
         ]);
 
         const responseText = String(response.content);
