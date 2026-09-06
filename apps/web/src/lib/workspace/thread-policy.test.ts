@@ -188,6 +188,7 @@ describe("enforceWorkspaceThreadPolicy", () => {
         tracking: true,
       },
       assignment: {
+        locale: "de",
         title: "Great Expectations",
         course: "Grade 10",
         dueDate: "2026-09-01",
@@ -217,6 +218,7 @@ describe("enforceWorkspaceThreadPolicy", () => {
     expect(result.config.configurable.apparatusConfiguration.tracking).toBe(
       true
     );
+    expect(result.config.configurable.sessionLocale).toBe("de");
     expect(result.metadata.method_run_id).toBe("run_1");
   });
 });

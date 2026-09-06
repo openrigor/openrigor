@@ -21,6 +21,8 @@ const FormFieldSchema = z
     displayChars: z.number().int().positive().optional(),
     displayLines: z.number().int().positive().optional(),
     options: z.array(z.string().min(1)).min(1).optional(),
+    default: z.string().optional(),
+    source: z.string().optional(),
     min: z.number().finite().optional(),
     max: z.number().finite().optional(),
     minDate: z
@@ -37,6 +39,22 @@ const FormFieldSchema = z
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "select needs options",
+      });
+    }
+    if (field.default !== undefined && field.type !== "select") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "default only applies to select",
+      });
+    }
+    if (
+      field.default !== undefined &&
+      field.options &&
+      !field.options.includes(field.default)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "select default must be one of the options",
       });
     }
     if (field.type !== "select" && field.options) {

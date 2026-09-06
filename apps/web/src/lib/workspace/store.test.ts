@@ -145,6 +145,7 @@ vi.mock("./research-repository/seals", async (importOriginal) => {
 });
 
 import {
+  assignmentFromValues,
   createResearchRepositoryItem,
   prepareResearchRepositoryBinding,
   createPrivateMethodWorkspaceItem,
@@ -1978,6 +1979,20 @@ function manifestFor(userId: string) {
   return harness.state.items.get(`workspace_items/${userId}:manifest`);
 }
 
+describe("method run assignment locale", () => {
+  it.each([
+    ["de", "de"],
+    [undefined, "en"],
+    ["pt-BR", "en"],
+  ])("normalizes %j to %s", (input, expected) => {
+    const values = {
+      ...assignmentBrief,
+      ...(input === undefined ? {} : { locale: input }),
+    };
+    expect(assignmentFromValues(values).locale).toBe(expected);
+  });
+});
+
 describe("method run launch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -2181,6 +2196,30 @@ describe("method run launch", () => {
     });
     expect(participantItem).not.toHaveProperty("apiKey");
     expect(participantItem).not.toHaveProperty("baseUrl");
+  });
+
+  it("persists the content locale on the run and participant item", async () => {
+    const item = await createMethodWorkspaceItem("user-1", "ai-assisted-essay");
+    harness.findUserByEmail.mockResolvedValue({
+      id: "user-2",
+      email: "a@example.com",
+    });
+
+    const result = await submitWorkspaceForm("user-1", item.id, {
+      ...assignmentBrief,
+      locale: "de",
+      participants: "a@example.com",
+    });
+
+    expect(result.item.kind).toBe("method");
+    if (result.item.kind !== "method" || !result.item.run) return;
+    expect(result.item.run.assignment.locale).toBe("de");
+
+    const participantId = result.item.run.participants[0].itemId;
+    expect(
+      participantId &&
+        manifestFor("user-2").items[participantId].assignment.locale
+    ).toBe("de");
   });
 
   it("does not deadlock a participant submit against a concurrent operator launch", async () => {

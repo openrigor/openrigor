@@ -1,4 +1,5 @@
 import { buildAssignmentSystemPrompt } from "@/lib/teaching/assignment-prompt";
+import { normalizeAssignmentLocale } from "@/lib/teaching/assignment-policy";
 import type { StudentAssignment } from "@/lib/teaching/types";
 import type { MethodParticipantWorkspaceItem, WorkspaceItem } from "./types";
 import type { EvidenceSnapshot } from "./evidence";
@@ -19,6 +20,7 @@ export function methodParticipantAsAssignment(
 ): StudentAssignment {
   return {
     id: item.id,
+    locale: normalizeAssignmentLocale(item.assignment.locale),
     courseLabel: item.assignment.course,
     teacherName: item.assignment.group,
     dueLabel: item.assignment.dueDate,
@@ -97,7 +99,10 @@ export function enforceWorkspaceThreadPolicy(
             }
           : {}),
         ...(item.kind === "method_participant"
-          ? { apparatusConfiguration: item.apparatusConfiguration }
+          ? {
+              apparatusConfiguration: item.apparatusConfiguration,
+              sessionLocale: normalizeAssignmentLocale(item.assignment.locale),
+            }
           : {}),
       },
     },

@@ -13,6 +13,12 @@ fields:
     required: true
     max_length: 120
     display_chars: 48
+  locale:
+    label: Content Language
+    type: select
+    required: false
+    default: en
+    source: language_locales
   course:
     label: Course
     type: text
@@ -67,6 +73,7 @@ generated:
 
 ## Assignment brief
 
+**Content Language:** {{locale}}<br />
 **Course:** {{course}}  
 **Due Date:** {{due_date}}  
 **Word Target:** {{word_target}}

@@ -176,7 +176,8 @@ function buildFormArtifact(
 }
 
 function defaultValue(field: FormFieldDefinition): FormValue {
-  return field.type === "roster" ? [] : "";
+  if (field.type === "roster") return [];
+  return field.default ?? "";
 }
 
 function displayValue(value: FormValue | undefined): string {
