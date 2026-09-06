@@ -10,8 +10,30 @@ import { openWorkspaceItem } from "./helpers/workspace";
 
 const METHOD_ID = "ai-assisted-essay";
 const NEUTRAL_MESSAGE = "Explain this idea.";
-const GERMAN_MARKERS = /\b(der|die|das|und|ich|nicht)\b/i;
-const ENGLISH_MARKERS = /\b(the|and|you|can|is)\b/i;
+// The German path must survive every phase of the run, we are asserting language
+// provenance: >=2 DISTINCT German markers (a lone "die" can occur in English)
+// AND no English markers. The English path asserts plain English markers.
+const GER_MARKER_LIST = ["der", "die", "das", "und", "ich", "nicht"] as const;
+const EN_MARKER_LIST = ["the", "and", "you", "can", "is"] as const;
+
+function distinctMarkers(text: string, words: readonly string[]): number {
+  return new Set(
+    words.filter((w) =>
+      new RegExp(`\\b${w}\\b`, "i").test(text)
+    )
+  ).size;
+}
+
+function isGerman(delta: string): boolean {
+  return (
+    distinctMarkers(delta, GER_MARKER_LIST) >= 2 &&
+    distinctMarkers(delta, EN_MARKER_LIST) === 0
+  );
+}
+
+function isEnglish(delta: string): boolean {
+  return distinctMarkers(delta, EN_MARKER_LIST) >= 2;
+}
 
 async function createAndOpenParticipant(
   page: Parameters<typeof provision>[0],
@@ -71,7 +93,7 @@ async function createAndOpenParticipant(
 
 async function expectNeutralReplyInLocale(
   page: Parameters<typeof provision>[0],
-  markers: RegExp
+  validator: (delta: string) => boolean
 ): Promise<void> {
   const panel = page.locator("#chat-panel-main");
   await expect(panel).toBeVisible({ timeout: TIMEOUTS.pageLoad });
@@ -88,7 +110,7 @@ async function expectNeutralReplyInLocale(
         const streaming = await cancel.isVisible().catch(() => false);
         const text = ((await panel.innerText()) ?? "").trim();
         const delta = text.slice(baseline.length);
-        return !streaming && delta.length > 40 && markers.test(delta);
+        return !streaming && delta.length > 40 && validator(delta);
       },
       { timeout: 120_000, intervals: [2_000, 4_000, 6_000] }
     )
@@ -111,13 +133,13 @@ test.describe("method-run-locale", () => {
     page,
   }) => {
     await createAndOpenParticipant(page, "de");
-    await expectNeutralReplyInLocale(page, GERMAN_MARKERS);
+    await expectNeutralReplyInLocale(page, isGerman);
   });
 
   test("neutral English input produces an English coach reply for locale en", async ({
     page,
   }) => {
     await createAndOpenParticipant(page, "en");
-    await expectNeutralReplyInLocale(page, ENGLISH_MARKERS);
+    await expectNeutralReplyInLocale(page, isEnglish);
   });
 });
