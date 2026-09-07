@@ -129,11 +129,11 @@ test.describe("@beta-release private evidence declarations", () => {
     expect(snapshot.fields.publication_authorisation?.options).toBeDefined();
     expect(snapshot.fields.anonymisation_status?.options).toBeDefined();
     await expect(publication.locator("option")).toHaveText([
-      "Select…",
+      "Select",
       ...(snapshot.fields.publication_authorisation?.options ?? []),
     ]);
     await expect(anonymisation.locator("option")).toHaveText([
-      "Select…",
+      "Select",
       ...(snapshot.fields.anonymisation_status?.options ?? []),
     ]);
 

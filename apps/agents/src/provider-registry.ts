@@ -14,6 +14,7 @@
 
 import { ChatOpenAI } from "@langchain/openai";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { randomUUID } from "node:crypto";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,6 +127,23 @@ export function isRetryableError(error: unknown): boolean {
   return false;
 }
 
+/**
+ * OpenCode (Zen and Zen/Go) enforces a stable per-conversation session header
+ * (`x-opencode-session`) on chat-completions traffic and rejects requests
+ * without one (`400 MissingSessionID`, enforced 2026-09-07). Callers that do
+ * not own a conversation id (shared graphs, fallback paths) send one stable
+ * process-level session id; it only needs to be stable per deployment, not
+ * per user, to satisfy routing and prompt caching.
+ */
+let opencodeSessionId: string | undefined;
+
+export function getOpencodeSessionHeader(): Record<string, string> {
+  if (!opencodeSessionId) {
+    opencodeSessionId = randomUUID();
+  }
+  return { "x-opencode-session": opencodeSessionId };
+}
+
 // ---------------------------------------------------------------------------
 // Model factory
 // ---------------------------------------------------------------------------
@@ -142,6 +160,9 @@ export function createModelForProvider(
 ): BaseChatModel {
   const cfg = getProviderConfig(providerName);
 
+  const isOpenCodeProvider =
+    providerName === "opencode-zen" || providerName === "opencode-go";
+
   return new ChatOpenAI({
     model: cfg.model,
     ...(generationConfig || {}),
@@ -149,6 +170,9 @@ export function createModelForProvider(
     maxRetries: 0,
     configuration: {
       baseURL: cfg.baseURL,
+      ...(isOpenCodeProvider
+        ? { defaultHeaders: getOpencodeSessionHeader() }
+        : {}),
     },
   }) as unknown as BaseChatModel;
 }
