@@ -715,7 +715,7 @@
     "group": "Group",
     "inProgress": "In Progress",
     "inviteSent": "Invite sent",
-    "ledgerBaselineDescription": "Ledger Baseline Description",
+    "ledgerBaselineDescription": ". The ledger starts from all accepted evidence for this exact Method version.",
     "ledgerGenerationFailed": "Ledger generation failed",
     "ledgerPickerUnavailable": "Ledger Picker Unavailable",
     "ledgerSnapshot": "Ledger Snapshot",

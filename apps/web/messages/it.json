@@ -715,7 +715,7 @@
     "group": "Gruppo",
     "inProgress": "In corso",
     "inviteSent": "Invito inviato",
-    "ledgerBaselineDescription": "Descrizione della linea di base del registro",
+    "ledgerBaselineDescription": ". Il registro parte da tutte le prove accettate per questa versione esatta del metodo.",
     "ledgerGenerationFailed": "La generazione del registro non è riuscita",
     "ledgerPickerUnavailable": "Selettore registro non disponibile",
     "ledgerSnapshot": "Istantanea del registro",

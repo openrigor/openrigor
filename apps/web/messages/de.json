@@ -715,7 +715,7 @@
     "group": "Gruppe",
     "inProgress": "In Bearbeitung",
     "inviteSent": "Einladung gesendet",
-    "ledgerBaselineDescription": "Beschreibung der Hauptbuch-Basislinie",
+    "ledgerBaselineDescription": ". Die Grundlinie startet mit der Gesamtheit der akzeptierten Beweise für diese exakte Methodenversion.",
     "ledgerGenerationFailed": "Die Generierung des Ledgers ist fehlgeschlagen",
     "ledgerPickerUnavailable": "Hauptbuchauswahl nicht verfügbar",
     "ledgerSnapshot": "Hauptbuch-Snapshot",
