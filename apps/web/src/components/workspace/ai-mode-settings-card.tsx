@@ -22,6 +22,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { ByokSettingsCard } from "./byok-settings-card";
+import { useTranslations } from "next-intl";
 
 export type AiModeState = {
   mode: OpenRigorAiMode | null;
@@ -33,25 +34,23 @@ export type AiModeState = {
 
 export const AI_MODE_OPTIONS: ReadonlyArray<{
   mode: OpenRigorAiMode;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
 }> = [
   {
     mode: "byok",
-    label: "BYOK (recommended)",
-    description:
-      "Use your own provider and API key. Your provider controls retention.",
+    labelKey: "byokRecommended",
+    descriptionKey: "byokDescription",
   },
   {
     mode: "shared_model",
-    label: "Shared model",
-    description:
-      "Use OpenRigor's optional shared model after accepting the privacy notice.",
+    labelKey: "sharedModel",
+    descriptionKey: "sharedModelDescription",
   },
   {
     mode: "markdown_only",
-    label: "Markdown-only",
-    description: "Use the workspace without OpenRigor inference.",
+    labelKey: "markdownOnly",
+    descriptionKey: "markdownOnlyDescription",
   },
 ];
 
@@ -167,6 +166,7 @@ function ModeChoices({
   disabled = false,
   onModeChange,
 }: ModeChoicesProps) {
+  const t = useTranslations("workspace");
   return (
     <div
       className="grid gap-3"
@@ -174,7 +174,7 @@ function ModeChoices({
       aria-label="OpenRigor AI mode"
       data-testid="ai-mode-choices"
     >
-      {AI_MODE_OPTIONS.map(({ mode, label, description }) => (
+      {AI_MODE_OPTIONS.map(({ mode, labelKey, descriptionKey }) => (
         <button
           key={mode}
           type="button"
@@ -192,15 +192,15 @@ function ModeChoices({
           ].join(" ")}
         >
           <span className="flex items-center justify-between gap-3">
-            <span className="font-medium text-slate-900">{label}</span>
+            <span className="font-medium text-slate-900">{t(labelKey)}</span>
             {mode === "byok" ? (
               <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                Recommended
+                {t("recommended")}
               </span>
             ) : null}
           </span>
           <span className="mt-1 block text-sm text-slate-600">
-            {description}
+            {t(descriptionKey)}
           </span>
         </button>
       ))}
@@ -233,6 +233,7 @@ export function AiModeSettingsCardView({
   onSave,
   onRevoke,
 }: AiModeSettingsCardViewProps) {
+  const t = useTranslations("workspace");
   const saveDisabled =
     saving ||
     selectedMode === null ||
@@ -242,30 +243,21 @@ export function AiModeSettingsCardView({
   return (
     <Card className="bg-white" data-testid="ai-mode-settings-card">
       <CardHeader>
-        <CardTitle>OpenRigor AI mode</CardTitle>
-        <CardDescription>
-          Choose and review the mode that authorizes OpenRigor&apos;s AI path
-          for this account. The selected mode is enforced server-side.
-        </CardDescription>
+        <CardTitle>{t("openRigorAiMode")}</CardTitle>
+        <CardDescription>{t("aiModeDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {state?.authorization_state === "missing" || !state ? (
-          <p className="text-sm text-amber-700">
-            No AI mode is selected (missing).
-          </p>
+          <p className="text-sm text-amber-700">{t("aiModeMissing")}</p>
         ) : state.authorization_state === "stale" ? (
           <p className="text-sm text-amber-700">
-            Shared-model consent is stale. Re-accept the current notice before
-            using that mode.
+            {t("sharedModelConsentStale")}
           </p>
         ) : state.authorization_state === "revoked" ? (
-          <p className="text-sm text-red-700">
-            AI mode authorization is revoked. Select and save a mode to resume
-            any authorized inference.
-          </p>
+          <p className="text-sm text-red-700">{t("aiModeRevoked")}</p>
         ) : (
           <p className="text-sm text-slate-600">
-            Current mode: <strong>{state.mode}</strong>
+            {t("currentMode")}: <strong>{state.mode}</strong>
           </p>
         )}
         <ModeChoices
@@ -288,8 +280,7 @@ export function AiModeSettingsCardView({
                 htmlFor="shared-model-notice-accepted"
                 className="text-sm text-slate-700"
               >
-                I have read and accept the versioned shared-model privacy
-                notice.
+                {t("acceptVersionedSharedNotice")}
               </label>
             </div>
             <p className="pl-6 text-xs text-slate-600">
@@ -297,7 +288,7 @@ export function AiModeSettingsCardView({
                 href={SHARED_MODEL_NOTICE_PATH}
                 className="underline underline-offset-2"
               >
-                Read the notice
+                {t("readNotice")}
               </Link>{" "}
               (version {SHARED_MODEL_NOTICE_VERSION}).
             </p>
@@ -310,7 +301,7 @@ export function AiModeSettingsCardView({
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={saveDisabled} onClick={onSave}>
-            {saving ? "Saving…" : "Save AI mode"}
+            {saving ? t("saving") : t("saveAiMode")}
           </Button>
           <Button
             type="button"
@@ -318,7 +309,7 @@ export function AiModeSettingsCardView({
             disabled={!canRevoke}
             onClick={onRevoke}
           >
-            {revoking ? "Revoking…" : "Revoke authorization"}
+            {revoking ? t("revoking") : t("revokeAuthorization")}
           </Button>
         </div>
       </CardContent>
@@ -327,6 +318,7 @@ export function AiModeSettingsCardView({
 }
 
 export function AiModeSettingsCard() {
+  const t = useTranslations("workspace");
   const { toast } = useToast();
   const [state, setState] = useState<AiModeState | null>(null);
   const [selectedMode, setSelectedMode] = useState<OpenRigorAiMode | null>(
@@ -372,7 +364,7 @@ export function AiModeSettingsCard() {
       setSharedNoticeAccepted(
         isSharedModelNoticeVersionCurrent(next.privacy_notice_version)
       );
-      toast({ title: "AI mode saved" });
+      toast({ title: t("aiModeSaved") });
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -392,7 +384,7 @@ export function AiModeSettingsCard() {
       setState(next);
       setSelectedMode(next.mode);
       setSharedNoticeAccepted(false);
-      toast({ title: "AI mode authorization revoked" });
+      toast({ title: t("aiModeAuthorizationRevoked") });
     } catch (revokeError) {
       setError(
         revokeError instanceof Error
@@ -424,6 +416,7 @@ export function AiModeSettingsCard() {
 }
 
 export function AiModeOnboardingDialog() {
+  const t = useTranslations("workspace");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<OpenRigorAiMode | null>(
@@ -492,11 +485,10 @@ export function AiModeOnboardingDialog() {
         className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[min(94vw,40rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-white p-6 shadow-xl"
       >
         <h2 id="ai-mode-onboarding-title" className="text-xl font-semibold">
-          Choose how OpenRigor handles AI
+          {t("chooseAiMode")}
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Choose one of these three modes before starting your workspace. BYOK
-          is recommended; shared model is never selected for you.
+          {t("chooseAiModeDescription")}
         </p>
         <div className="mt-5 space-y-4">
           <ModeChoices
@@ -522,7 +514,7 @@ export function AiModeOnboardingDialog() {
                   htmlFor="onboarding-shared-model-notice-accepted"
                   className="text-sm text-slate-700"
                 >
-                  I have read and accept the shared-model privacy notice.
+                  {t("acceptSharedNotice")}
                 </label>
               </div>
               <p className="pl-6 text-xs text-slate-600">
@@ -530,7 +522,7 @@ export function AiModeOnboardingDialog() {
                   href={SHARED_MODEL_NOTICE_PATH}
                   className="underline underline-offset-2"
                 >
-                  Read the versioned notice
+                  {t("readVersionedNotice")}
                 </Link>{" "}
                 (version {SHARED_MODEL_NOTICE_VERSION}).
               </p>
@@ -539,8 +531,7 @@ export function AiModeOnboardingDialog() {
           {selectedMode === "byok" ? (
             <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
               <p className="mb-3 text-sm text-slate-700">
-                Configure your provider now, or finish this in Settings. The
-                mode still requires a valid saved key before inference.
+                {t("configureProviderDescription")}
               </p>
               <ByokSettingsCard />
             </div>
@@ -556,7 +547,7 @@ export function AiModeOnboardingDialog() {
                 disabled={loading || saving}
                 onClick={() => void loadMode()}
               >
-                {loading ? "Retrying…" : "Retry"}
+                {loading ? t("retrying") : t("retry")}
               </Button>
             </div>
           ) : null}
@@ -569,7 +560,7 @@ export function AiModeOnboardingDialog() {
             }
             onClick={() => void handleSave()}
           >
-            {saving ? "Saving…" : "Continue with this mode"}
+            {saving ? t("saving") : t("continueWithMode")}
           </Button>
         </div>
       </section>

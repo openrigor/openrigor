@@ -1,6 +1,9 @@
+"use client";
+
 import NextImage from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   BRAND_PANEL_COLOR,
   COPYRIGHT_NOTICE,
@@ -20,6 +23,7 @@ export function LegalDocumentLayout({
   lastUpdated,
   children,
 }: LegalDocumentLayoutProps) {
+  const t = useTranslations("legal");
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50">
       <header
@@ -49,13 +53,13 @@ export function LegalDocumentLayout({
               href={PRIVACY_PATH}
               className="hover:text-white transition-colors"
             >
-              Privacy
+              {t("privacy")}
             </Link>
             <Link
               href={TERMS_PATH}
               className="hover:text-white transition-colors"
             >
-              Terms
+              {t("terms")}
             </Link>
           </nav>
         </div>
@@ -70,13 +74,13 @@ export function LegalDocumentLayout({
 
       <main className="flex-1 mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
         <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-3">
-          Legal
+          {t("legal")}
         </p>
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 mb-2">
           {title}
         </h1>
         <p className="text-sm text-zinc-500 mb-10">
-          Last updated · {lastUpdated}
+          {t("lastUpdated", { date: lastUpdated })}
         </p>
         <article className="legal-prose space-y-8 text-[15px] leading-relaxed text-zinc-700 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-zinc-900 [&_h2]:tracking-tight [&_h2]:mt-2 [&_p]:text-zinc-700 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2 [&_a]:text-[#2c3e56] [&_a]:underline [&_a]:underline-offset-2 [&_a]:decoration-zinc-300 hover:[&_a]:decoration-[#2c3e56] [&_strong]:font-semibold [&_strong]:text-zinc-800">
           {children}
@@ -92,14 +96,14 @@ export function LegalDocumentLayout({
             href={PRIVACY_PATH}
             className="text-white/85 underline hover:text-white"
           >
-            Privacy
+            {t("privacy")}
           </Link>
           <span aria-hidden>·</span>
           <Link
             href={TERMS_PATH}
             className="text-white/85 underline hover:text-white"
           >
-            Terms
+            {t("terms")}
           </Link>
           <span aria-hidden>·</span>
           <a

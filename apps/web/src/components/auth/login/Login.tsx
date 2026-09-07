@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { UserAuthForm } from "./user-auth-form-login";
 import {
-  COPYRIGHT_NOTICE,
   DOCS_URL,
   PRIVACY_PATH,
   SALMON_DARK,
@@ -17,16 +16,21 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
-function loginErrorMessage(error: string | null): string | null {
-  if (error === "missing")
-    return "Enter both email and password, then try again.";
+function loginErrorMessage(
+  error: string | null,
+  translate: (key: string) => string
+): string | null {
+  if (error === "missing") return translate("enterBothCredentials");
   if (error === "credentials" || error === "true")
-    return "Email or password is incorrect. Please try again.";
+    return translate("invalidCredentials");
   return null;
 }
 
 function DocsLink({ className }: { className?: string }) {
+  const t = useTranslations("auth");
+
   return (
     <a
       href={DOCS_URL}
@@ -34,17 +38,18 @@ function DocsLink({ className }: { className?: string }) {
       rel="noopener noreferrer"
       className={className}
     >
-      Documentation
+      {t("documentation")}
       <ExternalLink className="size-3.5 opacity-70" aria-hidden />
     </a>
   );
 }
 
 export function Login() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const errorParam = searchParams.get("error");
-  const errorMessage = loginErrorMessage(errorParam);
+  const errorMessage = loginErrorMessage(errorParam, t);
   const authCode = searchParams.get("code");
 
   // Belt-and-suspenders with middleware: PKCE confirmation codes belong on
@@ -60,7 +65,7 @@ export function Login() {
   if (authCode) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Confirming your email…
+        {t("confirmingEmail")}
       </div>
     );
   }
@@ -109,7 +114,7 @@ export function Login() {
               href={PRIVACY_PATH}
               className={`${SALMON_ON_BRAND} transition-colors`}
             >
-              Privacy
+              {t("privacy")}
             </a>
             <span className="text-white/35" aria-hidden>
               ·
@@ -118,18 +123,20 @@ export function Login() {
               href={TERMS_PATH}
               className={`${SALMON_ON_BRAND} transition-colors`}
             >
-              Terms
+              {t("terms")}
             </a>
           </div>
           <p className="text-xs text-white/45 tracking-wide">
-            {COPYRIGHT_NOTICE}
+            {t("copyrightNotice")}
           </p>
         </div>
       </div>
       <div className="lg:p-8 h-full flex flex-col justify-center">
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
           <div className="flex flex-col space-y-2 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t("signIn")}
+            </h1>
           </div>
           {errorMessage && (
             <p className="text-red-500 text-sm text-center" role="alert">
@@ -141,7 +148,7 @@ export function Login() {
             href="/auth/signup"
             className={cn(buttonVariants({ variant: "outline" }), "w-full")}
           >
-            Don&apos;t have an account? Sign up
+            {t("dontHaveAccountSignUp")}
           </Link>
           {/* Mobile: brand panel is hidden — surface beta scope + docs/legal here */}
           <div className="lg:hidden pt-2 text-center space-y-3 border-t">
@@ -154,17 +161,19 @@ export function Login() {
                 href={PRIVACY_PATH}
                 className={`${SALMON_DARK} transition-colors`}
               >
-                Privacy
+                {t("privacy")}
               </a>
               <span aria-hidden>·</span>
               <a
                 href={TERMS_PATH}
                 className={`${SALMON_DARK} transition-colors`}
               >
-                Terms
+                {t("terms")}
               </a>
             </div>
-            <p className="text-xs text-muted-foreground">{COPYRIGHT_NOTICE}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("copyrightNotice")}
+            </p>
           </div>
         </div>
       </div>

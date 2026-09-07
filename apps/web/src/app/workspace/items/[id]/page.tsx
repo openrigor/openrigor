@@ -12,6 +12,7 @@ import {
 } from "@/contexts/WorkspaceItemContext";
 import { WorkspaceCanvas } from "@/components/workspace/workspace-canvas";
 import { legacyRepositoryRedirectPath } from "@/lib/workspace/repository-settings-routes";
+import { useTranslations } from "next-intl";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUserContext();
@@ -52,11 +53,12 @@ function WorkspaceItemRoute() {
 }
 
 export default function WorkspaceItemPage() {
+  const t = useTranslations("workspace");
   const { id } = useParams<{ id: string }>();
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-sm text-muted-foreground">Loading…</div>
+        <div className="p-8 text-sm text-muted-foreground">{t("loading")}</div>
       }
     >
       <UserProvider>

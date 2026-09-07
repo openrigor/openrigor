@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { HumanMessage } from "@langchain/core/messages";
 import { v4 as uuidv4 } from "uuid";
 import { Canvas } from "@/components/canvas";
@@ -38,6 +39,7 @@ import {
 } from "@/lib/workspace/ledger-reference";
 
 function MarkdownWorkspaceCanvas({ item }: { item: MarkdownWorkspaceItem }) {
+  const t = useTranslations("workspace");
   const { user } = useUserContext();
   const { threadId, setThreadId } = useThreadContext();
   const { graphData } = useGraphContext();
@@ -109,25 +111,24 @@ function MarkdownWorkspaceCanvas({ item }: { item: MarkdownWorkspaceItem }) {
       };
       if (!response.ok) {
         toast({
-          title: "Finding is not ready to submit",
+          title: t("findingNotReadyToSubmit"),
           description:
             body.issues?.map((issue) => issue.message).join(" ") ||
             body.error ||
-            "Validation failed.",
+            t("validationFailed"),
           variant: "destructive",
         });
         return;
       }
       toast({
-        title: "Finding checks passed",
-        description:
-          "Linked ledgers and research questions resolved. Create the research PR when you are ready.",
+        title: t("findingChecksPassed"),
+        description: t("findingChecksPassedDescription"),
       });
     } catch (error) {
       console.error("Failed to validate finding", error);
       toast({
-        title: "Could not validate finding",
-        description: "Please try again.",
+        title: t("couldNotValidateFinding"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -142,14 +143,14 @@ function MarkdownWorkspaceCanvas({ item }: { item: MarkdownWorkspaceItem }) {
         `/api/workspace/items/${encodeURIComponent(item.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not abandon workspace item");
+      if (!response.ok) throw new Error(t("couldNotAbandonWorkspaceItem"));
       setAbandonOpen(false);
       router.push("/workspace");
     } catch (error) {
       console.error("Failed to abandon workspace item", error);
       toast({
-        title: "Could not abandon item",
-        description: "Please try again.",
+        title: t("couldNotAbandonItem"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -238,7 +239,7 @@ function MarkdownWorkspaceCanvas({ item }: { item: MarkdownWorkspaceItem }) {
             onAbandon={() => setAbandonOpen(true)}
             onSubmit={isFinding ? () => void submitFinding() : undefined}
             submitDisabled={isSubmitting}
-            submitLabel="Submit finding"
+            submitLabel={t("submitFinding")}
             extraActions={
               isFinding ? (
                 <Button
@@ -248,7 +249,7 @@ function MarkdownWorkspaceCanvas({ item }: { item: MarkdownWorkspaceItem }) {
                   className="border-white/35 bg-transparent text-white hover:bg-white/12 hover:text-white"
                   data-testid="cite-published-ledger"
                 >
-                  Cite published ledger
+                  {t("citePublishedLedger")}
                 </Button>
               ) : undefined
             }
@@ -275,13 +276,14 @@ function MarkdownWorkspaceCanvas({ item }: { item: MarkdownWorkspaceItem }) {
 }
 
 export function WorkspaceCanvas() {
+  const t = useTranslations("workspace");
   const { item, loading } = useWorkspaceItem();
   const searchParams = useSearchParams();
 
   if (loading || !item) {
     return (
       <div className="p-8 text-sm text-muted-foreground">
-        Loading workspace item…
+        {t("loadingWorkspaceItem")}
       </div>
     );
   }

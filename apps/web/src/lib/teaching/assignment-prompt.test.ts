@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { ESSAYS_KNOWLEDGE_SOURCES } from "@/lib/apparatuses/ai-assisted-essay/knowledge-context";
-import { buildAssignmentSystemPrompt } from "./assignment-prompt";
+import {
+  buildAssignmentKickoffUserMessage,
+  buildAssignmentSystemPrompt,
+} from "./assignment-prompt";
 import type { StudentAssignment } from "./types";
 
 const fixture: StudentAssignment = {
@@ -34,6 +37,20 @@ describe("buildAssignmentSystemPrompt", () => {
     expect(prompt).toContain(fixture.title);
     expect(prompt).toContain(fixture.courseLabel);
     expect(prompt).toContain(fixture.prompt);
+  });
+
+  it("adds the assignment language directive for non-English assignments", () => {
+    const prompt = buildAssignmentSystemPrompt({ ...fixture, locale: "de" });
+
+    expect(prompt).toContain(
+      "Respond in German. Conduct all Socratic phases in German"
+    );
+  });
+
+  it("notes the assignment language in a non-English kickoff", () => {
+    expect(buildAssignmentKickoffUserMessage("Ada", "fr")).toContain(
+      "The assignment language is French."
+    );
   });
 
   it("mentions Research context only once", () => {

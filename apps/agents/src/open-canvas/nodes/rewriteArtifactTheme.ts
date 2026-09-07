@@ -27,6 +27,7 @@ import {
   OpenCanvasGraphReturnType,
 } from "../state.js";
 import { AIMessage } from "@langchain/core/messages";
+import { getLanguageName } from "@opencanvas/shared/language";
 
 export const rewriteArtifactTheme = async (
   state: typeof OpenCanvasGraphAnnotation.State,
@@ -65,7 +66,7 @@ export const rewriteArtifactTheme = async (
   if (state.language) {
     formattedPrompt = CHANGE_ARTIFACT_LANGUAGE_PROMPT.replace(
       "{newLanguage}",
-      state.language
+      getLanguageName(state.language) ?? state.language
     ).replace("{artifactContent}", currentArtifactContent.fullMarkdown);
   } else if (state.readingLevel && state.readingLevel !== "pirate") {
     let newReadingLevel = "";

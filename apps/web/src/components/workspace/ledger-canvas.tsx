@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { findLatestLedgerUpdate } from "./ledger-markdown";
 import { WorkspaceItemBanner } from "./workspace-item-banner";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
+import { useTranslations } from "next-intl";
 
 type Preview = {
   buckets: Record<EvidenceLedgerBucket, number>;
@@ -126,6 +127,7 @@ function buildLedgerAgentContext(
 }
 
 export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
+  const t = useTranslations("workspace");
   const router = useRouter();
   const { toast } = useToast();
   const { graphData } = useGraphContext();
@@ -345,8 +347,8 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
         );
         console.error("Ledger workspace kickoff failed", error);
         toast({
-          title: "Could not open ledger chat",
-          description: "Please try again.",
+          title: t("couldNotOpenLedgerChat"),
+          description: t("pleaseTryAgain"),
           variant: "destructive",
         });
       });
@@ -394,7 +396,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
     const nextConfig = { ...config, filters: parsed.updates };
     setConfig(nextConfig);
     void refresh(nextConfig);
-    const cleanContent = parsed.cleanContent.trim() || "Updated the ledger.";
+    const cleanContent = parsed.cleanContent.trim() || t("updatedLedger");
     graphData.setMessages((messages) =>
       messages.map((message) =>
         message === assistantMessage
@@ -406,7 +408,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
           : message
       )
     );
-  }, [config, configItemId, dimensions, graphData, item.id, refresh]);
+  }, [config, configItemId, dimensions, graphData, item.id, refresh, t]);
 
   useEffect(() => {
     return () => {
@@ -435,12 +437,18 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
   }, [config, configItemId, configKey, item.id, item.ledgerConfig, saveDraft]);
 
   const groups = [
-    ["Context", dimensions.filter((dimension) => dimension.role === "context")],
     [
-      "Collection",
+      t("context"),
+      dimensions.filter((dimension) => dimension.role === "context"),
+    ],
+    [
+      t("collection"),
       dimensions.filter((dimension) => dimension.role === "collection"),
     ],
-    ["Method", dimensions.filter((dimension) => dimension.role === "method")],
+    [
+      t("method"),
+      dimensions.filter((dimension) => dimension.role === "method"),
+    ],
   ] as const;
   const previewCurrent = previewKey === configKey;
 
@@ -457,14 +465,14 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
           body: JSON.stringify({ config }),
         }
       );
-      if (!response.ok) throw new Error("Could not generate ledger");
+      if (!response.ok) throw new Error(t("couldNotGenerateLedger"));
       const result = (await response.json()) as { item: { id: string } };
       router.push(`/workspace/items/${encodeURIComponent(result.item.id)}`);
     } catch (error) {
       setGenerateError(
         error instanceof Error && error.message
           ? error.message
-          : "Ledger generation failed. Try again."
+          : t("ledgerGenerationFailed")
       );
     } finally {
       setGenerating(false);
@@ -478,14 +486,14 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
         `/api/workspace/items/${encodeURIComponent(item.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not abandon workspace item");
+      if (!response.ok) throw new Error(t("couldNotAbandonWorkspaceItem"));
       setAbandonOpen(false);
       router.push("/workspace");
     } catch (error) {
       console.error("Failed to abandon ledger item", error);
       toast({
-        title: "Could not abandon item",
-        description: "Please try again.",
+        title: t("couldNotAbandonItem"),
+        description: t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -503,7 +511,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
         onAbandon={() => setAbandonOpen(true)}
         onSubmit={() => void generate()}
         submitDisabled={!previewCurrent || loading || generating}
-        submitLabel="Generate ledger"
+        submitLabel={t("generateLedger")}
         submitTestId="generate-ledger"
       />
       <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
@@ -562,16 +570,16 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
               <div className="mx-auto max-w-4xl space-y-6 px-5 py-8 sm:px-10">
                 <section className="rounded-lg border bg-card p-5">
                   <h2 className="text-lg font-semibold">
-                    Selected Method version
+                    {t("selectedMethodVersion")}
                   </h2>
                   <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                     <div>
-                      <dt className="text-muted-foreground">Method</dt>
+                      <dt className="text-muted-foreground">{t("method")}</dt>
                       <dd>{item.source.methodTitle || item.source.methodId}</dd>
                     </div>
                     <div>
                       <dt className="text-muted-foreground">
-                        Method ID / version
+                        {t("methodIdVersion")}
                       </dt>
                       <dd>
                         {item.source.methodId}@{item.source.methodVersion}
@@ -579,7 +587,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
                     </div>
                     <div>
                       <dt className="text-muted-foreground">
-                        Evidence template
+                        {t("evidenceTemplate")}
                       </dt>
                       <dd>
                         {item.source.templateId}@{item.source.templateVersion}
@@ -587,7 +595,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
                     </div>
                     <div>
                       <dt className="text-muted-foreground">
-                        Accepted evidence
+                        {t("acceptedEvidenceLabel")}
                       </dt>
                       <dd>
                         {preview?.baselineCount ??
@@ -600,23 +608,23 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
 
                 <section className="rounded-lg border bg-card p-5">
                   <h2 className="font-semibold">
-                    All accepted evidence for this Method version
+                    {t("allAcceptedEvidenceForMethod")}
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Baseline:{" "}
+                    {t("baseline")}:{" "}
                     {preview?.baselineCount ??
                       item.source.baselineAcceptedEvidenceCount ??
                       "—"}
-                    . The ledger starts from all accepted evidence for this
-                    exact Method version.
+                    {t("ledgerBaselineDescription")}
                   </p>
                 </section>
 
                 <section className="rounded-lg border bg-card p-5">
-                  <h2 className="font-semibold">Filter by declared facts</h2>
+                  <h2 className="font-semibold">
+                    {t("filterByDeclaredFacts")}
+                  </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Only template-declared factual dimensions can narrow the
-                    scope.
+                    {t("declaredFactsDescription")}
                   </p>
                   {groups.map(
                     ([name, group]) =>
@@ -642,7 +650,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
                   )}
                   {dimensions.length === 0 && !loading && (
                     <p className="mt-4 text-sm text-muted-foreground">
-                      This template declares no ledger dimensions.
+                      {t("noLedgerDimensions")}
                     </p>
                   )}
                 </section>
@@ -652,25 +660,25 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
                   aria-live="polite"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-semibold">Scope preview</h2>
+                    <h2 className="font-semibold">{t("scopePreview")}</h2>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => void refresh()}
                       disabled={loading}
                     >
-                      Refresh preview
+                      {t("refreshPreview")}
                     </Button>
                   </div>
                   {loading ? (
                     <p className="mt-3 text-sm text-muted-foreground">
-                      Calculating scope on the server…
+                      {t("calculatingScope")}
                     </p>
                   ) : preview ? (
                     <>
                       {!previewCurrent && (
                         <p className="mt-3 text-sm font-medium text-amber-700">
-                          Preview out of date
+                          {t("previewOutOfDate")}
                         </p>
                       )}
                       <table className="mt-3 w-full text-sm">
@@ -697,8 +705,7 @@ export function LedgerCanvas({ item }: { item: LedgerWorkspaceItem }) {
                     </>
                   ) : (
                     <p className="mt-3 text-sm text-destructive">
-                      Preview unavailable. Refresh after checking your
-                      connection.
+                      {t("previewUnavailable")}
                     </p>
                   )}
                 </section>
@@ -737,6 +744,7 @@ export function LedgerFilter({
   filter: LedgerConfig["filters"][number] | undefined;
   onChange: (filter: LedgerConfig["filters"][number] | undefined) => void;
 }) {
+  const t = useTranslations("workspace");
   if (dimension.control === "multi-select") {
     const values = filter?.control === "multi-select" ? filter.values : [];
     return (
@@ -794,7 +802,7 @@ export function LedgerFilter({
     <div className="grid gap-2 text-sm sm:grid-cols-2">
       <span className="sm:col-span-2 font-medium">{dimension.id}</span>
       <label>
-        Minimum
+        {t("minimum")}
         <Input
           aria-label={`${dimension.id} minimum`}
           type={inputType}
@@ -803,7 +811,7 @@ export function LedgerFilter({
         />
       </label>
       <label>
-        Maximum
+        {t("maximum")}
         <Input
           aria-label={`${dimension.id} maximum`}
           type={inputType}

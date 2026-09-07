@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type LedgerDeclarationValues = {
   publicationAuthorisation: string;
@@ -23,33 +24,33 @@ export const CONFIRMED_LEDGER_DECLARATIONS: LedgerDeclarationValues = {
 
 const DECLARATION_OPTIONS = {
   publicationAuthorisation: [
-    { value: "", label: "Select authorisation…" },
+    { value: "", labelKey: "selectAuthorisation" },
     {
       value: "confirmed-authorised-to-publish",
-      label: "Confirmed: authorised to publish",
+      labelKey: "confirmedAuthorisedToPublish",
     },
     {
       value: "not-confirmed-do-not-submit",
-      label: "Not confirmed: do not submit",
+      labelKey: "notConfirmedDoNotSubmit",
     },
   ],
   anonymisationStatus: [
-    { value: "", label: "Select anonymisation…" },
+    { value: "", labelKey: "selectAnonymisation" },
     {
       value: "confirmed-no-student-identifiers-or-raw-student-material",
-      label: "Confirmed: no student identifiers or raw material",
+      labelKey: "confirmedNoStudentIdentifiers",
     },
     {
       value: "needs-human-privacy-review",
-      label: "Needs human privacy review",
+      labelKey: "needsHumanPrivacyReview",
     },
   ],
   publicDataDeclaration: [
-    { value: "", label: "Select public data…" },
-    { value: "confirmed-public-data", label: "Confirmed: public data" },
+    { value: "", labelKey: "selectPublicData" },
+    { value: "confirmed-public-data", labelKey: "confirmedPublicData" },
     {
       value: "not-confirmed-do-not-submit",
-      label: "Not confirmed: do not submit",
+      labelKey: "notConfirmedDoNotSubmit",
     },
   ],
 } as const;
@@ -101,6 +102,7 @@ export function LedgerPublicationDeclarations({
   variant: "checkbox" | "select";
   legend: string;
 }) {
+  const t = useTranslations("workspace");
   const keys = Object.keys(DECLARATION_OPTIONS) as DeclarationKey[];
   return (
     <fieldset
@@ -124,10 +126,10 @@ export function LedgerPublicationDeclarations({
           const checked = values[key] === CONFIRMED_LEDGER_DECLARATIONS[key];
           const label =
             key === "publicationAuthorisation"
-              ? "I am authorised to publish this evidence ledger."
+              ? t("authorisedToPublishLedger")
               : key === "anonymisationStatus"
-                ? "It contains no student identifiers or raw student material."
-                : "I confirm the rendered ledger is approved data for its destination.";
+                ? t("noStudentIdentifiers")
+                : t("approvedDataDeclaration");
           return (
             <label key={key} className="flex items-start gap-2 text-sm">
               <input
@@ -171,7 +173,7 @@ export function LedgerPublicationDeclarations({
             >
               {DECLARATION_OPTIONS[key].map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.labelKey)}
                 </option>
               ))}
             </select>
@@ -186,7 +188,7 @@ export function LedgerPublicationDeclarations({
               : "text-xs text-amber-700"
           }
         >
-          Confirm all three declarations to continue.
+          {t("confirmAllDeclarations")}
         </p>
       )}
     </fieldset>

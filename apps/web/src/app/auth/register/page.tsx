@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { UserProvider, useUserContext } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { createSupabaseClient } from "@/lib/supabase/client";
 import { postLoginPath } from "@/lib/teaching/config";
 
 function RegisterForm() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const { user, loading } = useUserContext();
   const [name, setName] = useState("");
@@ -63,7 +65,7 @@ function RegisterForm() {
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading…
+        {t("loading")}
       </div>
     );
   }
@@ -72,12 +74,12 @@ function RegisterForm() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Complete your registration</CardTitle>
+          <CardTitle>{t("completeRegistration")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">First name</Label>
+              <Label htmlFor="name">{t("firstName")}</Label>
               <Input
                 id="name"
                 value={name}
@@ -87,7 +89,7 @@ function RegisterForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="surname">Surname</Label>
+              <Label htmlFor="surname">{t("surname")}</Label>
               <Input
                 id="surname"
                 value={surname}
@@ -102,7 +104,7 @@ function RegisterForm() {
               </p>
             )}
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Saving…" : "Continue"}
+              {submitting ? t("saving") : t("continue")}
             </Button>
           </form>
         </CardContent>

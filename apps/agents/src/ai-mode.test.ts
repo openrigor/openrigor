@@ -66,6 +66,7 @@ vi.mock("./provider-registry.js", () => ({
   getPrimaryProviderName: getPrimaryProviderNameMock,
   getProviderConfig: getProviderConfigMock,
   getProviderChain: getProviderChainMock,
+  getOpencodeSessionHeader: () => ({ "x-opencode-session": "test-session" }),
   wrapModelWithFallback: vi.fn((model) => model),
 }));
 vi.mock("@supabase/supabase-js", () => ({

@@ -18,6 +18,7 @@ import {
   ledgerDeclarationRequestValues,
   useLedgerPublicationDeclarations,
 } from "./ledger-publication-declarations";
+import { useTranslations } from "next-intl";
 
 type Publication = NonNullable<LedgerSnapshotWorkspaceItem["publication"]>;
 
@@ -34,6 +35,7 @@ export function LedgerPublishDialog({
   onPublished: (publication: Publication) => void;
   rePublish?: boolean;
 }) {
+  const t = useTranslations("workspace");
   const {
     declarations,
     setDeclarations,
@@ -112,23 +114,25 @@ export function LedgerPublishDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {privateDestination
-              ? "Commit private Ledger Snapshot"
+              ? t("commitPrivateLedgerSnapshot")
               : rePublish
-                ? "Republish sealed Ledger Snapshot"
-                : "Create draft PR"}
-            {privateDestination && <Badge variant="secondary">Private</Badge>}
+                ? t("republishSealedLedgerSnapshot")
+                : t("createDraftPr")}
+            {privateDestination && (
+              <Badge variant="secondary">{t("private")}</Badge>
+            )}
           </DialogTitle>
           <DialogDescription>
             {privateDestination
-              ? "Commit the sealed ledger and manifest to the Method's private repository under your connected GitHub identity."
-              : "Create one draft PR under your connected GitHub identity. It will not merge automatically."}
+              ? t("commitPrivateLedgerDescription")
+              : t("createDraftPrDescription")}
           </DialogDescription>
         </DialogHeader>
         <LedgerPublicationDeclarations
           values={declarations}
           onChange={setDeclarations}
           variant="checkbox"
-          legend="Publication-safety declarations"
+          legend={t("publicationSafetyDeclarations")}
         />
         {error && (
           <p className="text-sm text-destructive" role="alert">
@@ -141,7 +145,7 @@ export function LedgerPublishDialog({
             onClick={() => onOpenChange(false)}
             disabled={isPublishing}
           >
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             onClick={() => void publish()}
@@ -150,11 +154,11 @@ export function LedgerPublishDialog({
           >
             {isPublishing
               ? privateDestination
-                ? "Committing privately…"
-                : "Creating draft PR…"
+                ? t("committingPrivately")
+                : t("creatingDraftPr")
               : privateDestination
-                ? "Commit privately"
-                : "Create draft PR"}
+                ? t("commitPrivately")
+                : t("createDraftPr")}
           </Button>
         </DialogFooter>
       </DialogContent>

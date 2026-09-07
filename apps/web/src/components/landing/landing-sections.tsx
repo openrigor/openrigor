@@ -3,6 +3,7 @@
 import { useUserContext } from "@/contexts/UserContext";
 import { postLoginPath } from "@/lib/teaching/config";
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 function OpenCanvasButton({
   className,
@@ -22,40 +23,32 @@ function OpenCanvasButton({
 }
 
 export function HeroSection() {
+  const t = useTranslations("landing");
   return (
     <section className="hero">
       <div className="container hero-inner">
         <div>
-          <span className="eyebrow">Markdown-native research tool</span>
+          <span className="eyebrow">{t("heroEyebrow")}</span>
           <h1>
-            Research in plain markdown.
+            {t("heroTitle")}
             <br />
-            <em>AI when you want it.</em>
+            <em>{t("heroTitleAccent")}</em>
           </h1>
-          <p className="hero-sub">
-            OpenRigor is a markdown-native workspace where your documents,
-            methods, and evidence live together. The work stays plain text,
-            versioned in a private repository you control, with nothing locked
-            in a proprietary format.
-          </p>
-          <p className="hero-sub">
-            Built-in AI can draft, revise, organise, and collate sources when
-            you want help. It is optional and visible, and you can do the
-            research with no AI at all.
-          </p>
+          <p className="hero-sub">{t("heroParagraphOne")}</p>
+          <p className="hero-sub">{t("heroParagraphTwo")}</p>
           <div className="hero-ctas">
             <OpenCanvasButton className="btn btn-primary">
-              Open Workspace
+              {t("openWorkspace")}
               <ArrowRight className="arrow" width={15} height={15} />
             </OpenCanvasButton>
             <a className="btn btn-outline" href="#research">
-              Explore the research
+              {t("exploreResearch")}
             </a>
           </div>
           <div className="hero-trust" aria-label="Platform foundations">
-            <span>Markdown-native</span>
-            <span>Git-versioned</span>
-            <span>Optional AI</span>
+            <span>{t("markdownNative")}</span>
+            <span>{t("gitVersioned")}</span>
+            <span>{t("optionalAi")}</span>
           </div>
         </div>
 
@@ -79,31 +72,20 @@ export function HeroSection() {
 }
 
 export function HypothesisSection() {
+  const t = useTranslations("landing");
   return (
     <section className="hypothesis section" id="about">
       <div className="container hypo-grid">
         <div>
-          <h2>The result matters. The path to it does too.</h2>
-          <p className="hypo-stand">
-            A finished document never shows the research behind it: the drafts,
-            dead ends, sources, and decisions.
-          </p>
-          <p className="hypo-stand">
-            The work is verifiable only when the process is kept, not just the
-            result.
-          </p>
-          <p className="hypo-stand">
-            AI can help with the process. A versioned trail keeps the work
-            visible, so there is no need to ban or distrust AI.
-          </p>
+          <h2>{t("hypothesisTitle")}</h2>
+          <p className="hypo-stand">{t("hypothesisParagraphOne")}</p>
+          <p className="hypo-stand">{t("hypothesisParagraphTwo")}</p>
+          <p className="hypo-stand">{t("hypothesisParagraphThree")}</p>
         </div>
         <div className="guide-card">
-          <p className="g-label">The shared question</p>
-          <p className="g-q">How do you show the research behind the result?</p>
-          <p className="g-sub">
-            OpenRigor keeps drafts, sources, decisions, and revisions in one
-            open, versioned trail you can inspect.
-          </p>
+          <p className="g-label">{t("sharedQuestion")}</p>
+          <p className="g-q">{t("sharedQuestionText")}</p>
+          <p className="g-sub">{t("sharedQuestionDescription")}</p>
         </div>
       </div>
     </section>
@@ -111,33 +93,31 @@ export function HypothesisSection() {
 }
 
 export function MeasuresSection() {
+  const t = useTranslations("landing");
   return (
     <section className="measures section" id="measures">
       <div className="container">
-        <h2>Three parts of the research record.</h2>
-        <p className="lede">
-          The workspace keeps the research trail visible from question to
-          finding.
-        </p>
+        <h2>{t("measuresTitle")}</h2>
+        <p className="lede">{t("measuresDescription")}</p>
         <div className="meas-grid">
           <div className="meas">
             <span className="m-n">01</span>
-            <b>Sources and claims</b>
-            <p>Where did this claim come from?</p>
+            <b>{t("sourcesAndClaims")}</b>
+            <p>{t("sourcesAndClaimsQuestion")}</p>
           </div>
           <div className="meas">
             <span className="m-n">02</span>
-            <b>Revisions</b>
-            <p>What changed along the way, and what was the reasoning?</p>
+            <b>{t("revisions")}</b>
+            <p>{t("revisionsQuestion")}</p>
           </div>
           <div className="meas">
             <span className="m-n">03</span>
-            <b>AI assistance</b>
-            <p>What did AI propose, and what did you decide?</p>
+            <b>{t("aiAssistance")}</b>
+            <p>{t("aiAssistanceQuestion")}</p>
           </div>
         </div>
         <p className="lede" style={{ marginTop: 28 }}>
-          The trail is part of the research record.
+          {t("trailPartOfRecord")}
         </p>
       </div>
     </section>
@@ -145,39 +125,25 @@ export function MeasuresSection() {
 }
 
 const PROBLEMS = [
-  {
-    p: "AI can write the assignment.",
-    q: "What exactly are we assessing?",
-  },
-  {
-    p: "AI can solve the homework.",
-    q: "What is the homework for?",
-  },
-  {
-    p: "AI can argue both sides.",
-    q: "What should a debate actually measure?",
-  },
-  {
-    p: "AI can produce ten plausible answers.",
-    q: "Is producing another answer really the skill?",
-  },
+  { pKey: "problemAssignment", qKey: "questionAssessment" },
+  { pKey: "problemHomework", qKey: "questionHomework" },
+  { pKey: "problemDebate", qKey: "questionDebate" },
+  { pKey: "problemAnswers", qKey: "questionSkill" },
 ];
 
 export function ProblemsSection() {
+  const t = useTranslations("landing");
   return (
     <section className="problems section" id="questions">
       <div className="container">
-        <h2>Questions worth testing, not declaring.</h2>
-        <p className="lede">
-          The first questions come from education research. They also matter in
-          systematic reviews, verification, and fact-checking AI-assisted work.
-        </p>
+        <h2>{t("problemsTitle")}</h2>
+        <p className="lede">{t("problemsDescription")}</p>
         <div className="prob-list">
           {PROBLEMS.map((row) => (
-            <div className="prob-row" key={row.p}>
-              <span className="p">{row.p}</span>
+            <div className="prob-row" key={row.pKey}>
+              <span className="p">{t(row.pKey)}</span>
               <span className="a">→</span>
-              <span className="q">{row.q}</span>
+              <span className="q">{t(row.qKey)}</span>
             </div>
           ))}
         </div>
@@ -188,42 +154,38 @@ export function ProblemsSection() {
 
 const CANVAS_CAPABILITIES = [
   {
-    label: "Optional AI assistance",
-    title: "Help when you want it",
-    body: "Ask the assistant to suggest, revise or explain content when useful; the Workspace remains fully usable with AI turned off.",
+    labelKey: "optionalAiAssistance",
+    titleKey: "helpWhenYouWantIt",
+    bodyKey: "optionalAiBody",
   },
   {
-    label: "Mermaid + LaTeX",
-    title: "Render the work as you write",
-    body: "Render Mermaid diagrams and LaTeX directly in the Workspace alongside the document.",
+    labelKey: "mermaidLatex",
+    titleKey: "renderAsYouWrite",
+    bodyKey: "mermaidLatexBody",
   },
   {
-    label: "Printing",
-    title: "Take the work with you",
-    body: "Print the document or create clean PDF output for sharing and review.",
+    labelKey: "printing",
+    titleKey: "takeWorkWithYou",
+    bodyKey: "printingBody",
   },
 ];
 
 export function BuildingSection() {
+  const t = useTranslations("landing");
   return (
     <section className="canvas-platform section" id="canvas">
       <div className="container">
-        <span className="eyebrow">The common workspace</span>
-        <h2>The workspace is the research record.</h2>
-        <p className="lede">
-          Write documents, methods, notes, and evidence as plain markdown in one
-          workspace. Render Mermaid diagrams and LaTeX, print clean PDFs, and
-          use optional AI assistance to draft, revise, organise, or explain. The
-          work stays in a private repository you control.
-        </p>
+        <span className="eyebrow">{t("commonWorkspace")}</span>
+        <h2>{t("workspaceIsRecord")}</h2>
+        <p className="lede">{t("workspaceDescription")}</p>
         <div className="platform-map">
           {CANVAS_CAPABILITIES.map((layer, index) => (
-            <div className="platform-step" key={layer.label}>
+            <div className="platform-step" key={layer.labelKey}>
               <div className="platform-node">
                 <span className="platform-number">0{index + 1}</span>
-                <p className="platform-label">{layer.label}</p>
-                <h3>{layer.title}</h3>
-                <p>{layer.body}</p>
+                <p className="platform-label">{t(layer.labelKey)}</p>
+                <h3>{t(layer.titleKey)}</h3>
+                <p>{t(layer.bodyKey)}</p>
               </div>
               {index < CANVAS_CAPABILITIES.length - 1 && (
                 <span className="platform-arrow" aria-hidden="true">
@@ -235,7 +197,7 @@ export function BuildingSection() {
         </div>
         <div className="dark-ctas">
           <OpenCanvasButton className="btn btn-primary">
-            Open Workspace
+            {t("openWorkspace")}
             <ArrowRight className="arrow" width={15} height={15} />
           </OpenCanvasButton>
           <a
@@ -244,7 +206,7 @@ export function BuildingSection() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Read Workspace documentation
+            {t("readWorkspaceDocumentation")}
           </a>
         </div>
       </div>
@@ -253,63 +215,59 @@ export function BuildingSection() {
 }
 
 const RESEARCH_QUESTIONS = [
-  "Does using AI as a critic produce different thinking from using it as a generator?",
-  "Can students recognise when AI is wrong?",
-  "What remains when the AI is taken away?",
-  "Does AI change what people retain and transfer?",
-  "Can revision history provide trustworthy evidence of student process—and for which learners, tasks and AI-use patterns does it mislead?",
-];
+  "researchQuestionCritic",
+  "researchQuestionWrong",
+  "researchQuestionTakenAway",
+  "researchQuestionRetain",
+  "researchQuestionHistory",
+] as const;
 
 export function ResearchSection() {
+  const t = useTranslations("landing");
   return (
     <section className="research section" id="research">
       <div className="container">
-        <span className="eyebrow">Research in the open</span>
-        <h2>A research programme that can evolve.</h2>
-        <p className="lede">
-          OpenRigor starts with no answer in mind. The catalogue grows as
-          researchers try methods that use AI, limit it, or test claims about
-          its use. The first wave asks whether each method serves the question
-          it was built to answer.
-        </p>
+        <span className="eyebrow">{t("researchInOpen")}</span>
+        <h2>{t("researchProgrammeTitle")}</h2>
+        <p className="lede">{t("researchProgrammeDescription")}</p>
         <div className="evidence-flow" aria-label="Evidence lifecycle">
-          <span>Question</span>
+          <span>{t("question")}</span>
           <i>→</i>
-          <span>Method</span>
+          <span>{t("method")}</span>
           <i>→</i>
-          <span>Workspace activity</span>
+          <span>{t("workspaceActivity")}</span>
           <i>→</i>
-          <span>Public record</span>
+          <span>{t("publicRecord")}</span>
           <i>→</i>
-          <span>Claim, challenge or replication</span>
+          <span>{t("claimChallengeReplication")}</span>
         </div>
         <div className="research-grid">
           <div>
-            <p className="measure-label">Questions we can investigate</p>
+            <p className="measure-label">{t("questionsWeCanInvestigate")}</p>
             <div className="prog-list">
               {RESEARCH_QUESTIONS.map((question, index) => (
                 <div className="prog" key={question}>
                   <span className="p-n">0{index + 1}</span>
                   <div>
-                    <b>{question}</b>
+                    <b>{t(question)}</b>
                   </div>
                 </div>
               ))}
             </div>
           </div>
           <div className="research-principles">
-            <p className="measure-label">What makes it inspectable</p>
+            <p className="measure-label">{t("whatMakesInspectable")}</p>
             <div>
-              <b>Evidence contribution</b>
-              <p>The work carries its method and source history with it.</p>
+              <b>{t("evidenceContribution")}</b>
+              <p>{t("evidenceContributionDescription")}</p>
             </div>
             <div>
-              <b>Ledger</b>
-              <p>The Ledger records the work. It is not a finding.</p>
+              <b>{t("ledger")}</b>
+              <p>{t("ledgerDescription")}</p>
             </div>
             <div>
-              <b>Human-authored finding</b>
-              <p>People write the finding. AI does not.</p>
+              <b>{t("humanAuthoredFinding")}</b>
+              <p>{t("humanAuthoredFindingDescription")}</p>
             </div>
           </div>
         </div>
@@ -320,7 +278,7 @@ export function ResearchSection() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Explore the research catalogue
+            {t("exploreResearchCatalogue")}
           </a>
         </div>
       </div>
@@ -330,69 +288,64 @@ export function ResearchSection() {
 
 const OPEN_LAYERS = [
   {
-    label: "Workspace",
-    text: "An MIT-licensed Markdown workspace: useful on its own and open to inspection, extension and self-hosting.",
+    labelKey: "workspace",
+    textKey: "openWorkspaceText",
   },
   {
-    label: "OKF",
-    text: "Portable Markdown and YAML knowledge that people and AI can use from the same, inspectable source material.",
+    labelKey: "okf",
+    textKey: "okfText",
   },
   {
-    label: "Git",
-    text: "History, attribution, review and distribution for methods, knowledge and public research contributions.",
+    labelKey: "git",
+    textKey: "gitText",
   },
 ];
 
 const DATA_CONTROL = [
   {
-    label: "Private repo",
-    text: "Your private GitHub repository holds the work and the OpenRigor records that go with it, including Ledgers.",
+    labelKey: "privateRepo",
+    textKey: "privateRepoText",
   },
   {
-    label: "BYOK (recommended)",
-    text: "Use your own AI provider. Its retention policy applies.",
+    labelKey: "byokRecommended",
+    textKey: "byokText",
   },
   {
-    label: "Markdown-only",
-    text: "No OpenRigor language model is used. The shared service stays off unless you turn it on.",
+    labelKey: "markdownOnly",
+    textKey: "markdownOnlyText",
   },
 ];
 
 export function OssSection() {
+  const t = useTranslations("landing");
   return (
     <section className="oss section" id="open-source">
       <div className="container">
-        <span className="eyebrow on-dark">Open by design</span>
-        <h2>Research becomes more useful when it can travel.</h2>
-        <p className="lede">
-          OpenRigor is a markdown-native research tool with built-in AI process
-          assistance. The catalogue begins with one research programme; the
-          workspace can support research elsewhere too. Your private repository
-          stays yours, and you decide whether AI is part of the work.
-        </p>
+        <span className="eyebrow on-dark">{t("openByDesign")}</span>
+        <h2>{t("openDesignTitle")}</h2>
+        <p className="lede">{t("openDesignDescription")}</p>
         <div className="open-layers">
           {OPEN_LAYERS.map((layer) => (
-            <div className="open-layer" key={layer.label}>
-              <span>{layer.label}</span>
-              <p>{layer.text}</p>
+            <div className="open-layer" key={layer.labelKey}>
+              <span>{t(layer.labelKey)}</span>
+              <p>{t(layer.textKey)}</p>
             </div>
           ))}
         </div>
         <div className="open-layers">
           {DATA_CONTROL.map((layer) => (
-            <div className="open-layer" key={layer.label}>
-              <span>{layer.label}</span>
-              <p>{layer.text}</p>
+            <div className="open-layer" key={layer.labelKey}>
+              <span>{t(layer.labelKey)}</span>
+              <p>{t(layer.textKey)}</p>
             </div>
           ))}
         </div>
         <p className="lede" style={{ marginTop: 28 }}>
-          Read the{" "}
+          {t("readThe")}{" "}
           <a className="link" href="/privacy/shared-model">
-            privacy notice
+            {t("privacyNotice")}
           </a>{" "}
-          to learn how the shared service handles data. When you work without
-          AI, no OpenRigor language model runs.
+          {t("privacyNoticeDescription")}
         </p>
         <div className="dark-ctas">
           <a
@@ -401,10 +354,10 @@ export function OssSection() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            View on GitHub
+            {t("viewOnGithub")}
           </a>
           <OpenCanvasButton className="btn btn-ghost">
-            Open Workspace
+            {t("openWorkspace")}
             <ArrowRight className="arrow" width={15} height={15} />
           </OpenCanvasButton>
         </div>
@@ -414,18 +367,16 @@ export function OssSection() {
 }
 
 export function FinalCtaSection() {
+  const t = useTranslations("landing");
   return (
     <section className="final-cta">
       <div className="container">
-        <span className="eyebrow">The invitation</span>
-        <h2>Bring a question. Try a method. Show your work.</h2>
-        <p>
-          The Workspace gives the research a place to happen. Open methods and
-          shareable knowledge help others follow and build on the result.
-        </p>
+        <span className="eyebrow">{t("invitation")}</span>
+        <h2>{t("invitationTitle")}</h2>
+        <p>{t("invitationDescription")}</p>
         <div className="final-ctas">
           <OpenCanvasButton className="btn btn-primary">
-            Open Workspace
+            {t("openWorkspace")}
             <ArrowRight className="arrow" width={15} height={15} />
           </OpenCanvasButton>
           <a
@@ -434,7 +385,7 @@ export function FinalCtaSection() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Explore the research catalogue
+            {t("exploreResearchCatalogue")}
           </a>
         </div>
       </div>

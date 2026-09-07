@@ -35,6 +35,7 @@ import { useStore } from "@/hooks/useStore";
 import { arrayToFileList, contextDocumentToFile } from "@/lib/attachments";
 import { ContextDocuments } from "./context-documents";
 import { useContextDocuments } from "@/hooks/useContextDocuments";
+import { useTranslations } from "next-intl";
 
 interface CreateEditAssistantDialogProps {
   open: boolean;
@@ -59,27 +60,26 @@ interface CreateEditAssistantDialogProps {
 
 const GH_DISCUSSION_URL = `https://github.com/langchain-ai/open-canvas/discussions/182`;
 
-const SystemPromptWhatsThis = (): React.ReactNode => (
-  <span className="flex flex-col gap-1 text-sm text-gray-600">
-    <p>
-      Custom system prompts will be passed to the LLM when generating, or
-      re-writing artifacts. They are <i>not</i> used for responding to general
-      queries in the chat, highlight to edit, or quick actions.
-    </p>
-    <p>
-      We&apos;re looking for feedback on how to best handle customizing
-      assistant prompts. To vote, and give feedback please visit{" "}
-      <a href={GH_DISCUSSION_URL} target="_blank">
-        this GitHub discussion
-      </a>
-      .
-    </p>
-  </span>
-);
+const SystemPromptWhatsThis = (): React.ReactNode => {
+  const t = useTranslations("assistant");
+  return (
+    <span className="flex flex-col gap-1 text-sm text-gray-600">
+      <p>{t("systemPromptDescription")}</p>
+      <p>
+        {t("systemPromptFeedback")}{" "}
+        <a href={GH_DISCUSSION_URL} target="_blank">
+          {t("githubDiscussion")}
+        </a>
+        .
+      </p>
+    </span>
+  );
+};
 
 export function CreateEditAssistantDialog(
   props: CreateEditAssistantDialogProps
 ) {
+  const t = useTranslations("assistant");
   const { putContextDocuments, getContextDocuments } = useStore();
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -159,7 +159,7 @@ export function CreateEditAssistantDialog(
     e.preventDefault();
     if (!props.userId) {
       toast({
-        title: "User not found",
+        title: t("userNotFound"),
         variant: "destructive",
         duration: 5000,
       });
@@ -167,7 +167,7 @@ export function CreateEditAssistantDialog(
     }
     if (props.isEditing && !props.assistant) {
       toast({
-        title: "Assistant not found",
+        title: t("assistantNotFound"),
         variant: "destructive",
         duration: 5000,
       });
@@ -224,12 +224,14 @@ export function CreateEditAssistantDialog(
 
     if (success) {
       toast({
-        title: `Assistant ${props.isEditing ? "edited" : "created"} successfully`,
+        title: props.isEditing ? t("assistantEdited") : t("assistantCreated"),
         duration: 5000,
       });
     } else {
       toast({
-        title: `Failed to ${props.isEditing ? "edit" : "create"} assistant`,
+        title: props.isEditing
+          ? t("failedToEditAssistant")
+          : t("failedToCreateAssistant"),
         variant: "destructive",
         duration: 5000,
       });
@@ -273,14 +275,11 @@ export function CreateEditAssistantDialog(
         <DialogHeader>
           <DialogTitle className="text-3xl font-light text-gray-800">
             <TighterText>
-              {props.isEditing ? "Edit" : "Create"} Assistant
+              {props.isEditing ? t("edit") : t("create")} {t("assistant")}
             </TighterText>
           </DialogTitle>
           <DialogDescription className="mt-2 text-md font-light text-gray-600">
-            <TighterText>
-              Creating a new assistant allows you to tailor your reflections to
-              a specific context, as reflections are unique to assistants.
-            </TighterText>
+            <TighterText>{t("assistantDescription")}</TighterText>
           </DialogDescription>
         </DialogHeader>
         <form
@@ -289,33 +288,33 @@ export function CreateEditAssistantDialog(
         >
           <Label htmlFor="name">
             <TighterText>
-              Name <span className="text-red-500">*</span>
+              {t("name")} <span className="text-red-500">*</span>
             </TighterText>
           </Label>
           <Input
             disabled={props.allDisabled}
             required
             id="name"
-            placeholder="Work Emails"
+            placeholder={t("workEmailsPlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
 
           <Label htmlFor="description">
-            <TighterText>Description</TighterText>
+            <TighterText>{t("description")}</TighterText>
           </Label>
           <Input
             disabled={props.allDisabled}
             required={false}
             id="description"
-            placeholder="Assistant for my work emails"
+            placeholder={t("assistantDescriptionPlaceholder")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
 
           <Label htmlFor="system-prompt">
             <TighterText className="flex items-center">
-              System Prompt
+              {t("systemPrompt")}
               <InlineContextTooltip cardContentClassName="w-[500px] ml-10">
                 <SystemPromptWhatsThis />
               </InlineContextTooltip>
@@ -325,7 +324,7 @@ export function CreateEditAssistantDialog(
             disabled={props.allDisabled}
             required={false}
             id="system-prompt"
-            placeholder="You are an expert email assistant..."
+            placeholder={t("systemPromptPlaceholder")}
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             rows={5}
@@ -334,7 +333,7 @@ export function CreateEditAssistantDialog(
           <div className="flex w-full items-center justify-between gap-4">
             <div className="flex flex-col gap-4 items-start justify-start w-full">
               <Label htmlFor="icon">
-                <TighterText>Icon</TighterText>
+                <TighterText>{t("icon")}</TighterText>
               </Label>
               <Suspense
                 fallback={
@@ -355,7 +354,7 @@ export function CreateEditAssistantDialog(
             </div>
             <div className="flex flex-col gap-4 items-start justify-start w-full">
               <Label htmlFor="description">
-                <TighterText>Color</TighterText>
+                <TighterText>{t("color")}</TighterText>
               </Label>
               <div className="flex gap-1 items-center justify-start w-full">
                 <ColorPicker
@@ -371,7 +370,7 @@ export function CreateEditAssistantDialog(
                   disabled={props.allDisabled}
                   required={false}
                   id="description"
-                  placeholder="Assistant for my work emails"
+                  placeholder={t("colorPlaceholder")}
                   value={iconColor}
                   onChange={(e) => {
                     if (!e.target.value.startsWith("#")) {
@@ -401,7 +400,7 @@ export function CreateEditAssistantDialog(
               className="w-full"
               type="submit"
             >
-              <TighterText>Save</TighterText>
+              <TighterText>{t("save")}</TighterText>
             </Button>
             <Button
               disabled={props.allDisabled}
@@ -413,7 +412,7 @@ export function CreateEditAssistantDialog(
               className="w-[20%]"
               type="button"
             >
-              <TighterText>Cancel</TighterText>
+              <TighterText>{t("cancel")}</TighterText>
             </Button>
           </div>
         </form>

@@ -1,6 +1,7 @@
 import React, { DragEvent } from "react";
 import { useComposer, useComposerRuntime } from "@assistant-ui/react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 
 interface DragAndDropWrapperProps {
   children: React.ReactNode;
@@ -8,6 +9,8 @@ interface DragAndDropWrapperProps {
 
 export function DragAndDropWrapper({ children }: DragAndDropWrapperProps) {
   const { toast } = useToast();
+  const t = useTranslations("chat");
+  const commonT = useTranslations("common");
   const disabled = useComposer((c) => !c.isEditing);
   const composerRuntime = useComposerRuntime();
 
@@ -42,14 +45,12 @@ export function DragAndDropWrapper({ children }: DragAndDropWrapperProps) {
             await composerRuntime.addAttachment(file);
           } else {
             toast({
-              title: "Incompatible file type",
+              title: t("incompatibleFileType"),
               description: (
                 <div className="flex flex-col gap-1 text-pretty">
-                  <p>This file {file.name} is not supported.</p>
-                  <p>
-                    Received type <span className="font-mono">{file.type}</span>
-                    . Must be one of:{" "}
-                  </p>
+                  <p>{t("fileNotSupported", { fileName: file.name })}</p>
+                  <p>{t("receivedType", { type: file.type })}</p>
+                  <p>{t("mustBeOneOf")}</p>
                   <p className="font-mono text-wrap">
                     {attachmentAccept.split(",").join(", ")}
                   </p>
@@ -65,18 +66,16 @@ export function DragAndDropWrapper({ children }: DragAndDropWrapperProps) {
       } catch (e) {
         console.error(e);
         toast({
-          title: "Error",
-          description:
-            "Failed to add attachment. This is likely due to an incompatible file type.",
+          title: commonT("error"),
+          description: t("attachmentAddFailed"),
           variant: "destructive",
           duration: 5000,
         });
       }
     } else {
       toast({
-        title: "Drag and drop disabled",
-        description:
-          "Drag and drop is disabled in this mode. Please try again later.",
+        title: t("dragDropDisabled"),
+        description: t("dragDropDisabledDescription"),
         duration: 5000,
       });
     }

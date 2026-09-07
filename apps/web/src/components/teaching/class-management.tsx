@@ -17,6 +17,7 @@ import type { StudentClassData } from "@/lib/teaching/types";
 import { ClassRoster } from "./class-roster";
 import { StudentInviteForm } from "./student-invite-form";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ClassManagementProps {
   open?: boolean;
@@ -29,6 +30,8 @@ export function ClassManagement({
   onOpenChange,
   refreshKey = 0,
 }: ClassManagementProps = {}) {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
   const isDialog = onOpenChange !== undefined;
   const [classes, setClasses] = useState<StudentClassData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +57,7 @@ export function ClassManagement({
     try {
       const res = await fetch("/api/teacher/classes");
       if (!res.ok) {
-        throw new Error("Failed to load classes");
+        throw new Error(t("failedToLoadClasses"));
       }
 
       const data = await res.json();
@@ -69,7 +72,7 @@ export function ClassManagement({
       }
     } catch (loadError) {
       console.error("Failed to load classes:", loadError);
-      setError("Could not load classes");
+      setError(t("couldNotLoadClasses"));
     } finally {
       setLoading(false);
     }
@@ -102,7 +105,7 @@ export function ClassManagement({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error ?? "Failed to create class");
+        throw new Error(data.error ?? t("failedToCreateClass"));
       }
 
       setCreateOpen(false);
@@ -115,7 +118,7 @@ export function ClassManagement({
       setError(
         createError instanceof Error
           ? createError.message
-          : "Failed to create class"
+          : t("failedToCreateClass")
       );
     } finally {
       setCreating(false);
@@ -141,7 +144,7 @@ export function ClassManagement({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error ?? "Failed to rename class");
+        throw new Error(data.error ?? t("failedToRenameClass"));
       }
 
       setRenameTarget(null);
@@ -151,7 +154,7 @@ export function ClassManagement({
       setError(
         renameError instanceof Error
           ? renameError.message
-          : "Failed to rename class"
+          : t("failedToRenameClass")
       );
     } finally {
       setRenaming(false);
@@ -171,7 +174,7 @@ export function ClassManagement({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error ?? "Failed to delete class");
+        throw new Error(data.error ?? t("failedToDeleteClass"));
       }
 
       setDeleteTarget(null);
@@ -180,7 +183,7 @@ export function ClassManagement({
       setError(
         deleteError instanceof Error
           ? deleteError.message
-          : "Failed to delete class"
+          : t("failedToDeleteClass")
       );
     } finally {
       setDeleting(false);
@@ -189,7 +192,7 @@ export function ClassManagement({
 
   if (loading) {
     const loadingMessage = (
-      <p className="text-sm text-muted-foreground">Loading classes…</p>
+      <p className="text-sm text-muted-foreground">{t("loadingClasses")}</p>
     );
     if (isDialog) {
       return (
@@ -207,14 +210,16 @@ export function ClassManagement({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Classes</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {t("classes")}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Create classes, invite students, and manage rosters.
+            {t("classesDescription")}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} className="gap-2" size="sm">
           <Plus className="h-4 w-4" />
-          New class
+          {t("newClass")}
         </Button>
       </div>
 
@@ -229,7 +234,7 @@ export function ClassManagement({
           {classes.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No classes yet. Create one to start inviting students.
+                {t("noClassesInviteStudents")}
               </CardContent>
             </Card>
           ) : (
@@ -250,8 +255,9 @@ export function ClassManagement({
                         {studentClass.name}
                       </CardTitle>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {studentClass.students.length} student
-                        {studentClass.students.length === 1 ? "" : "s"}
+                        {t("studentCount", {
+                          count: studentClass.students.length,
+                        })}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -265,7 +271,7 @@ export function ClassManagement({
                           setRenameTarget(studentClass);
                           setRenameValue(studentClass.name);
                         }}
-                        title="Rename class"
+                        title={t("renameClass")}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -278,7 +284,7 @@ export function ClassManagement({
                           event.stopPropagation();
                           setDeleteTarget(studentClass);
                         }}
-                        title="Delete class"
+                        title={t("deleteClass")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -295,7 +301,9 @@ export function ClassManagement({
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Invite students</CardTitle>
+                  <CardTitle className="text-base">
+                    {t("inviteStudents")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <StudentInviteForm
@@ -319,7 +327,7 @@ export function ClassManagement({
           ) : (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                Select a class to manage its roster and invite students.
+                {t("selectClassToManage")}
               </CardContent>
             </Card>
           )}
@@ -330,18 +338,16 @@ export function ClassManagement({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleCreateClass}>
             <DialogHeader>
-              <DialogTitle>Create class</DialogTitle>
-              <DialogDescription>
-                Add a new empty class to your workspace.
-              </DialogDescription>
+              <DialogTitle>{t("createClass")}</DialogTitle>
+              <DialogDescription>{t("addEmptyClass")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-2 py-4">
-              <Label htmlFor="new-class-name">Class name</Label>
+              <Label htmlFor="new-class-name">{t("className")}</Label>
               <Input
                 id="new-class-name"
                 value={newClassName}
                 onChange={(e) => setNewClassName(e.target.value)}
-                placeholder="English 10A"
+                placeholder={t("classNamePlaceholder")}
                 required
                 disabled={creating}
               />
@@ -353,10 +359,10 @@ export function ClassManagement({
                 onClick={() => setCreateOpen(false)}
                 disabled={creating}
               >
-                Cancel
+                {commonT("cancel")}
               </Button>
               <Button type="submit" disabled={creating}>
-                {creating ? "Creating…" : "Create"}
+                {creating ? t("creating") : t("create")}
               </Button>
             </DialogFooter>
           </form>
@@ -372,10 +378,10 @@ export function ClassManagement({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleRenameClass}>
             <DialogHeader>
-              <DialogTitle>Rename class</DialogTitle>
+              <DialogTitle>{t("renameClass")}</DialogTitle>
             </DialogHeader>
             <div className="space-y-2 py-4">
-              <Label htmlFor="rename-class">Class name</Label>
+              <Label htmlFor="rename-class">{t("className")}</Label>
               <Input
                 id="rename-class"
                 value={renameValue}
@@ -391,10 +397,10 @@ export function ClassManagement({
                 onClick={() => setRenameTarget(null)}
                 disabled={renaming}
               >
-                Cancel
+                {commonT("cancel")}
               </Button>
               <Button type="submit" disabled={renaming}>
-                {renaming ? "Saving…" : "Save"}
+                {renaming ? t("saving") : t("save")}
               </Button>
             </DialogFooter>
           </form>
@@ -409,10 +415,9 @@ export function ClassManagement({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete class</DialogTitle>
+            <DialogTitle>{t("deleteClass")}</DialogTitle>
             <DialogDescription>
-              Delete &ldquo;{deleteTarget?.name}&rdquo;? Students will not be
-              removed from OpenRigor, only from this class roster.
+              {t("deleteClassWarning", { name: deleteTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -421,14 +426,14 @@ export function ClassManagement({
               onClick={() => setDeleteTarget(null)}
               disabled={deleting}
             >
-              Cancel
+              {commonT("cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteClass}
               disabled={deleting}
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? t("deleting") : t("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -441,10 +446,8 @@ export function ClassManagement({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[85vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Manage classes</DialogTitle>
-            <DialogDescription>
-              Create classes, invite students, and manage rosters.
-            </DialogDescription>
+            <DialogTitle>{t("manageClasses")}</DialogTitle>
+            <DialogDescription>{t("classesDescription")}</DialogDescription>
           </DialogHeader>
           {content}
         </DialogContent>

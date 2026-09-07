@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import React from "react";
+import { useTranslations } from "next-intl";
 import debounce from "lodash/debounce";
 import startCase from "lodash/startCase";
 import uniq from "lodash/uniq";
@@ -39,6 +40,7 @@ export function IconSelect({
   hasSelectedIcon: boolean;
   iconColor: string;
 }) {
+  const t = useTranslations("assistant");
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [startIndex, setStartIndex] = useState(0);
@@ -134,16 +136,19 @@ export function IconSelect({
             variant="outline"
             className="flex justify-between"
           >
-            Select an icon {open ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            {t("selectIcon")}{" "}
+            {open ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
           </Button>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="h-[400px] w-[400px] ml-auto">
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 p-2">
-          <DropdownMenuLabel className="px-2 pb-2">Icons</DropdownMenuLabel>
+          <DropdownMenuLabel className="px-2 pb-2">
+            {t("icons")}
+          </DropdownMenuLabel>
           <Input
             disabled={allDisabled}
-            placeholder="Search icons..."
+            placeholder={t("searchIcons")}
             onChange={(e) => debouncedSearch(e.target.value)}
             onClick={(e) => e.stopPropagation()}
             className="mb-2"
@@ -153,7 +158,7 @@ export function IconSelect({
         <div className="overflow-y-auto max-h-[420px]" onScroll={handleScroll}>
           {startIndex > 0 && (
             <div className="py-2 text-center text-sm text-gray-500">
-              Scroll up for previous icons
+              {t("scrollUpForPreviousIcons")}
             </div>
           )}
           {uniq(filteredIcons)
@@ -177,7 +182,7 @@ export function IconSelect({
             ))}
           {startIndex + WINDOW_SIZE < filteredIcons.length && (
             <div className="py-2 text-center text-sm text-gray-500">
-              Scroll down for more icons
+              {t("scrollDownForMoreIcons")}
             </div>
           )}
         </div>

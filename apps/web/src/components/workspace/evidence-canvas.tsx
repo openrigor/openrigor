@@ -36,6 +36,7 @@ import { WorkspaceItemBanner } from "./workspace-item-banner";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
 import { workspaceItemTitle } from "@/lib/workspace/display";
 import { findLatestFormUpdate } from "./form-markdown";
+import { useTranslations } from "next-intl";
 
 type EvidenceStatus = "draft" | "submitting" | "submitted" | "filed";
 type EvidenceValue = string | number | null;
@@ -166,6 +167,7 @@ export function EvidenceFieldControl({
   ) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("workspace");
   const id = `evidence-field-${field.id}`;
   const locked = field.readOnly === true || disabled === true;
   const baseClassName =
@@ -195,7 +197,7 @@ export function EvidenceFieldControl({
       <textarea {...common} rows={field.displayLines || 4} />
     ) : field.type === "select" ? (
       <select {...common}>
-        <option value="">Select…</option>
+        <option value="">{t("select")}</option>
         {field.options?.map((option) => (
           <option key={option} value={option}>
             {option}
@@ -233,7 +235,7 @@ export function EvidenceFieldControl({
       </span>
       {field.readOnly === true && (
         <span className="mx-1 text-[11px] text-slate-500">
-          Frozen run value
+          {t("frozenRunValue")}
         </span>
       )}
       {error && <span className="mx-1 text-xs text-rose-700">{error}</span>}
@@ -266,12 +268,13 @@ export function EvidenceStatusDisplay({
   pullRequestUrl?: string;
   pullRequestNumber?: number;
 }) {
+  const t = useTranslations("workspace");
   const locked = status !== "draft";
   return (
     <>
       <span className="flex items-center gap-1 text-xs font-medium capitalize text-slate-700">
         {locked && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />}
-        {status}
+        {t(`evidenceStatus${status.charAt(0).toUpperCase()}${status.slice(1)}`)}
       </span>
       {pullRequestUrl && (
         <a
@@ -370,6 +373,7 @@ export function EvidenceMarkdown({
   ) => void;
   locked: boolean;
 }) {
+  const t = useTranslations("workspace");
   const unplacedIds = useMemo(
     () => unplacedEditableFieldIds(payload.fields, payload.layoutMarkdown),
     [payload.fields, payload.layoutMarkdown]
@@ -402,7 +406,7 @@ export function EvidenceMarkdown({
             id="evidence-unplaced-fields-heading"
             className="mb-4 text-2xl font-semibold text-slate-900"
           >
-            Additional fields
+            {t("additionalFields")}
           </h2>
           {unplacedIds.map((fieldId) => {
             const field = payload.fields[fieldId];
@@ -431,7 +435,8 @@ export function EvidenceMarkdown({
 
 function evidenceArtifact(
   payload: EvidencePayload,
-  values: Record<string, EvidenceValue | FormValue>
+  values: Record<string, EvidenceValue | FormValue>,
+  title: string
 ): ArtifactV3 {
   const markdown = payload.layoutMarkdown.replace(
     /\{\{([a-z][a-z0-9_-]*)\}\}/g,
@@ -443,7 +448,7 @@ function evidenceArtifact(
       {
         index: 1,
         type: "text",
-        title: "Evidence contribution",
+        title,
         fullMarkdown: markdown,
       },
     ],
@@ -457,6 +462,7 @@ export function EvidenceCanvas({
   item: MethodWorkspaceItem;
   threadId: string;
 }) {
+  const t = useTranslations("workspace");
   const { graphData } = useGraphContext();
   const { setThreadId } = useThreadContext();
   const { toast } = useToast();
@@ -496,7 +502,7 @@ export function EvidenceCanvas({
           error?: string;
         };
         if (!response.ok)
-          throw new Error(body.error || "Could not load evidence");
+          throw new Error(body.error || t("couldNotLoadEvidence"));
         if (cancelled) return;
         setPayload(body);
         const initial = Object.fromEntries(
@@ -512,12 +518,12 @@ export function EvidenceCanvas({
       .catch((error) => {
         if (!cancelled) {
           setLoadError(
-            error instanceof Error ? error.message : "Please try again."
+            error instanceof Error ? error.message : t("pleaseTryAgain")
           );
           toast({
-            title: "Could not load evidence",
+            title: t("couldNotLoadEvidence"),
             description:
-              error instanceof Error ? error.message : "Please try again.",
+              error instanceof Error ? error.message : t("pleaseTryAgain"),
             variant: "destructive",
           });
         }
@@ -528,7 +534,7 @@ export function EvidenceCanvas({
     return () => {
       cancelled = true;
     };
-  }, [item.id, threadId, toast, loadAttempt]);
+  }, [item.id, threadId, toast, loadAttempt, t]);
 
   const editableValues = useMemo(() => {
     if (!payload) return {};
@@ -560,12 +566,16 @@ export function EvidenceCanvas({
 
   useEffect(() => {
     if (!payload) return;
-    const artifact = evidenceArtifact(payload, values);
+    const artifact = evidenceArtifact(
+      payload,
+      values,
+      t("evidenceContribution")
+    );
     setArtifact(artifact);
     setChatStarted(true);
     const formContext: FormAgentContext = {
       templateId: `${payload.template.id}@${payload.template.version}`,
-      title: "Evidence contribution",
+      title: t("evidenceContribution"),
       description: payload.guidance,
       layoutMarkdown: payload.layoutMarkdown,
       fields: Object.fromEntries(
@@ -581,21 +591,21 @@ export function EvidenceCanvas({
         ])
       ),
       methodContext: {
-        title: `${payload.method.id} evidence`,
+        title: `${payload.method.id} ${t("evidence")}`,
         guidance: payload.guidance,
         briefTemplate: payload.layoutMarkdown,
       },
     };
     setFormContext(formContext);
-  }, [payload, setArtifact, setChatStarted, setFormContext, values]);
+  }, [payload, setArtifact, setChatStarted, setFormContext, t, values]);
 
   const getStreamInput = useCallback(() => {
     if (!payload) return {};
     return {
-      artifact: evidenceArtifact(payload, values),
+      artifact: evidenceArtifact(payload, values, t("evidenceContribution")),
       formContext: graphData.formContext,
     };
-  }, [graphData.formContext, payload, values]);
+  }, [graphData.formContext, payload, t, values]);
 
   useEffect(() => {
     if (
@@ -666,7 +676,7 @@ export function EvidenceCanvas({
             (body.issues || []).map((issue) => [issue.fieldId, issue.message])
           )
         );
-        throw new Error(body.error || "Please correct the highlighted fields.");
+        throw new Error(body.error || t("correctHighlightedFields"));
       }
       setPayload((current) =>
         current
@@ -681,16 +691,16 @@ export function EvidenceCanvas({
       setErrors({});
       toast({
         title:
-          body.status === "filed" ? "Evidence filed" : "Evidence submitted",
+          body.status === "filed" ? t("evidenceFiled") : t("evidenceSubmitted"),
         description:
           body.status === "filed"
-            ? "The contribution passed the automated gate and was merged."
-            : "The research pull request is open for review.",
+            ? t("evidenceFiledDescription")
+            : t("evidenceSubmittedDescription"),
       });
     } catch (error) {
       if (error instanceof Error) {
         toast({
-          title: "Evidence submission failed",
+          title: t("evidenceSubmissionFailed"),
           description: error.message,
           variant: "destructive",
         });
@@ -707,13 +717,13 @@ export function EvidenceCanvas({
         `/api/workspace/items/${encodeURIComponent(item.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not abandon workspace item");
+      if (!response.ok) throw new Error(t("couldNotAbandonWorkspaceItem"));
       router.push("/workspace");
     } catch (error) {
       toast({
-        title: "Could not abandon item",
+        title: t("couldNotAbandonItem"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -724,7 +734,7 @@ export function EvidenceCanvas({
   if (loading) {
     return (
       <div className="p-8 text-sm text-muted-foreground">
-        Loading evidence canvas…
+        {t("loadingEvidenceCanvas")}
       </div>
     );
   }
@@ -732,9 +742,9 @@ export function EvidenceCanvas({
   if (loadError) {
     return (
       <div className="flex flex-col gap-3 p-8 text-sm text-muted-foreground">
-        <p>Could not load the evidence canvas: {loadError}</p>
+        <p>{t("couldNotLoadEvidenceCanvas", { error: loadError })}</p>
         <Button onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
-          Retry
+          {t("retry")}
         </Button>
       </div>
     );
@@ -748,7 +758,7 @@ export function EvidenceCanvas({
       <WorkspaceItemBanner item={item} onAbandon={() => setAbandonOpen(true)} />
       <div className="flex shrink-0 items-center justify-between border-b bg-slate-50 px-5 py-2 text-sm">
         <div>
-          <span className="font-medium">Evidence contribution</span>{" "}
+          <span className="font-medium">{t("evidenceContribution")}</span>{" "}
           <span className="text-muted-foreground">
             {payload.method.id}@{payload.method.version}
           </span>
@@ -765,7 +775,7 @@ export function EvidenceCanvas({
               disabled={submitting}
               data-testid="evidence-submit"
             >
-              {submitting ? "Submitting…" : "Submit evidence"}
+              {submitting ? t("submitting") : t("submitEvidence")}
             </Button>
           )}
         </div>

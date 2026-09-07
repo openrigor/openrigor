@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,7 @@ function parseHashParams(): URLSearchParams {
 }
 
 function ConfirmEmailContent() {
+  const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get("code");
@@ -33,7 +35,7 @@ function ConfirmEmailContent() {
 
   const [status, setStatus] = useState<ConfirmStatus>({
     kind: "working",
-    message: "Confirming your email…",
+    message: t("confirmingEmail"),
   });
   const [resendEmail, setResendEmail] = useState("");
   const [resending, setResending] = useState(false);
@@ -75,7 +77,7 @@ function ConfirmEmailContent() {
         if (!cancelled) {
           setStatus({
             kind: "error",
-            message: "This confirmation link is invalid or has expired.",
+            message: t("confirmationLinkInvalid"),
           });
         }
         return;
@@ -98,9 +100,7 @@ function ConfirmEmailContent() {
         if (error || !data.user) {
           setStatus({
             kind: "error",
-            message:
-              error?.message ??
-              "This confirmation link is invalid or has expired.",
+            message: error?.message ?? t("confirmationLinkInvalid"),
           });
           return;
         }
@@ -122,7 +122,7 @@ function ConfirmEmailContent() {
     return () => {
       cancelled = true;
     };
-  }, [code, next, router]);
+  }, [code, next, router, t]);
 
   const handleResend = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -139,14 +139,12 @@ function ConfirmEmailContent() {
         },
       });
       if (!error) {
-        setResendMessage(
-          "Confirmation link sent. Check your inbox (and spam folder)."
-        );
+        setResendMessage(t("confirmationLinkSent"));
       } else {
         setResendError(error.message);
       }
     } catch {
-      setResendError("Could not resend confirmation email.");
+      setResendError(t("couldNotResendConfirmation"));
     } finally {
       setResending(false);
     }
@@ -157,7 +155,7 @@ function ConfirmEmailContent() {
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Confirming your email…</CardTitle>
+            <CardTitle>{t("confirmingEmail")}</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
             <Icons.spinner className="h-4 w-4 animate-spin" />
@@ -173,7 +171,7 @@ function ConfirmEmailContent() {
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Email confirmation failed</CardTitle>
+            <CardTitle>{t("emailConfirmationFailed")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-destructive" role="alert">
@@ -181,7 +179,9 @@ function ConfirmEmailContent() {
             </p>
             <form onSubmit={handleResend} className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="resend-email">Resend confirmation link</Label>
+                <Label htmlFor="resend-email">
+                  {t("resendConfirmationLink")}
+                </Label>
                 <Input
                   id="resend-email"
                   type="email"
@@ -189,7 +189,7 @@ function ConfirmEmailContent() {
                   onChange={(e) => setResendEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  placeholder="you@example.com"
+                  placeholder={t("emailPlaceholder")}
                 />
               </div>
               {resendError && (
@@ -206,14 +206,14 @@ function ConfirmEmailContent() {
                 {resending && (
                   <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Resend confirmation link
+                {t("resendConfirmationLink")}
               </Button>
             </form>
             <Link
               href="/auth/login"
               className={cn(buttonVariants({ variant: "outline" }), "w-full")}
             >
-              Sign in
+              {t("signIn")}
             </Link>
           </CardContent>
         </Card>
@@ -225,11 +225,13 @@ function ConfirmEmailContent() {
 }
 
 export default function ConfirmEmailPage() {
+  const t = useTranslations("auth");
+
   return (
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-          Confirming your email…
+          {t("confirmingEmail")}
         </div>
       }
     >

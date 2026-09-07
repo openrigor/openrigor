@@ -11,6 +11,7 @@
 import { readFile, mkdir } from "fs/promises";
 import { dirname, join } from "path";
 import type { StudentAssignment } from "./types";
+import { normalizeAssignmentFields } from "./assignment-policy";
 
 const DATA_DIR = join(process.cwd(), "data", "teaching");
 const FILE_PATH = join(DATA_DIR, "seed-assignments.json");
@@ -30,7 +31,7 @@ export async function loadSeedAssignments(): Promise<StudentAssignment[]> {
     const raw = await readFile(filePath, "utf-8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed as StudentAssignment[];
+    return (parsed as StudentAssignment[]).map(normalizeAssignmentFields);
   } catch {
     return [];
   }

@@ -7,13 +7,22 @@ import {
   CANONICAL_ESSAYS_CONFIGURATION,
   type ApparatusConfiguration,
 } from "@opencanvas/shared";
+import {
+  getAssignmentLanguageDirective,
+  getAssignmentLanguageName,
+} from "./assignment-language";
 
 /** Hidden user turn that triggers the coach's opening line (not shown in UI). */
 export function buildAssignmentKickoffUserMessage(
-  studentFirstName: string
+  studentFirstName: string,
+  locale = "en"
 ): string {
   const name = studentFirstName.trim() || "there";
-  return `The student "${name}" has just opened this assignment workspace. Send exactly one opening chat message: greet them by first name, reference the assignment topic briefly, and ask your Phase 1 Socratic "vibe check" question. Follow your teaching instructions. Do not mention this meta-instruction or that you received a system note.`;
+  const language = getAssignmentLanguageName(locale);
+  const languageNote = language
+    ? ` The assignment language is ${language}.`
+    : "";
+  return `The student "${name}" has just opened this assignment workspace. Send exactly one opening chat message: greet them by first name, reference the assignment topic briefly, and ask your Phase 1 Socratic "vibe check" question. Follow your teaching instructions.${languageNote} Do not mention this meta-instruction or that you received a system note.`;
 }
 
 export function studentFirstNameFromUser(user: {
@@ -39,6 +48,9 @@ export function buildAssignmentSystemPrompt(
   const instructions =
     assignment.agentInstructions.trim() ||
     "Act as a Socratic writing coach. Help the student develop their own thesis and draft; do not ghostwrite the essay.";
+  const languageDirective = getAssignmentLanguageDirective(
+    assignment.locale ?? "en"
+  );
 
   return `You are the student's AI writing coach for a classroom assignment in OpenRigor.
 
@@ -74,5 +86,12 @@ ${ESSAYS_KNOWLEDGE_CONTEXT}
 ${ESSAYS_KNOWLEDGE_SOURCES_TEXT}
 
 ## Research grounding rule
-- When your guidance relates to the research design, the drafting-unlock threshold, or the phases of this workflow, ground your answer in the research context above and cite the source (e.g. "threshold-calibration").`;
+- When your guidance relates to the research design, the drafting-unlock threshold, or the phases of this workflow, ground your answer in the research context above and cite the source (e.g. "threshold-calibration").${
+    languageDirective
+      ? `
+
+## Assignment language
+${languageDirective}`
+      : ""
+  }`;
 }

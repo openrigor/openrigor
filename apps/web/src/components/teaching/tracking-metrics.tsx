@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,6 +111,7 @@ interface TrackingMetricsProps {
 }
 
 export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
+  const t = useTranslations("teaching");
   const [metrics, setMetrics] = useState<AggregatedMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,23 +120,23 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
     async function fetchMetrics() {
       try {
         const res = await fetch(`/api/tracking/metrics?threadId=${threadId}`);
-        if (!res.ok) throw new Error("Failed to fetch metrics");
+        if (!res.ok) throw new Error(t("failedToFetchMetrics"));
         const data = await res.json();
         setMetrics(data);
       } catch (err) {
-        setError("Could not load tracking data");
+        setError(t("couldNotLoadTrackingData"));
       } finally {
         setLoading(false);
       }
     }
     fetchMetrics();
-  }, [threadId]);
+  }, [threadId, t]);
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Engagement Metrics</CardTitle>
+          <CardTitle className="text-lg">{t("engagementMetrics")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -151,11 +153,11 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Engagement Metrics</CardTitle>
+          <CardTitle className="text-lg">{t("engagementMetrics")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            {error || "No tracking data available for this submission."}
+            {error || t("noTrackingData")}
           </p>
         </CardContent>
       </Card>
@@ -166,11 +168,11 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Engagement Metrics</CardTitle>
+          <CardTitle className="text-lg">{t("engagementMetrics")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No tracking sessions recorded for this submission.
+            {t("noTrackingSessions")}
           </p>
         </CardContent>
       </Card>
@@ -196,16 +198,20 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
     <Card data-testid="teacher-review-metrics">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Engagement Metrics</CardTitle>
+          <CardTitle className="text-lg">{t("engagementMetrics")}</CardTitle>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {metrics.firstActivity && (
-              <span>Started: {formatDate(metrics.firstActivity)}</span>
+              <span>
+                {t("started", { date: formatDate(metrics.firstActivity) })}
+              </span>
             )}
             {metrics.lastActivity &&
               metrics.firstActivity !== metrics.lastActivity && (
                 <>
                   <span>→</span>
-                  <span>Last: {formatDate(metrics.lastActivity)}</span>
+                  <span>
+                    {t("last", { date: formatDate(metrics.lastActivity) })}
+                  </span>
                 </>
               )}
           </div>
@@ -216,22 +222,22 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <MetricBadge
             icon={Clock}
-            label="Total time"
+            label={t("totalTime")}
             value={formatDuration(metrics.totalTimeMs)}
           />
           <MetricBadge
             icon={Layers}
-            label="Sessions"
+            label={t("sessions")}
             value={metrics.sessionCount}
           />
           <MetricBadge
             icon={Keyboard}
-            label="Keystrokes"
+            label={t("keystrokes")}
             value={metrics.totalKeystrokes.toLocaleString()}
           />
           <MetricBadge
             icon={Type}
-            label="Typing bursts"
+            label={t("typingBursts")}
             value={metrics.totalTypingBursts}
           />
         </div>
@@ -240,23 +246,23 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <MetricBadge
             icon={ClipboardPaste}
-            label="Paste events"
+            label={t("pasteEvents")}
             value={metrics.totalPasteEvents}
             variant={metrics.totalPasteEvents > 5 ? "destructive" : "secondary"}
           />
           <MetricBadge
             icon={Copy}
-            label="Copy events"
+            label={t("copyEvents")}
             value={metrics.totalCopyEvents}
           />
           <MetricBadge
             icon={Scissors}
-            label="Cut events"
+            label={t("cutEvents")}
             value={metrics.totalCutEvents}
           />
           <MetricBadge
             icon={MousePointerClick}
-            label="Workspace edits"
+            label={t("workspaceEdits")}
             value={metrics.totalCanvasEdits}
           />
         </div>
@@ -265,29 +271,33 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
         <div className="flex flex-wrap gap-2">
           {pasteRatio > 30 && (
             <Badge variant="destructive" className="text-xs">
-              High paste ratio: {pasteRatio}% of content pasted
+              {t("highPasteRatio", { percent: pasteRatio })}
             </Badge>
           )}
           {metrics.totalVisibilityHidden > 0 && (
             <Badge variant="outline" className="text-xs gap-1">
               <EyeOff className="h-3 w-3" />
-              Tab hidden {metrics.totalVisibilityHidden}x
+              {t("tabHidden", { count: metrics.totalVisibilityHidden })}
             </Badge>
           )}
           {avgWordsPerBurst > 0 && (
             <Badge variant="secondary" className="text-xs">
-              ~{avgWordsPerBurst} words per typing burst
+              {t("wordsPerTypingBurst", { count: avgWordsPerBurst })}
             </Badge>
           )}
           {metrics.avgBurstDurationMs > 0 && (
             <Badge variant="secondary" className="text-xs">
-              Avg burst: {formatDuration(metrics.avgBurstDurationMs)}
+              {t("averageBurst", {
+                duration: formatDuration(metrics.avgBurstDurationMs),
+              })}
             </Badge>
           )}
           {metrics.totalCanvasInsertions > 0 && (
             <Badge variant="secondary" className="text-xs">
-              {metrics.totalCanvasInsertions} insertions /{" "}
-              {metrics.totalCanvasDeletions} deletions
+              {t("insertionsAndDeletions", {
+                insertions: metrics.totalCanvasInsertions,
+                deletions: metrics.totalCanvasDeletions,
+              })}
             </Badge>
           )}
         </div>
@@ -296,7 +306,7 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
         {metrics.sessions.length > 1 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">
-              Session timeline
+              {t("sessionTimeline")}
             </h4>
             <div className="space-y-1.5">
               {metrics.sessions
@@ -318,7 +328,7 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
                       <span className="w-28 shrink-0 text-muted-foreground truncate">
                         {session.startTime
                           ? formatDate(session.startTime)
-                          : "Unknown"}
+                          : t("unknown")}
                       </span>
                       <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
                         <div
@@ -330,7 +340,7 @@ export function TrackingMetrics({ threadId }: TrackingMetricsProps) {
                         {formatDuration(session.durationMs)}
                       </span>
                       <span className="w-20 shrink-0 text-right text-muted-foreground">
-                        {session.keystrokes} keys
+                        {t("keys", { count: session.keystrokes })}
                       </span>
                     </div>
                   );

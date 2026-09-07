@@ -8,41 +8,44 @@ import { SendHorizontalIcon } from "lucide-react";
 import { DragAndDropWrapper } from "./drag-drop-wrapper";
 import { ComposerAttachments } from "../assistant-ui/attachment";
 import { ComposerActionsPopOut } from "./composer-actions-popout";
+import { useTranslations } from "next-intl";
 
 const GENERIC_PLACEHOLDERS = [
-  "Share your big idea and let's write something amazing",
-  "Type your vision for the next great piece of content",
-  "Your masterpiece begins with this prompt",
-  "What would you like us to write about today?",
-  "Drop your content idea here and let's create",
-  "Your next great piece starts with this prompt",
-  "Share your story idea and watch it unfold",
-  "Let's write something incredible - start here",
-  "Your writing journey begins with this prompt",
-  "Turn your idea into content magic - start here",
+  "genericPlaceholder1",
+  "genericPlaceholder2",
+  "genericPlaceholder3",
+  "genericPlaceholder4",
+  "genericPlaceholder5",
+  "genericPlaceholder6",
+  "genericPlaceholder7",
+  "genericPlaceholder8",
+  "genericPlaceholder9",
+  "genericPlaceholder10",
 ];
 
 const SEARCH_PLACEHOLDERS = [
-  "Share your topic - I'll add live data",
-  "Write about anything - I'll find sources",
-  "Your idea + fresh research = great content",
-  "Start here with real-time facts",
-  "Topic here for data-rich content",
-  "Create with current insights",
-  "Write now with live sources",
-  "Your story + fresh data",
-  "Ideas welcome - research ready",
-  "Start fresh with live facts",
+  "searchPlaceholder1",
+  "searchPlaceholder2",
+  "searchPlaceholder3",
+  "searchPlaceholder4",
+  "searchPlaceholder5",
+  "searchPlaceholder6",
+  "searchPlaceholder7",
+  "searchPlaceholder8",
+  "searchPlaceholder9",
+  "searchPlaceholder10",
 ];
 
-const getRandomPlaceholder = (searchEnabled: boolean) => {
-  return searchEnabled
-    ? SEARCH_PLACEHOLDERS[
-        Math.floor(Math.random() * SEARCH_PLACEHOLDERS.length)
-      ]
-    : GENERIC_PLACEHOLDERS[
-        Math.floor(Math.random() * GENERIC_PLACEHOLDERS.length)
-      ];
+const getRandomPlaceholder = (
+  searchEnabled: boolean,
+  translate: (key: string) => string
+) => {
+  const placeholders = searchEnabled
+    ? SEARCH_PLACEHOLDERS
+    : GENERIC_PLACEHOLDERS;
+  return translate(
+    placeholders[Math.floor(Math.random() * placeholders.length)]
+  );
 };
 
 const CircleStopIcon = () => {
@@ -69,18 +72,18 @@ interface ComposerProps {
 
 export const Composer: FC<ComposerProps> = (props: ComposerProps) => {
   const [placeholder, setPlaceholder] = useState("");
+  const t = useTranslations("chat");
+  const commonT = useTranslations("common");
 
   useEffect(() => {
-    setPlaceholder(getRandomPlaceholder(props.searchEnabled));
-  }, [props.searchEnabled]);
+    setPlaceholder(getRandomPlaceholder(props.searchEnabled, t));
+  }, [props.searchEnabled, t]);
 
   if (props.disabled) {
     return (
       <div className="flex flex-col w-full min-h-[64px] items-center justify-center border px-2.5 shadow-sm bg-muted/50 rounded-2xl">
         <div className="flex items-center gap-2 text-muted-foreground">
-          <span className="text-sm">
-            Assignment submitted — chat is read-only
-          </span>
+          <span className="text-sm">{t("assignmentSubmittedReadOnly")}</span>
         </div>
       </div>
     );
@@ -113,7 +116,7 @@ export const Composer: FC<ComposerProps> = (props: ComposerProps) => {
             <ThreadPrimitive.If running={false}>
               <ComposerPrimitive.Send asChild>
                 <TooltipIconButton
-                  tooltip="Send"
+                  tooltip={t("send")}
                   variant="default"
                   className="my-2.5 size-8 p-2 transition-opacity ease-in"
                 >
@@ -125,7 +128,7 @@ export const Composer: FC<ComposerProps> = (props: ComposerProps) => {
           <ThreadPrimitive.If running>
             <ComposerPrimitive.Cancel asChild>
               <TooltipIconButton
-                tooltip="Cancel"
+                tooltip={commonT("cancel")}
                 variant="default"
                 className="my-2.5 size-8 p-2 transition-opacity ease-in"
               >

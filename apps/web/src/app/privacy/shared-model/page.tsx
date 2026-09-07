@@ -4,17 +4,21 @@ import {
   SHARED_MODEL_NOTICE_EFFECTIVE_DATE,
   SharedModelNoticeContent,
 } from "@/lib/privacy/shared-model-notice";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Shared-model privacy notice · OpenRigor",
-  description:
-    "The versioned privacy notice for OpenRigor shared-model processing.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("legal");
+  return {
+    title: t("sharedModelTitleWithBrand"),
+    description: t("sharedModelDescription"),
+  };
+}
 
-export default function SharedModelPrivacyNoticePage() {
+export default async function SharedModelPrivacyNoticePage() {
+  const t = await getTranslations("legal");
   return (
     <LegalDocumentLayout
-      title="Shared-model privacy notice"
+      title={t("sharedModelPrivacyNotice")}
       lastUpdated={SHARED_MODEL_NOTICE_EFFECTIVE_DATE}
     >
       <SharedModelNoticeContent />

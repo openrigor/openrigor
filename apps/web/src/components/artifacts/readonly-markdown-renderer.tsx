@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import "@blocknote/core/fonts/inter.css";
+import { locales } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 import "@blocknote/shadcn/style.css";
+import { useLocale } from "next-intl";
 import TrackChangesExtension, {
   setTrackChangesRanges,
   clearTrackChangesRanges,
@@ -14,6 +16,11 @@ import type { DiffRange } from "@/lib/diffing";
 import { canvasSchema } from "./canvas-schema";
 import "katex/dist/katex.min.css";
 import { parseMarkdownToCanvasBlocks } from "./mermaid-markdown";
+import { resolveBlockNoteLocale } from "@/lib/i18n/blocknote-locale";
+import { DEFAULT_LOCALE, isLocaleCode } from "@/lib/i18n/locales";
+type BlockNoteDictionary = NonNullable<
+  Parameters<typeof useCreateBlockNote>[0]
+>["dictionary"];
 
 function isCellEmpty(cell: unknown[]): boolean {
   if (cell.length === 0) return true;
@@ -128,12 +135,22 @@ export function ReadonlyMarkdownRenderer({
   scrollToOffset,
   scrollContainerRef,
 }: ReadonlyMarkdownRendererProps) {
-  const editor = useCreateBlockNote({
-    schema: canvasSchema,
-    _tiptapOptions: {
-      extensions: [TrackChangesExtension, MathInlineExtension],
+  const locale = useLocale();
+  const appLocale = isLocaleCode(locale) ? locale : DEFAULT_LOCALE;
+  const editor = useCreateBlockNote(
+    {
+      schema: canvasSchema,
+      dictionary: locales[
+        resolveBlockNoteLocale(appLocale)
+      ] as BlockNoteDictionary,
+      _tiptapOptions: {
+        extensions: [TrackChangesExtension, MathInlineExtension],
+      },
     },
-  });
+    // Recreate the editor when the app locale changes so BlockNote's
+    // dictionary (UI strings) follows the switched language.
+    [appLocale]
+  );
 
   const isSyncingRef = useRef(false);
   const lastScrolledOffsetRef = useRef<number | null>(null);

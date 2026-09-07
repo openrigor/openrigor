@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { Inter } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import { cn } from "@/lib/utils";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -23,15 +25,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+
   return (
-    <html lang="en" className="h-screen">
+    <html lang={locale} className="h-screen">
       <body className={cn("min-h-full", inter.className)}>
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <NextIntlClientProvider>
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

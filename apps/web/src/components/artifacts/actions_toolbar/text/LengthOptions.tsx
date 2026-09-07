@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
 import { GraphInput } from "@opencanvas/shared/types";
+import { useTranslations } from "next-intl";
 
 export interface LengthOptionsProps {
   streamMessage: (params: GraphInput) => Promise<void>;
@@ -16,15 +17,16 @@ export interface LengthOptionsProps {
 }
 
 const lengthOptions = [
-  { value: 1, label: "Shortest" },
-  { value: 2, label: "Shorter" },
-  { value: 3, label: "Current length" },
-  { value: 4, label: "Long" },
-  { value: 5, label: "Longest" },
+  { value: 1, key: "shortest" },
+  { value: 2, key: "shorter" },
+  { value: 3, key: "currentLength" },
+  { value: 4, key: "long" },
+  { value: 5, key: "longest" },
 ];
 
 export function LengthOptions(props: LengthOptionsProps) {
   const { streamMessage } = props;
+  const t = useTranslations("artifacts");
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState([3]);
 
@@ -76,7 +78,10 @@ export function LengthOptions(props: LengthOptionsProps) {
             />
           </TooltipTrigger>
           <TooltipContent side="right">
-            {lengthOptions.find((option) => option.value === value[0])?.label}
+            {t(
+              lengthOptions.find((option) => option.value === value[0])?.key ??
+                "currentLength"
+            )}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

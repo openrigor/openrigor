@@ -20,6 +20,7 @@ import { Assistant } from "@langchain/langgraph-sdk";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAssistantContext } from "@/contexts/AssistantContext";
+import { useTranslations } from "next-intl";
 
 interface AssistantSelectProps {
   userId: string | undefined;
@@ -29,6 +30,7 @@ interface AssistantSelectProps {
 }
 
 function AssistantSelectComponent(props: AssistantSelectProps) {
+  const t = useTranslations("assistant");
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [createEditDialogOpen, setCreateEditDialogOpen] = useState(false);
@@ -57,7 +59,7 @@ function AssistantSelectComponent(props: AssistantSelectProps) {
     const res = await deleteAssistant(assistantId);
     if (res) {
       toast({
-        title: "Assistant deleted",
+        title: t("assistantDeleted"),
         duration: 5000,
       });
     }
@@ -82,7 +84,7 @@ function AssistantSelectComponent(props: AssistantSelectProps) {
       >
         <DropdownMenuTrigger className="text-gray-600" asChild>
           <TooltipIconButton
-            tooltip="Change assistant"
+            tooltip={t("changeAssistant")}
             variant="ghost"
             className={cn("size-7 mt-1", props.className)}
             delayDuration={200}
@@ -98,12 +100,12 @@ function AssistantSelectComponent(props: AssistantSelectProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent className="max-h-[600px] max-w-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 ml-4">
           <DropdownMenuLabel>
-            <TighterText>My Assistants</TighterText>
+            <TighterText>{t("myAssistants")}</TighterText>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {isLoadingAllAssistants && !assistants?.length ? (
             <span className="text-sm text-gray-600 flex items-center justify-start gap-1 p-2">
-              Loading
+              {t("loading")}
               <LoaderCircle className="w-4 h-4 animate-spin" />
             </span>
           ) : (
@@ -116,7 +118,7 @@ function AssistantSelectComponent(props: AssistantSelectProps) {
                 disabled={allDisabled}
               >
                 <CirclePlus className="w-4 h-4" />
-                <TighterText className="font-medium">New</TighterText>
+                <TighterText className="font-medium">{t("new")}</TighterText>
               </DropdownMenuItem>
               {assistants.map((assistant) => (
                 <AssistantItem

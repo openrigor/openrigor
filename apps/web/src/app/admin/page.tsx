@@ -3,15 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAdminDashboardData } from "@/lib/admin/dashboard";
 import { isAdminDashboardEnabled, isPlatformAdmin } from "@/lib/admin/guard";
 import { verifyUserAuthenticated } from "@/lib/supabase/verify_user_server";
+import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function formatDate(value: string): string {
+function formatDate(value: string, unknownDate: string): string {
   const date = new Date(value);
-  return Number.isFinite(date.getTime())
-    ? date.toLocaleString()
-    : "Unknown date";
+  return Number.isFinite(date.getTime()) ? date.toLocaleString() : unknownDate;
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
@@ -33,10 +32,12 @@ function RankedList({
   title,
   rows,
   countLabel,
+  noActivity,
 }: {
   title: string;
   rows: Array<{ email: string; count: number }>;
-  countLabel: string;
+  countLabel: (count: number) => string;
+  noActivity: string;
 }) {
   return (
     <Card>
@@ -45,7 +46,7 @@ function RankedList({
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No activity yet.</p>
+          <p className="text-sm text-muted-foreground">{noActivity}</p>
         ) : (
           <ol className="space-y-3">
             {rows.map((row, index) => (
@@ -60,7 +61,7 @@ function RankedList({
                   {row.email}
                 </span>
                 <span className="shrink-0 font-medium">
-                  {row.count} {countLabel}
+                  {countLabel(row.count)}
                 </span>
               </li>
             ))}
@@ -72,6 +73,7 @@ function RankedList({
 }
 
 export default async function AdminPage() {
+  const t = await getTranslations("admin");
   if (!isAdminDashboardEnabled()) notFound();
 
   let auth;
@@ -96,51 +98,52 @@ export default async function AdminPage() {
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
           <p className="text-sm font-medium text-muted-foreground">
-            Instance administration
+            {t("instanceAdministration")}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            Admin dashboard
+            {t("adminDashboard")}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Counts and provider allowance activity only. Workspace content and
-            threads are not shown.
+            {t("dashboardDescription")}
           </p>
         </header>
 
         <section
-          aria-label="Registration statistics"
+          aria-label={t("registrationStatistics")}
           className="grid gap-4 sm:grid-cols-3"
         >
           <StatCard
-            label="Registered users"
+            label={t("registeredUsers")}
             value={dashboard.registrations.total}
           />
           <StatCard
-            label="Joined in the last 7 days"
+            label={t("joinedLast7Days")}
             value={dashboard.registrations.joinedLast7Days}
           />
           <StatCard
-            label="Joined in the last 30 days"
+            label={t("joinedLast30Days")}
             value={dashboard.registrations.joinedLast30Days}
           />
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
           <RankedList
-            title="Top users by workspace items"
+            title={t("topUsersByWorkspaceItems")}
             rows={dashboard.topWorkspaceItems}
-            countLabel="items"
+            countLabel={(count) => t("itemsCount", { count })}
+            noActivity={t("noActivity")}
           />
           <RankedList
-            title="Top users by invitations"
+            title={t("topUsersByInvitations")}
             rows={dashboard.topInvitations}
-            countLabel="invites"
+            countLabel={(count) => t("invitesCount", { count })}
+            noActivity={t("noActivity")}
           />
         </section>
 
         <Card>
           <CardHeader>
-            <CardTitle>Platform-provider usage</CardTitle>
+            <CardTitle>{t("platformProviderUsage")}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {dashboard.providerUsage.total.requests} runs ·{" "}
               {dashboard.providerUsage.total.tokensIn} input tokens ·{" "}
@@ -150,7 +153,7 @@ export default async function AdminPage() {
           <CardContent>
             {dashboard.providerUsage.topUsers.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No platform-provider usage yet.
+                {t("noProviderUsage")}
               </p>
             ) : (
               <div className="space-y-4">
@@ -166,7 +169,7 @@ export default async function AdminPage() {
                           {row.email}
                         </span>
                         <span className="shrink-0 font-medium">
-                          {row.requests} runs
+                          {t("runs", { count: row.requests })}
                         </span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-primary/20">
@@ -177,7 +180,10 @@ export default async function AdminPage() {
                         />
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {row.tokensIn} input · {row.tokensOut} output tokens
+                        {t("tokenUsage", {
+                          input: row.tokensIn,
+                          output: row.tokensOut,
+                        })}
                       </p>
                     </div>
                   );
@@ -189,12 +195,12 @@ export default async function AdminPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent registrations</CardTitle>
+            <CardTitle>{t("recentRegistrations")}</CardTitle>
           </CardHeader>
           <CardContent>
             {dashboard.registrations.recent.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No registrations found.
+                {t("noRegistrations")}
               </p>
             ) : (
               <ul className="divide-y">
@@ -208,7 +214,7 @@ export default async function AdminPage() {
                       className="shrink-0 text-muted-foreground"
                       dateTime={registration.joinedAt}
                     >
-                      {formatDate(registration.joinedAt)}
+                      {formatDate(registration.joinedAt, t("unknownDate"))}
                     </time>
                   </li>
                 ))}
@@ -218,7 +224,9 @@ export default async function AdminPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground">
-          Updated {formatDate(dashboard.generatedAt)}.
+          {t("updated", {
+            date: formatDate(dashboard.generatedAt, t("unknownDate")),
+          })}
         </p>
       </div>
     </main>

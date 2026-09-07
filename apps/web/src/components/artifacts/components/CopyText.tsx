@@ -7,6 +7,12 @@ import { Copy } from "lucide-react";
 
 interface CopyTextProps {
   currentArtifactContent: ArtifactCodeV3 | ArtifactMarkdownV3;
+  /** Optional styling overrides (e.g. ghost header-bar button look). */
+  className?: string;
+  /** Optional icon size/color override (header bar uses w-4 h-4). */
+  iconClassName?: string;
+  /** Button variant; header bar uses "ghost" to match Print. */
+  variant?: "ghost" | "outline";
 }
 
 export function CopyText(props: CopyTextProps) {
@@ -21,8 +27,8 @@ export function CopyText(props: CopyTextProps) {
     >
       <TooltipIconButton
         tooltip="Copy"
-        variant="outline"
-        className="transition-colors"
+        variant={props.variant ?? "outline"}
+        className={props.className ?? "transition-colors"}
         delayDuration={400}
         onClick={() => {
           try {
@@ -46,7 +52,7 @@ export function CopyText(props: CopyTextProps) {
           }
         }}
       >
-        <Copy className="w-5 h-5 text-gray-600" />
+        <Copy className={props.iconClassName ?? "w-5 h-5 text-gray-600"} />
       </TooltipIconButton>
     </motion.div>
   );

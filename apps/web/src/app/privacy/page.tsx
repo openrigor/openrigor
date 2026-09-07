@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import { LEGAL_LAST_UPDATED } from "@/components/auth/login/login-branding";
 import { LegalDocumentLayout } from "@/components/legal/legal-document-layout";
 import { PrivacyPolicyContent } from "@/components/legal/privacy-policy-content";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy · OpenRigor",
-  description:
-    "How OpenRigor collects and uses personal data in the public beta.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("legal");
+  return {
+    title: t("privacyPolicyTitleWithBrand"),
+    description: t("privacyPolicyDescription"),
+  };
+}
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const t = await getTranslations("legal");
   return (
     <LegalDocumentLayout
-      title="Privacy Policy"
+      title={t("privacyPolicy")}
       lastUpdated={LEGAL_LAST_UPDATED}
     >
       <PrivacyPolicyContent />

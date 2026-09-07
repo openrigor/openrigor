@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icons } from "@/components/ui/icons";
 import { useUserContext } from "@/contexts/UserContext";
 import { createSupabaseClient } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
 
 interface PublicInvitation {
   token: string;
@@ -26,6 +27,7 @@ interface InvitationAcceptFormProps {
 }
 
 export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
+  const t = useTranslations("invite");
   const router = useRouter();
   const { user, loading: userLoading, getUser } = useUserContext();
   const [invitation, setInvitation] = useState<PublicInvitation | null>(null);
@@ -48,13 +50,13 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
         const data = await res.json();
 
         if (!res.ok) {
-          setError(data.error ?? "Invitation not found");
+          setError(data.error ?? t("invitationNotFound"));
           return;
         }
 
         setInvitation(data.invitation);
       } catch {
-        setError("Failed to load invitation");
+        setError(t("failedToLoadInvitation"));
       } finally {
         setLoadingInvitation(false);
       }
@@ -75,7 +77,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error ?? "Failed to accept invitation");
+      throw new Error(data.error ?? t("failedToAcceptInvitation"));
     }
 
     router.replace(data.redirectTo ?? "/student");
@@ -94,7 +96,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
 
       if (!currentUser && invitation) {
         if (!password) {
-          setError("Enter a password to create your account");
+          setError(t("enterPassword"));
           return;
         }
 
@@ -114,9 +116,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
             return;
           }
         } else if (data.user && !data.session) {
-          setError(
-            "Check your email to confirm your account, then return here."
-          );
+          setError(t("confirmEmail"));
           return;
         }
 
@@ -132,7 +132,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
       }
 
       if (!currentUser) {
-        setError("Sign in to continue");
+        setError(t("signInToContinue"));
         return;
       }
 
@@ -141,7 +141,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Failed to complete registration"
+          : t("failedToCompleteRegistration")
       );
     } finally {
       setSubmitting(false);
@@ -163,7 +163,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
         },
       });
     } catch {
-      setError("Google sign-in failed");
+      setError(t("googleSignInFailed"));
       setGoogleLoading(false);
     }
   };
@@ -185,7 +185,9 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
   }, [user, userLoading, invitation, name, submitting]);
 
   if (loadingInvitation || userLoading) {
-    return <p className="text-sm text-muted-foreground">Loading invitation…</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{t("loadingInvitation")}</p>
+    );
   }
 
   if (error && !invitation) {
@@ -203,25 +205,25 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label>Email</Label>
+        <Label>{t("email")}</Label>
         <Input value={invitation.email} readOnly disabled />
       </div>
 
       <div className="flex items-center gap-2">
-        <Label>Role</Label>
-        <Badge variant="secondary">{invitation.role}</Badge>
+        <Label>{t("roleLabel")}</Label>
+        <Badge variant="secondary">{t(`role.${invitation.role}`)}</Badge>
         {invitation.className && (
           <Badge variant="outline">{invitation.className}</Badge>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="full-name">Full name</Label>
+        <Label htmlFor="full-name">{t("fullName")}</Label>
         <Input
           id="full-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
+          placeholder={t("yourName")}
           required
           autoComplete="name"
           disabled={submitting}
@@ -230,13 +232,13 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="password">
-          {user ? "Set password (optional)" : "Password"}
+          {user ? t("setPasswordOptional") : t("password")}
         </Label>
         <PasswordInput
           id="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={user ? "Leave blank to skip" : "Create a password"}
+          placeholder={user ? t("leaveBlankToSkip") : t("createPassword")}
           autoComplete={user ? "new-password" : "new-password"}
           required={!user}
           disabled={submitting || googleLoading}
@@ -255,7 +257,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
         disabled={submitting || googleLoading}
       >
         {submitting && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
-        {submitting ? "Completing…" : "Complete registration"}
+        {submitting ? t("completing") : t("completeRegistration")}
       </Button>
 
       <div className="relative">
@@ -264,7 +266,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
+            {t("orContinueWith")}
           </span>
         </div>
       </div>
@@ -281,7 +283,7 @@ export function InvitationAcceptForm({ token }: InvitationAcceptFormProps) {
         ) : (
           <Icons.google className="mr-2 h-4 w-4" />
         )}
-        Google
+        {t("google")}
       </Button>
     </form>
   );

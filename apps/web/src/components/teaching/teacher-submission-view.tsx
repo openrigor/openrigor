@@ -17,6 +17,7 @@ import {
   CanvasReplayChatContent,
   CanvasReplayCanvasContent,
 } from "./canvas-replay";
+import { useTranslations } from "next-intl";
 
 interface TeacherSubmissionViewProps {
   assignmentId: string;
@@ -38,12 +39,15 @@ export function TeacherSubmissionView({
   assignmentId,
   threadId,
 }: TeacherSubmissionViewProps) {
+  const t = useTranslations("teaching");
   const router = useRouter();
   const { getThread } = useThreadContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [canvasContent, setCanvasContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [studentEmail, setStudentEmail] = useState<string>("Unknown Student");
+  const [studentEmail, setStudentEmail] = useState<string>(() =>
+    t("unknownStudent")
+  );
   const [assignment, setAssignment] = useState<any>(null);
   const [replayEnabled, setReplayEnabled] = useState(false);
   const staticChatScrollRef = useRef<HTMLDivElement>(null);
@@ -128,11 +132,13 @@ export function TeacherSubmissionView({
     return (
       <div className="container max-w-6xl px-4 py-10">
         <div className="text-center">
-          <TeacherAssignmentBreadcrumb currentLabel="Assignment not found" />
-          <h1 className="text-2xl font-bold mb-4">Assignment Not Found</h1>
+          <TeacherAssignmentBreadcrumb currentLabel={t("assignmentNotFound")} />
+          <h1 className="text-2xl font-bold mb-4">
+            {t("assignmentNotFoundTitle")}
+          </h1>
           <Button onClick={handleBack} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Assignment
+            {t("backToAssignment")}
           </Button>
         </div>
       </div>
@@ -143,13 +149,13 @@ export function TeacherSubmissionView({
     return (
       <div className="container max-w-6xl px-4 py-10">
         <div className="space-y-4">
-          <TeacherAssignmentBreadcrumb currentLabel="Loading…" />
+          <TeacherAssignmentBreadcrumb currentLabel={`${t("loading")}…`} />
           <Button onClick={handleBack} variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Assignment
+            {t("backToAssignment")}
           </Button>
           <div className="text-sm text-muted-foreground">
-            Loading submission...
+            {t("loadingSubmission")}
           </div>
         </div>
       </div>
@@ -162,7 +168,7 @@ export function TeacherSubmissionView({
         <div className="flex items-center justify-between gap-4">
           <TeacherAssignmentBreadcrumb
             assignmentTitle={assignment.title}
-            currentLabel={`Submission from ${studentEmail}`}
+            currentLabel={t("submissionFrom", { email: studentEmail })}
           />
           <div className="flex items-center gap-2">
             {assignment.apparatusConfiguration?.tracking !== false && (
@@ -172,12 +178,12 @@ export function TeacherSubmissionView({
                 size="sm"
                 onClick={() => setReplayEnabled((enabled) => !enabled)}
               >
-                Replay session
+                {t("replaySession")}
               </Button>
             )}
             <Button onClick={handleBack} variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Assignment
+              {t("backToAssignment")}
             </Button>
           </div>
         </div>
@@ -196,7 +202,7 @@ export function TeacherSubmissionView({
               data-testid="teacher-review-chat-panel"
             >
               <CardHeader className={REVIEW_CARD_HEADER_CLASS}>
-                <CardTitle className="text-lg">Chat Transcript</CardTitle>
+                <CardTitle className="text-lg">{t("chatTranscript")}</CardTitle>
               </CardHeader>
               <CardContent className={REVIEW_CARD_CONTENT_CLASS}>
                 {replayEnabled ? (
@@ -214,7 +220,7 @@ export function TeacherSubmissionView({
                     <div className="space-y-4">
                       {messages.length === 0 ? (
                         <div className="text-center text-muted-foreground py-8">
-                          No messages yet.
+                          {t("noMessagesYet")}
                         </div>
                       ) : (
                         messages.map((message, index) => (
@@ -259,7 +265,9 @@ export function TeacherSubmissionView({
               data-testid="teacher-review-canvas-panel"
             >
               <CardHeader className={REVIEW_CARD_HEADER_CLASS}>
-                <CardTitle className="text-lg">Document content</CardTitle>
+                <CardTitle className="text-lg">
+                  {t("documentContent")}
+                </CardTitle>
               </CardHeader>
               <CardContent className={REVIEW_CARD_CONTENT_CLASS}>
                 {replayEnabled ? (
@@ -274,7 +282,7 @@ export function TeacherSubmissionView({
                       />
                     ) : (
                       <div className="text-center text-muted-foreground py-8">
-                        No canvas content yet.
+                        {t("noCanvasContentYet")}
                       </div>
                     )}
                   </div>

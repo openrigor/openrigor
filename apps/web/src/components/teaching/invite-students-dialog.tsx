@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InviteStudentsPanel } from "./invite-students-panel";
+import { useTranslations } from "next-intl";
 
 interface InviteStudentsDialogProps {
   open: boolean;
@@ -23,6 +24,8 @@ export function InviteStudentsDialog({
   onOpenChange,
   onInvited,
 }: InviteStudentsDialogProps) {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
   const [formState, setFormState] = useState({
     sending: false,
     hasResult: false,
@@ -36,9 +39,9 @@ export function InviteStudentsDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Invite students</DialogTitle>
+          <DialogTitle>{t("inviteStudents")}</DialogTitle>
           <DialogDescription>
-            Create a class and invite students by email.
+            {t("createClassInviteStudentsByEmail")}
           </DialogDescription>
         </DialogHeader>
         <InviteStudentsPanel
@@ -55,14 +58,14 @@ export function InviteStudentsDialog({
             onClick={() => handleOpenChange(false)}
             disabled={formState.sending}
           >
-            {formState.hasResult ? "Close" : "Cancel"}
+            {formState.hasResult ? t("close") : commonT("cancel")}
           </Button>
           <Button
             type="submit"
             form="invite-students-form"
             disabled={formState.sending}
           >
-            {formState.sending ? "Sending…" : "Invite"}
+            {formState.sending ? t("sending") : t("invite")}
           </Button>
         </DialogFooter>
       </DialogContent>

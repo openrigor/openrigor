@@ -2,6 +2,7 @@ import { ProgrammingLanguageOptions } from "@opencanvas/shared/types";
 import { useToast } from "@/hooks/use-toast";
 import { ProgrammingLanguageList } from "@/components/ui/programming-lang-dropdown";
 import { GraphInput } from "@opencanvas/shared/types";
+import { useTranslations } from "next-intl";
 
 export interface PortToLanguageOptionsProps {
   streamMessage: (params: GraphInput) => Promise<void>;
@@ -35,12 +36,15 @@ const prettifyLanguage = (language: ProgrammingLanguageOptions) => {
 export function PortToLanguageOptions(props: PortToLanguageOptionsProps) {
   const { streamMessage } = props;
   const { toast } = useToast();
+  const t = useTranslations("artifacts");
 
   const handleSubmit = async (portLanguage: ProgrammingLanguageOptions) => {
     if (portLanguage === props.language) {
       toast({
-        title: "Port language error",
-        description: `The code is already in ${prettifyLanguage(portLanguage)}`,
+        title: t("portLanguageError"),
+        description: t("alreadyInLanguage", {
+          language: prettifyLanguage(portLanguage),
+        }),
         duration: 5000,
       });
       props.handleClose();

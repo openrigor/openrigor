@@ -12,6 +12,8 @@ export type AssignmentLifecycleStatus = "open" | "closed";
 
 export interface StudentAssignment {
   id: string;
+  /** Registry locale code; legacy rows default to "en" when read. */
+  locale?: string;
   /** e.g. "English Lit" */
   courseLabel: string;
   teacherName: string;
@@ -80,6 +82,8 @@ export interface StudentSubmission {
 /** Input shape for creating a new assignment (no id/status/completion yet). */
 export interface CreateAssignmentInput {
   title: string;
+  /** Registry locale code; defaults to "en" when omitted or invalid. */
+  locale?: string;
   courseLabel: string;
   dueLabel: string;
   prompt: string;

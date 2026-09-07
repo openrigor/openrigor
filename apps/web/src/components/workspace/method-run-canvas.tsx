@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { WorkspaceItemBanner } from "./workspace-item-banner";
 import { WorkspaceItemDeleteDialog } from "./workspace-item-delete-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MethodCitation } from "./method-citation";
 
 export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
+  const t = useTranslations("workspace");
   const router = useRouter();
   const { user } = useUserContext();
   const { toast } = useToast();
@@ -56,7 +58,7 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
         error?: string;
       };
       if (!response.ok || !body.threadId) {
-        throw new Error(body.error || "Could not open evidence");
+        throw new Error(body.error || t("couldNotOpenEvidence"));
       }
       const params = new URLSearchParams({
         evidence: body.threadId,
@@ -65,9 +67,9 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
       router.push(`/workspace/items/${item.id}?${params.toString()}`);
     } catch (error) {
       toast({
-        title: "Could not open evidence",
+        title: t("couldNotOpenEvidence"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -82,13 +84,13 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
         `/api/workspace/items/${encodeURIComponent(item.id)}`,
         { method: "DELETE", credentials: "include" }
       );
-      if (!response.ok) throw new Error("Could not abandon workspace item");
+      if (!response.ok) throw new Error(t("couldNotAbandonWorkspaceItem"));
       router.push("/workspace");
     } catch (error) {
       toast({
-        title: "Could not abandon item",
+        title: t("couldNotAbandonItem"),
         description:
-          error instanceof Error ? error.message : "Please try again.",
+          error instanceof Error ? error.message : t("pleaseTryAgain"),
         variant: "destructive",
       });
     } finally {
@@ -112,7 +114,7 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
           {ownAssignmentHref && (
             <Button asChild>
               <Link href={ownAssignmentHref} data-testid="open-own-assignment">
-                Open assignment
+                {t("openAssignment")}
               </Link>
             </Button>
           )}
@@ -122,17 +124,17 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
               disabled={isEvidenceLoading}
               data-testid="open-evidence"
             >
-              {isEvidenceLoading ? "Opening…" : "Evidence"}
+              {isEvidenceLoading ? t("opening") : t("evidence")}
             </Button>
           )}
         </div>
         <Card data-testid="assignment-method-details">
           <CardHeader>
-            <CardTitle>Assignment</CardTitle>
+            <CardTitle>{t("assignment")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p>
-              <span className="font-medium">Method:</span>{" "}
+              <span className="font-medium">{t("methodLabel")}:</span>{" "}
               <a
                 href={methodHref}
                 target="_blank"
@@ -158,26 +160,26 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
             {assignment && (
               <dl className="grid gap-2 sm:grid-cols-2">
                 <div>
-                  <dt className="text-muted-foreground">Course</dt>
+                  <dt className="text-muted-foreground">{t("course")}</dt>
                   <dd>{assignment.course || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Due</dt>
+                  <dt className="text-muted-foreground">{t("due")}</dt>
                   <dd>{assignment.dueDate || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Word target</dt>
+                  <dt className="text-muted-foreground">{t("wordTarget")}</dt>
                   <dd>{assignment.wordTarget || "—"}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Group</dt>
+                  <dt className="text-muted-foreground">{t("group")}</dt>
                   <dd>{assignment.group || "—"}</dd>
                 </div>
               </dl>
             )}
             {assignment?.prompt && (
               <div>
-                <p className="font-medium">Prompt</p>
+                <p className="font-medium">{t("prompt")}</p>
                 <p className="whitespace-pre-wrap text-muted-foreground">
                   {assignment.prompt}
                 </p>
@@ -187,12 +189,12 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Ready for review</CardTitle>
+            <CardTitle>{t("readyForReview")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {ready.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No submissions yet.
+                {t("noSubmissionsYet")}
               </p>
             )}
             {ready.map((participant) => {
@@ -208,12 +210,14 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
                 >
                   <div>
                     <p className="font-medium">{participant.email}</p>
-                    <Badge variant="secondary">Submitted</Badge>
+                    <Badge variant="secondary">{t("submitted")}</Badge>
                   </div>
                   {href && (
                     <Button asChild size="sm">
                       <Link href={href}>
-                        {participant.userId === user?.id ? "Open" : "Review"}
+                        {participant.userId === user?.id
+                          ? t("open")
+                          : t("review")}
                       </Link>
                     </Button>
                   )}
@@ -224,12 +228,12 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Awaiting response</CardTitle>
+            <CardTitle>{t("awaitingResponse")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {awaiting.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Everyone has submitted.
+                {t("everyoneSubmitted")}
               </p>
             )}
             {awaiting.map((participant) => {
@@ -247,18 +251,18 @@ export function MethodRunCanvas({ item }: { item: MethodWorkspaceItem }) {
                     <p className="font-medium">{participant.email}</p>
                     <Badge variant="outline">
                       {participant.invitationStatus === "sent"
-                        ? "Invite sent"
+                        ? t("inviteSent")
                         : participant.submissionStatus === "in_progress"
-                          ? "In progress"
-                          : "Not started"}
+                          ? t("inProgress")
+                          : t("notStarted")}
                     </Badge>
                   </div>
                   {href && (
                     <Button asChild size="sm" variant="outline">
                       <Link href={href}>
                         {participant.userId === user?.id
-                          ? "Open assignment"
-                          : "Open"}
+                          ? t("openAssignment")
+                          : t("open")}
                       </Link>
                     </Button>
                   )}

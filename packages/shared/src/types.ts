@@ -70,12 +70,18 @@ export type RewriteArtifactMetaToolResponse =
       language: ProgrammingLanguageOptions;
     };
 
+// Language names are retained for the original translate-action contract.
+// Locale codes are also accepted for registry-driven targets.
 export type LanguageOptions =
   | "english"
   | "mandarin"
   | "spanish"
   | "french"
-  | "hindi";
+  | "hindi"
+  | "german"
+  | "italian"
+  | "de"
+  | "it";
 
 export type ProgrammingLanguageOptions =
   | "typescript"

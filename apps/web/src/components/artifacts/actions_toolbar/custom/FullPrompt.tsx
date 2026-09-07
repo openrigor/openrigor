@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { CustomQuickAction } from "@opencanvas/shared/types";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 interface FullPromptProps {
   customQuickAction: Omit<CustomQuickAction, "id">;
@@ -30,6 +31,7 @@ interface HighlightToDeleteTextProps {
 }
 
 const HighlightToDeleteText = (props: HighlightToDeleteTextProps) => {
+  const t = useTranslations("artifacts");
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
@@ -79,7 +81,7 @@ const HighlightToDeleteText = (props: HighlightToDeleteTextProps) => {
                 {props.text}
               </motion.span>
             </TooltipTrigger>
-            <TooltipContent>Click to delete</TooltipContent>
+            <TooltipContent>{t("clickToDelete")}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       )}

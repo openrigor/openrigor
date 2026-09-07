@@ -47,6 +47,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTeachingAssignmentOptional } from "@/contexts/TeachingAssignmentContext";
 import { useWorkspaceItemOptional } from "@/contexts/WorkspaceItemContext";
 import { publicMethodPageUrl } from "@/lib/workspace/method-links";
+import { useTranslations } from "next-intl";
 
 export interface CanvasProps {
   /** Optional editor-level banner rendered inside the canvas height budget. */
@@ -81,6 +82,8 @@ export function CanvasComponent({
   const aiAssistanceEnabled =
     teachingAssignment?.apparatusConfiguration?.ai_assistance !== false;
   const { toast } = useToast();
+  const t = useTranslations("canvas");
+  const commonT = useTranslations("common");
   const [isEditing, setIsEditing] = useState(false);
   const [webSearchResultsOpen, setWebSearchResultsOpen] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(false);
@@ -124,7 +127,7 @@ export function CanvasComponent({
     setArtifact({
       currentIndex: 1,
       contents: [
-        { index: 1, type: "text", title: "Assignment", fullMarkdown: "" },
+        { index: 1, type: "text", title: t("assignment"), fullMarkdown: "" },
       ],
     });
     setChatStarted(true);
@@ -177,11 +180,9 @@ export function CanvasComponent({
       setSubmitDialogOpen(false);
     } catch (error) {
       toast({
-        title: "Submission failed",
+        title: t("submissionFailed"),
         description:
-          error instanceof Error
-            ? error.message
-            : "Failed to submit assignment. Please try again.",
+          error instanceof Error ? error.message : t("submitAssignmentFailed"),
         variant: "destructive",
         duration: 5000,
       });
@@ -218,8 +219,8 @@ export function CanvasComponent({
       router.push(workspaceItem ? "/workspace" : "/student");
     } catch (error) {
       toast({
-        title: "Failed to abandon assignment",
-        description: "Please try again.",
+        title: t("failedToAbandonAssignment"),
+        description: commonT("pleaseTryAgain"),
         variant: "destructive",
         duration: 5000,
       });
@@ -234,8 +235,8 @@ export function CanvasComponent({
   ) => {
     if (type === "code" && !language) {
       toast({
-        title: "Language not selected",
-        description: "Please select a language to continue",
+        title: t("languageNotSelected"),
+        description: t("selectLanguage"),
         duration: 5000,
       });
       return;
@@ -247,7 +248,7 @@ export function CanvasComponent({
       artifactContent = {
         index: 1,
         type: "code",
-        title: `Quick start ${type}`,
+        title: t("quickStartCode"),
         code: getLanguageTemplate(language),
         language,
       };
@@ -255,7 +256,7 @@ export function CanvasComponent({
       artifactContent = {
         index: 1,
         type: "text",
-        title: `Quick start ${type}`,
+        title: t("quickStartText"),
         fullMarkdown: "",
       };
     }
@@ -282,7 +283,7 @@ export function CanvasComponent({
             onSubmit={handleSubmitClick}
             onAbandon={() => setAbandonDialogOpen(true)}
             homeHref={workspaceItem ? "/workspace" : "/student"}
-            homeLabel={workspaceItem ? "Workspace" : "Assignments"}
+            homeLabel={workspaceItem ? t("workspace") : t("assignments")}
             methodHref={
               workspaceMethod
                 ? publicMethodPageUrl(workspaceMethod.id)
@@ -296,7 +297,7 @@ export function CanvasComponent({
       <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
         {!chatStarted && aiAssistanceEnabled && !assignmentId && (
           <NoSSRWrapper>
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<div>{commonT("loading")}</div>}>
               <ContentComposerChatInterface
                 minimalCanvas={minimalCanvas}
                 chatCollapsed={chatCollapsed}
@@ -364,7 +365,7 @@ export function CanvasComponent({
             order={1}
           >
             <NoSSRWrapper>
-              <Suspense fallback={<div>Loading...</div>}>
+              <Suspense fallback={<div>{commonT("loading")}</div>}>
                 <ContentComposerChatInterface
                   minimalCanvas={minimalCanvas}
                   chatCollapsed={chatCollapsed}
@@ -435,7 +436,7 @@ export function CanvasComponent({
               className="flex flex-row w-full"
             >
               <div className="w-full ml-auto">
-                <Suspense fallback={<div>Loading...</div>}>
+                <Suspense fallback={<div>{commonT("loading")}</div>}>
                   <ArtifactRenderer
                     minimalCanvas={minimalCanvas}
                     chatCollapsed={chatCollapsed}

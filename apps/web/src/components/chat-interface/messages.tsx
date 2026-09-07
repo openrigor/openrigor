@@ -22,6 +22,7 @@ import { Button } from "../ui/button";
 import { WEB_SEARCH_RESULTS_QUERY_PARAM } from "@/constants";
 import { Globe } from "lucide-react";
 import { useQueryState } from "nuqs";
+import { useTranslations } from "next-intl";
 
 interface AssistantMessageProps {
   runId: string | undefined;
@@ -34,6 +35,7 @@ const ThinkingAssistantMessageComponent = ({
 }: {
   message: MessageState;
 }): React.ReactElement => {
+  const t = useTranslations("chat");
   const { id, content } = message;
   let contentText = "";
   if (typeof content === "string") {
@@ -57,7 +59,7 @@ const ThinkingAssistantMessageComponent = ({
       className="w-full"
     >
       <AccordionItem value={`accordion-${id}`}>
-        <AccordionTrigger>Thoughts</AccordionTrigger>
+        <AccordionTrigger>{t("thoughts")}</AccordionTrigger>
         <AccordionContent>{contentText}</AccordionContent>
       </AccordionItem>
     </Accordion>
@@ -67,6 +69,7 @@ const ThinkingAssistantMessageComponent = ({
 const ThinkingAssistantMessage = React.memo(ThinkingAssistantMessageComponent);
 
 const WebSearchMessageComponent = ({ message }: { message: MessageState }) => {
+  const t = useTranslations("chat");
   const [_, setShowWebResultsId] = useQueryState(
     WEB_SEARCH_RESULTS_QUERY_PARAM
   );
@@ -87,7 +90,7 @@ const WebSearchMessageComponent = ({ message }: { message: MessageState }) => {
         className="bg-blue-50 hover:bg-blue-100 transition-all ease-in-out duration-200 w-full"
       >
         <Globe className="size-4 mr-2" />
-        Web Search Results
+        {t("webSearchResults")}
       </Button>
     </div>
   );

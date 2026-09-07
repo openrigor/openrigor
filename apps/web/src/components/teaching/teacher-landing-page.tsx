@@ -17,8 +17,10 @@ import { canInviteTeachers } from "@/lib/teaching/teacher-utils";
 import { isTeacher } from "@/lib/teaching/teacher-utils";
 import { postLoginPath } from "@/lib/teaching/config";
 import { TeacherWorkspaceShell } from "./teacher-workspace-shell";
+import { useTranslations } from "next-intl";
 
 export function TeacherLandingPage() {
+  const t = useTranslations("teaching");
   const { user } = useUserContext();
   const searchParams = useSearchParams();
   const [section, setSection] = useState<TeacherWorkspaceSection>(
@@ -67,11 +69,10 @@ export function TeacherLandingPage() {
         <div className="mx-auto max-w-4xl space-y-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Research apparatuses
+              {t("researchApparatuses")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Inspect the public specifications and enable reviewed profiles for
-              this organisation.
+              {t("researchApparatusesForOrganisation")}
             </p>
           </div>
           <ApparatusCatalogPanel />
@@ -81,7 +82,7 @@ export function TeacherLandingPage() {
         <Suspense
           fallback={
             <div className="text-sm text-muted-foreground">
-              Loading assignments…
+              {t("loadingAssignments")}
             </div>
           }
         >
@@ -91,13 +92,13 @@ export function TeacherLandingPage() {
       {section === "classes" && <ClassManagement />}
       {section === "invite-teachers" && showInviteTeachers && (
         <div className="mx-auto max-w-lg space-y-4">
-          <h1 className="text-2xl font-semibold">Invite Teachers</h1>
+          <h1 className="text-2xl font-semibold">{t("inviteTeachers")}</h1>
           <InviteTeacherDialog />
         </div>
       )}
       {section === "invite-students" && (
         <div className="mx-auto max-w-lg space-y-4">
-          <h1 className="text-2xl font-semibold">Invite Students</h1>
+          <h1 className="text-2xl font-semibold">{t("inviteStudents")}</h1>
           <InviteStudentsPanel />
         </div>
       )}

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface AbandonAssignmentDialogProps {
   open: boolean;
@@ -26,16 +27,19 @@ export function AbandonAssignmentDialog({
   assignmentTitle,
   isAbandoning,
 }: AbandonAssignmentDialogProps) {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5" />
-            Abandon Assignment
+            {t("abandonAssignment")}
           </DialogTitle>
           <DialogDescription>
-            You&apos;re about to abandon &ldquo;{assignmentTitle}&rdquo;
+            {t("aboutToAbandonAssignment", { title: assignmentTitle })}
           </DialogDescription>
         </DialogHeader>
 
@@ -43,8 +47,7 @@ export function AbandonAssignmentDialog({
           <div className="flex items-start gap-2 p-3 border-l-4 border-orange-200 bg-orange-50/50 rounded-r-lg">
             <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5 shrink-0" />
             <p className="text-sm text-orange-800">
-              Are you sure? Your progress will be lost and you&apos;ll start
-              fresh next time.
+              {t("abandonAssignmentWarning")}
             </p>
           </div>
         </div>
@@ -55,7 +58,7 @@ export function AbandonAssignmentDialog({
             onClick={() => onOpenChange(false)}
             disabled={isAbandoning}
           >
-            Cancel
+            {commonT("cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -66,12 +69,12 @@ export function AbandonAssignmentDialog({
             {isAbandoning ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Abandoning...
+                {t("abandoning")}
               </>
             ) : (
               <>
                 <Trash2 className="h-4 w-4" />
-                Abandon Assignment
+                {t("abandonAssignment")}
               </>
             )}
           </Button>

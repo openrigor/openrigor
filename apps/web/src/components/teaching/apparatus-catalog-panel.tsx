@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTranslations } from "next-intl";
 
 type ApparatusProfile = {
   id: string;
@@ -28,6 +29,7 @@ type CatalogResponse = {
 };
 
 export function ApparatusCatalogPanel() {
+  const t = useTranslations("teaching");
   const [apparatuses, setApparatuses] = useState<Apparatus[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export function ApparatusCatalogPanel() {
           : apparatuses.map((apparatus) => apparatus.id)
       );
     } catch {
-      setError("Could not load the apparatus catalog.");
+      setError(t("couldNotLoadApparatusCatalog"));
       setApparatuses([]);
       setEnabled([]);
     } finally {
@@ -65,22 +67,21 @@ export function ApparatusCatalogPanel() {
   return (
     <Card data-testid="apparatus-catalog-panel">
       <CardHeader>
-        <CardTitle>Research apparatuses</CardTitle>
+        <CardTitle>{t("researchApparatuses")}</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Reviewed, versioned workflows that teachers can choose when creating
-          an assignment. Treatment parameters are fixed by the selected profile.
+          {t("researchApparatusesDescription")}
         </p>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading catalog…</p>
+          <p className="text-sm text-muted-foreground">{t("loadingCatalog")}</p>
         ) : error ? (
           <p className="text-sm text-destructive" role="alert">
             {error}
           </p>
         ) : apparatuses.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No reviewed apparatuses are available yet.
+            {t("noReviewedApparatuses")}
           </p>
         ) : (
           <ul className="space-y-4">
@@ -103,7 +104,7 @@ export function ApparatusCatalogPanel() {
                               : "rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                           }
                         >
-                          {isEnabled ? "Enabled" : "Disabled"}
+                          {isEnabled ? t("enabled") : t("disabled")}
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
@@ -114,7 +115,7 @@ export function ApparatusCatalogPanel() {
                   {apparatus.profiles?.length ? (
                     <div className="mt-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Immutable profiles
+                        {t("immutableProfiles")}
                       </p>
                       <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
                         {apparatus.profiles.map((profile) => (

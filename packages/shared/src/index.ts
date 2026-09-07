@@ -13,6 +13,7 @@ export * from "./models.js";
 export { calculateCursorPosition } from "./cursor-position.js";
 
 export * from "./apparatus.js";
+export * from "./language.js";
 
 export {
   EVIDENCE_FIELD_TYPES,

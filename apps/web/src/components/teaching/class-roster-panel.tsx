@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { StudentClass } from "@/lib/teaching/types";
 import { ChevronDown, ChevronRight, Save } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface RosterStudent {
   studentId: string;
@@ -42,6 +43,7 @@ function toRosterStudents(
 }
 
 export function ClassRosterPanel() {
+  const t = useTranslations("teaching");
   const [classes, setClasses] = useState<StudentClass[]>([]);
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
   const [rosters, setRosters] = useState<Record<string, RosterStudent[]>>({});
@@ -213,14 +215,16 @@ export function ClassRosterPanel() {
   };
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading classes…</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{t("loadingClasses")}</p>
+    );
   }
 
   if (classes.length === 0) {
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          No classes yet. Import students to create your first class.
+          {t("noClassesImportStudents")}
         </CardContent>
       </Card>
     );
@@ -253,7 +257,7 @@ export function ClassRosterPanel() {
                 </div>
                 {count !== undefined && (
                   <Badge variant="secondary">
-                    {count} student{count === 1 ? "" : "s"}
+                    {t("studentCount", { count })}
                   </Badge>
                 )}
               </button>
@@ -263,7 +267,7 @@ export function ClassRosterPanel() {
               <CardContent className="space-y-3">
                 {roster.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    No students enrolled yet.
+                    {t("noStudentsEnrolled")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -285,7 +289,7 @@ export function ClassRosterPanel() {
                               e.target.value
                             )
                           }
-                          placeholder="First name"
+                          placeholder={t("firstName")}
                         />
                         <Input
                           value={student.surname}
@@ -297,7 +301,7 @@ export function ClassRosterPanel() {
                               e.target.value
                             )
                           }
-                          placeholder="Surname"
+                          placeholder={t("surname")}
                         />
                       </div>
                     ))}
@@ -313,8 +317,8 @@ export function ClassRosterPanel() {
                   >
                     <Save className="h-4 w-4" />
                     {savingClassId === studentClass.id
-                      ? "Saving…"
-                      : "Save names"}
+                      ? t("saving")
+                      : t("saveNames")}
                   </Button>
                 )}
               </CardContent>

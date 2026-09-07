@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -36,6 +37,7 @@ function parseHashParams(): URLSearchParams {
 }
 
 function ResetPasswordContent() {
+  const t = useTranslations("auth");
   const searchParams = useSearchParams();
   const codeParam = searchParams.get("code");
   const queryTokenHash = searchParams.get("token_hash");
@@ -62,7 +64,7 @@ function ResetPasswordContent() {
         if (!cancelled) {
           setStatus({
             kind: "error",
-            message: "This reset link is invalid or has expired.",
+            message: t("resetLinkInvalid"),
           });
         }
         return true;
@@ -121,7 +123,7 @@ function ResetPasswordContent() {
       }
       setStatus({
         kind: "error",
-        message: "This reset link is invalid or has expired.",
+        message: t("resetLinkInvalid"),
       });
     }, 1_500);
 
@@ -139,7 +141,7 @@ function ResetPasswordContent() {
       window.clearTimeout(timeoutId);
       window.removeEventListener("hashchange", onHashChange);
     };
-  }, [codeParam, queryTokenHash, queryType]);
+  }, [codeParam, queryTokenHash, queryType, t]);
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -177,7 +179,7 @@ function ResetPasswordContent() {
           type: "recovery",
         });
         if (verifyError) {
-          setFormError("This reset link is invalid or has expired.");
+          setFormError(t("resetLinkInvalid"));
           return;
         }
 
@@ -185,7 +187,7 @@ function ResetPasswordContent() {
           password,
         });
         if (updateError) {
-          setFormError(updateError.message || "Could not update password.");
+          setFormError(updateError.message || t("couldNotUpdatePassword"));
           return;
         }
 
@@ -193,9 +195,9 @@ function ResetPasswordContent() {
         return;
       }
 
-      setFormError("This reset link is invalid or has expired.");
+      setFormError(t("resetLinkInvalid"));
     } catch {
-      setFormError("Could not update password. Please try again.");
+      setFormError(t("couldNotUpdatePasswordTryAgain"));
     } finally {
       setSubmitting(false);
     }
@@ -205,7 +207,7 @@ function ResetPasswordContent() {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground gap-2">
         <Icons.spinner className="h-4 w-4 animate-spin" />
-        Preparing password reset…
+        {t("preparingPasswordReset")}
       </div>
     );
   }
@@ -214,16 +216,15 @@ function ResetPasswordContent() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
         <div className="max-w-md w-full bg-white shadow-md rounded-lg p-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Password updated</h1>
+          <h1 className="text-2xl font-bold mb-4">{t("passwordUpdated")}</h1>
           <p className="text-gray-600 mb-6">
-            Your password has been changed. You can sign in with your new
-            password.
+            {t("passwordChangedDescription")}
           </p>
           <Link
             href="/auth/login"
             className={cn(buttonVariants({ variant: "outline" }), "w-full")}
           >
-            Sign in
+            {t("signIn")}
           </Link>
         </div>
       </div>
@@ -234,7 +235,7 @@ function ResetPasswordContent() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
         <div className="max-w-md w-full bg-white shadow-md rounded-lg p-8 text-center space-y-4">
-          <h1 className="text-2xl font-bold">Reset link invalid</h1>
+          <h1 className="text-2xl font-bold">{t("resetLinkInvalidTitle")}</h1>
           <p className="text-sm text-destructive" role="alert">
             {status.message}
           </p>
@@ -242,13 +243,13 @@ function ResetPasswordContent() {
             href="/auth/forgot-password"
             className={cn(buttonVariants({ variant: "outline" }), "w-full")}
           >
-            Request a new reset link
+            {t("requestNewResetLink")}
           </Link>
           <Link
             href="/auth/login"
             className={cn(buttonVariants({ variant: "ghost" }), "w-full")}
           >
-            Back to sign in
+            {t("backToSignIn")}
           </Link>
         </div>
       </div>
@@ -260,15 +261,15 @@ function ResetPasswordContent() {
       <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
         <div className="flex flex-col space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Choose a new password
+            {t("chooseNewPassword")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Enter a new password for your account.
+            {t("newPasswordDescription")}
           </p>
         </div>
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-1 px-1">
-            <Label htmlFor="password">New password</Label>
+            <Label htmlFor="password">{t("newPassword")}</Label>
             <PasswordInput
               id="password"
               name="password"
@@ -282,7 +283,7 @@ function ResetPasswordContent() {
             />
           </div>
           <div className="grid gap-1 px-1">
-            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
             <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
@@ -304,7 +305,7 @@ function ResetPasswordContent() {
             {submitting && (
               <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Update password
+            {t("updatePassword")}
           </Button>
         </form>
       </div>
@@ -313,12 +314,14 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
+  const t = useTranslations("auth");
+
   return (
     <main className="h-screen">
       <Suspense
         fallback={
           <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-            Preparing password reset…
+            {t("preparingPasswordReset")}
           </div>
         }
       >

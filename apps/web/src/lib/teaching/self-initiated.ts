@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import type { StudentAssignment } from "./types";
+import { normalizeAssignmentFields } from "./assignment-policy";
 
 const DEFAULT_DATA_DIR = join(process.cwd(), "data", "teaching");
 
@@ -56,6 +57,7 @@ export async function createStudentInitiatedAssignment(input: {
 }): Promise<StudentAssignment> {
   const assignment: StudentAssignment = {
     id: input.id,
+    locale: "en",
     courseLabel: "Self-initiated",
     teacherName: input.studentName || "You",
     teacherId: input.studentId,
@@ -72,7 +74,9 @@ export async function createStudentInitiatedAssignment(input: {
     lifecycleStatus: "open",
   };
 
-  const all = await readJson<StudentAssignment>(assignmentsFilePath());
+  const all = (await readJson<StudentAssignment>(assignmentsFilePath())).map(
+    normalizeAssignmentFields
+  );
   await writeJson(assignmentsFilePath(), [
     ...all.filter((a) => a.id !== assignment.id),
     assignment,

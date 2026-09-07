@@ -9,6 +9,7 @@ import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 import { useGraphContext } from "@/contexts/GraphContext";
 import { useAssistantContext } from "@/contexts/AssistantContext";
+import { useTranslations } from "next-intl";
 
 interface ComposerActionsPopOutProps {
   userId: string | undefined;
@@ -16,6 +17,7 @@ interface ComposerActionsPopOutProps {
 }
 
 export function ComposerActionsPopOut(props: ComposerActionsPopOutProps) {
+  const t = useTranslations("chat");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAssistantSelectOpen, setIsAssistantSelectOpen] = useState(false);
   const [isMouseOver, setIsMouseOver] = useState(false);
@@ -97,7 +99,7 @@ export function ComposerActionsPopOut(props: ComposerActionsPopOutProps) {
           />
           {searchEnabled && (
             <TooltipIconButton
-              tooltip="Web search"
+              tooltip={t("webSearch")}
               variant="ghost"
               className="size-7 flex-shrink-0 bg-blue-100 hover:bg-blue-100"
               onClick={() => setSearchEnabled((p) => !p)}
@@ -131,7 +133,7 @@ export function ComposerActionsPopOut(props: ComposerActionsPopOutProps) {
             >
               {!searchEnabled && (
                 <TooltipIconButton
-                  tooltip="Web search"
+                  tooltip={t("webSearch")}
                   variant="ghost"
                   className="size-7 flex-shrink-0 hover:bg-blue-100 transition-colors ease-in-out"
                   onClick={() => setSearchEnabled((p) => !p)}

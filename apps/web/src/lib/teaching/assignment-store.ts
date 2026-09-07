@@ -4,6 +4,10 @@ import type {
   StudentAssignment,
 } from "./types";
 import { getSeedAssignments } from "./assignments";
+import {
+  normalizeAssignmentFields,
+  normalizeAssignmentLocale,
+} from "./assignment-policy";
 
 const API_URL = "/api/teaching/assignments";
 
@@ -27,7 +31,9 @@ export async function getCustomAssignments(): Promise<StudentAssignment[]> {
     throw new Error(`Assignments fetch failed (${res.status})`);
   }
   const data = await res.json();
-  return (data.assignments || []) as StudentAssignment[];
+  return ((data.assignments || []) as StudentAssignment[]).map(
+    normalizeAssignmentFields
+  );
 }
 
 /**
@@ -60,6 +66,7 @@ export async function saveCustomAssignment(
   const tier: AssignmentTier = input.tier === "premium" ? "premium" : "free";
   const newAssignment: StudentAssignment = {
     id,
+    locale: normalizeAssignmentLocale(input.locale),
     title: input.title,
     courseLabel: input.courseLabel,
     dueLabel: input.dueLabel,
@@ -130,6 +137,7 @@ export async function updateCustomAssignment(
     dueLabel: input.dueLabel,
     prompt: input.prompt,
     agentInstructions: input.agentInstructions,
+    locale: normalizeAssignmentLocale(input.locale),
     wordTarget: input.wordTarget,
     starterMarkdown: input.starterMarkdown,
     // tier is immutable after create (v1)
@@ -156,7 +164,7 @@ export async function closeCustomAssignment(
     throw new Error(body.error ?? `Close failed (${res.status})`);
   }
   const data = (await res.json()) as { assignment: StudentAssignment };
-  return data.assignment;
+  return normalizeAssignmentFields(data.assignment);
 }
 
 /**
@@ -184,7 +192,9 @@ export async function getAssignmentByIdIncludingCustom(
       throw new Error(`Assignment fetch failed (${res.status})`);
     }
     const data = await res.json();
-    return (data.assignment ?? undefined) as StudentAssignment | undefined;
+    return data.assignment
+      ? normalizeAssignmentFields(data.assignment as StudentAssignment)
+      : undefined;
   } catch {
     return undefined;
   }
@@ -216,5 +226,7 @@ export async function createSelfInitiatedAssignment(
   const data = (await res.json()) as {
     assignment?: StudentAssignment;
   };
-  return data.assignment;
+  return data.assignment
+    ? normalizeAssignmentFields(data.assignment)
+    : undefined;
 }

@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { GearIcon, ResetIcon } from "@radix-ui/react-icons";
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 
 interface ModelConfigPanelProps {
   model: ModelConfigurationParams;
@@ -40,6 +41,7 @@ export function ModelConfigPanel({
   onClick,
   setModelConfig,
 }: ModelConfigPanelProps) {
+  const t = useTranslations("chat");
   const handleTemperatureChange = useCallback(
     (value: number[]) => {
       setModelConfig(model.name, {
@@ -95,8 +97,8 @@ export function ModelConfigPanel({
       >
         <div className="grid gap-4">
           <ModelSettingSlider
-            title="Temperature"
-            description="Controls creativity - lower for focused outputs, higher for more variety and imagination."
+            title={t("temperature")}
+            description={t("temperatureDescription")}
             value={modelConfig.temperatureRange.current}
             range={{
               min: modelConfig.temperatureRange.min,
@@ -107,8 +109,8 @@ export function ModelConfigPanel({
             disabled={TEMPERATURE_EXCLUDED_MODELS.some((m) => m === model.name)}
           />
           <ModelSettingSlider
-            title="Max tokens"
-            description="Set how long the AI's response can be - more tokens mean longer, more detailed responses."
+            title={t("maxTokens")}
+            description={t("maxTokensDescription")}
             value={modelConfig.maxTokens.current}
             range={{
               min: modelConfig.maxTokens.min,
@@ -119,7 +121,7 @@ export function ModelConfigPanel({
           />
           <Button onClick={handleReset} variant="outline" className="mt-2">
             <ResetIcon className="mr-2 h-4 w-4" />
-            Reset to Defaults
+            {t("resetToDefaults")}
           </Button>
         </div>
       </PopoverContent>
@@ -141,32 +143,39 @@ const ModelSettingSlider = ({
   range: { min: number; max: number; step: number };
   onChange: (value: number[]) => void;
   disabled?: boolean;
-}) => (
-  <div className="space-y-2">
-    <h4
-      className={cn(
-        "font-semibold leading-none text-base",
-        disabled && "opacity-50"
-      )}
-    >
-      {title}
-      {disabled && " (disabled)"}
-    </h4>
-    <p
-      className={cn("text-sm text-muted-foreground", disabled && "opacity-50")}
-    >
-      {description}
-    </p>
-    <Slider
-      min={range.min}
-      max={range.max}
-      step={range.step}
-      value={disabled ? [range.min] : [value]}
-      onValueChange={onChange}
-      disabled={disabled}
-    />
-    <div className={cn("text-right text-sm", disabled && "opacity-50")}>
-      {disabled ? range.min : value}
+}) => {
+  const t = useTranslations("chat");
+
+  return (
+    <div className="space-y-2">
+      <h4
+        className={cn(
+          "font-semibold leading-none text-base",
+          disabled && "opacity-50"
+        )}
+      >
+        {title}
+        {disabled && ` (${t("disabled")})`}
+      </h4>
+      <p
+        className={cn(
+          "text-sm text-muted-foreground",
+          disabled && "opacity-50"
+        )}
+      >
+        {description}
+      </p>
+      <Slider
+        min={range.min}
+        max={range.max}
+        step={range.step}
+        value={disabled ? [range.min] : [value]}
+        onValueChange={onChange}
+        disabled={disabled}
+      />
+      <div className={cn("text-right text-sm", disabled && "opacity-50")}>
+        {disabled ? range.min : value}
+      </div>
     </div>
-  </div>
-);
+  );
+};

@@ -1,13 +1,29 @@
-import {
-  UsaFlag,
-  ChinaFlag,
-  IndiaFlag,
-  SpanishFlag,
-  FrenchFlag,
-} from "@/components/icons/flags";
+import { UsaFlag, SpanishFlag, FrenchFlag } from "@/components/icons/flags";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
-import { GraphInput } from "@opencanvas/shared/types";
-import { LanguageOptions } from "@opencanvas/shared/types";
+import {
+  LANGUAGE_LOCALES,
+  type GraphInput,
+  type LanguageLocale,
+} from "@opencanvas/shared";
+
+const TRANSLATION_LANGUAGE_BY_LOCALE: Record<
+  LanguageLocale,
+  NonNullable<GraphInput["language"]>
+> = {
+  en: "english",
+  de: "de",
+  fr: "french",
+  es: "spanish",
+  it: "it",
+};
+
+const LANGUAGE_ICON_BY_LOCALE: Partial<
+  Record<LanguageLocale, () => React.ReactNode>
+> = {
+  en: UsaFlag,
+  fr: FrenchFlag,
+  es: SpanishFlag,
+};
 
 export interface TranslateOptionsProps {
   streamMessage: (params: GraphInput) => Promise<void>;
@@ -17,60 +33,36 @@ export interface TranslateOptionsProps {
 export function TranslateOptions(props: TranslateOptionsProps) {
   const { streamMessage } = props;
 
-  const handleSubmit = async (language: LanguageOptions) => {
+  const handleSubmit = async (locale: LanguageLocale) => {
     props.handleClose();
     await streamMessage({
-      language,
+      language: TRANSLATION_LANGUAGE_BY_LOCALE[
+        locale
+      ] as GraphInput["language"],
     });
   };
 
   return (
     <div className="flex flex-col gap-3 items-center w-full">
-      <TooltipIconButton
-        tooltip="English"
-        variant="ghost"
-        className="transition-colors w-[36px] h-[36px]"
-        delayDuration={400}
-        onClick={async () => await handleSubmit("english")}
-      >
-        <UsaFlag />
-      </TooltipIconButton>
-      <TooltipIconButton
-        tooltip="Mandarin"
-        variant="ghost"
-        className="transition-colors w-[36px] h-[36px]"
-        delayDuration={400}
-        onClick={async () => await handleSubmit("mandarin")}
-      >
-        <ChinaFlag />
-      </TooltipIconButton>
-      <TooltipIconButton
-        tooltip="Hindi"
-        variant="ghost"
-        className="transition-colors w-[36px] h-[36px]"
-        delayDuration={400}
-        onClick={async () => await handleSubmit("hindi")}
-      >
-        <IndiaFlag />
-      </TooltipIconButton>
-      <TooltipIconButton
-        tooltip="Spanish"
-        variant="ghost"
-        className="transition-colors w-[36px] h-[36px]"
-        delayDuration={400}
-        onClick={async () => await handleSubmit("spanish")}
-      >
-        <SpanishFlag />
-      </TooltipIconButton>
-      <TooltipIconButton
-        tooltip="French"
-        variant="ghost"
-        className="transition-colors w-[36px] h-[36px]"
-        delayDuration={400}
-        onClick={async () => await handleSubmit("french")}
-      >
-        <FrenchFlag />
-      </TooltipIconButton>
+      {LANGUAGE_LOCALES.map(({ code, label }) => {
+        const Icon = LANGUAGE_ICON_BY_LOCALE[code];
+        return (
+          <TooltipIconButton
+            key={code}
+            tooltip={label}
+            variant="ghost"
+            className="transition-colors w-[36px] h-[36px]"
+            delayDuration={400}
+            onClick={async () => await handleSubmit(code)}
+          >
+            {Icon ? (
+              <Icon />
+            ) : (
+              <span className="text-[10px] font-medium">{label}</span>
+            )}
+          </TooltipIconButton>
+        );
+      })}
     </div>
   );
 }

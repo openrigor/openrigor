@@ -17,6 +17,7 @@ import {
 } from "./workspace-site-header";
 import { TeacherWorkspaceNav } from "./teacher-workspace-nav";
 import { Toaster } from "@/components/ui/toaster";
+import { useTranslations } from "next-intl";
 
 interface TeacherWorkspaceShellProps {
   section: TeacherWorkspaceSection;
@@ -29,6 +30,7 @@ export function TeacherWorkspaceShell({
   onSectionChange,
   children,
 }: TeacherWorkspaceShellProps) {
+  const t = useTranslations("teaching");
   const router = useRouter();
   const { user, loading: userLoading } = useUserContext();
   const showInviteTeachers = canInviteTeachers(user);
@@ -43,7 +45,7 @@ export function TeacherWorkspaceShell({
     return (
       <div className="min-h-screen bg-muted/30">
         <WorkspaceSiteHeader
-          workspaceLabel="Organisation workspace"
+          workspaceLabel={t("organisationWorkspace")}
           maxWidthClass="max-w-7xl"
         >
           <Link
@@ -52,10 +54,12 @@ export function TeacherWorkspaceShell({
             aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
-            Sign out
+            {t("signOut")}
           </Link>
         </WorkspaceSiteHeader>
-        <main className="p-6 text-sm text-muted-foreground">Loading…</main>
+        <main className="p-6 text-sm text-muted-foreground">
+          {t("loading")}
+        </main>
       </div>
     );
   }
@@ -67,7 +71,7 @@ export function TeacherWorkspaceShell({
   return (
     <div className="min-h-screen bg-muted/30">
       <WorkspaceSiteHeader
-        workspaceLabel="Organisation workspace"
+        workspaceLabel={t("organisationWorkspace")}
         maxWidthClass="max-w-7xl"
       >
         <Link
@@ -76,7 +80,7 @@ export function TeacherWorkspaceShell({
           aria-label="Sign out"
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          {t("signOut")}
         </Link>
       </WorkspaceSiteHeader>
 

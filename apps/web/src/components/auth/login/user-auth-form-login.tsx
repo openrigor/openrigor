@@ -12,13 +12,15 @@ import { Label } from "../../ui/label";
 import { useState } from "react";
 import { PasswordInput } from "../../ui/password-input";
 import { login } from "./actions";
+import { useTranslations } from "next-intl";
 
 function LoginSubmitButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations("auth");
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
-      Login with Email
+      {t("loginWithEmail")}
     </Button>
   );
 }
@@ -32,6 +34,7 @@ export function UserAuthForm({
   onLoginWithOauth,
   ...props
 }: UserAuthFormProps) {
+  const t = useTranslations("auth");
   const [isGoogleLoading, setGoogleIsLoading] = useState(false);
   const [isGithubLoading, setGithubIsLoading] = useState(false);
 
@@ -45,11 +48,11 @@ export function UserAuthForm({
       <form action={login} method="post" className="grid gap-2">
         <div className="grid gap-1">
           <div className="pt-1 pb-[2px] px-1">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("email")}</Label>
             <Input
               id="email"
               name="email"
-              placeholder="name@example.com"
+              placeholder={t("emailPlaceholder")}
               type="email"
               autoCapitalize="none"
               autoComplete="email"
@@ -59,11 +62,11 @@ export function UserAuthForm({
             />
           </div>
           <div className="pt-[2px] pb-1 px-1">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("password")}</Label>
             <PasswordInput
               id="password"
               name="password"
-              placeholder="Your password"
+              placeholder={t("passwordPlaceholder")}
               autoComplete="current-password"
               autoCorrect="off"
               required
@@ -77,7 +80,7 @@ export function UserAuthForm({
                   "h-auto p-0 text-sm text-muted-foreground"
                 )}
               >
-                Forgot password?
+                {t("forgotPassword")}
               </Link>
             </div>
           </div>
@@ -90,7 +93,7 @@ export function UserAuthForm({
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-background px-2 text-muted-foreground">
-            Or continue with
+            {t("orContinueWith")}
           </span>
         </div>
       </div>
@@ -109,7 +112,7 @@ export function UserAuthForm({
         ) : (
           <Icons.google className="mr-2 h-4 w-4" />
         )}{" "}
-        Google
+        {t("google")}
       </Button>
       {enableGithubAuth && (
         <Button
@@ -127,7 +130,7 @@ export function UserAuthForm({
           ) : (
             <Icons.gitHub className="mr-2 h-4 w-4" />
           )}{" "}
-          GitHub
+          {t("github")}
         </Button>
       )}
     </div>

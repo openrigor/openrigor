@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Invitation } from "@/lib/teaching/types";
+import { useTranslations } from "next-intl";
 
 function statusBadgeVariant(
   status: Invitation["status"]
@@ -20,8 +21,14 @@ function statusBadgeVariant(
   }
 }
 
-function formatStatus(status: Invitation["status"]): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
+function formatStatus(
+  status: Invitation["status"],
+  translate?: (key: string) => string
+): string {
+  return (
+    translate?.(`status.${status}`) ??
+    status.charAt(0).toUpperCase() + status.slice(1)
+  );
 }
 
 interface InviteByEmailPanelProps {
@@ -39,9 +46,10 @@ export function InviteByEmailPanel({
   emailLabel,
   emailPlaceholder = "colleague@school.edu",
   emptyListMessage,
-  successVerb = "Invitation sent to",
+  successVerb,
   onInvited,
 }: InviteByEmailPanelProps) {
+  const t = useTranslations("admin");
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -90,14 +98,14 @@ export function InviteByEmailPanel({
       if (!res.ok) {
         setFeedback({
           type: "error",
-          message: data.error ?? "Could not send invitation",
+          message: data.error ?? t("couldNotSendInvitation"),
         });
         return;
       }
 
       setFeedback({
         type: "success",
-        message: `${successVerb} ${trimmedEmail}`,
+        message: `${successVerb ?? t("invitationSentTo")} ${trimmedEmail}`,
       });
       setEmail("");
       await loadInvitations();
@@ -105,7 +113,7 @@ export function InviteByEmailPanel({
     } catch {
       setFeedback({
         type: "error",
-        message: "Could not send invitation",
+        message: t("couldNotSendInvitation"),
       });
     } finally {
       setSending(false);
@@ -138,14 +146,16 @@ export function InviteByEmailPanel({
         )}
 
         <Button type="submit" disabled={sending}>
-          {sending ? "Sending…" : "Invite"}
+          {sending ? t("sending") : t("invite")}
         </Button>
       </form>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Recent invitations</h3>
+        <h3 className="text-sm font-medium">{t("recentInvitations")}</h3>
         {loadingInvitations ? (
-          <p className="text-sm text-muted-foreground">Loading invitations…</p>
+          <p className="text-sm text-muted-foreground">
+            {t("loadingInvitations")}
+          </p>
         ) : invitations.length === 0 ? (
           <p className="text-sm text-muted-foreground">{emptyListMessage}</p>
         ) : (
@@ -160,11 +170,15 @@ export function InviteByEmailPanel({
                     {invitation.email}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Sent {new Date(invitation.created_at).toLocaleDateString()}
+                    {t("sentDate", {
+                      date: new Date(
+                        invitation.created_at
+                      ).toLocaleDateString(),
+                    })}
                   </div>
                 </div>
                 <Badge variant={statusBadgeVariant(invitation.status)}>
-                  {formatStatus(invitation.status)}
+                  {formatStatus(invitation.status, t)}
                 </Badge>
               </div>
             ))}
@@ -181,12 +195,13 @@ interface InviteTeacherDialogProps {
 
 /** Org admin → teacher invites (API: /api/admin/teachers/invitations). */
 export function InviteTeacherDialog({ onInvited }: InviteTeacherDialogProps) {
+  const t = useTranslations("admin");
   return (
     <InviteByEmailPanel
       apiPath="/api/admin/teachers/invitations"
-      emailLabel="Teacher email"
+      emailLabel={t("teacherEmail")}
       emailPlaceholder="teacher@school.edu"
-      emptyListMessage="No teacher invitations sent yet."
+      emptyListMessage={t("noTeacherInvitations")}
       onInvited={onInvited}
     />
   );
@@ -198,12 +213,13 @@ interface InviteAdminDialogProps {
 
 /** Owner → org admin invites (API: /api/owner/invitations). */
 export function InviteAdminDialog({ onInvited }: InviteAdminDialogProps) {
+  const t = useTranslations("admin");
   return (
     <InviteByEmailPanel
       apiPath="/api/owner/invitations"
-      emailLabel="Admin email"
+      emailLabel={t("adminEmail")}
       emailPlaceholder="admin@school.edu"
-      emptyListMessage="No admin invitations sent yet."
+      emptyListMessage={t("noAdminInvitations")}
       onInvited={onInvited}
     />
   );

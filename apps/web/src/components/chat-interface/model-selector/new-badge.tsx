@@ -1,7 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export function IsNewBadge() {
+  const t = useTranslations("chat");
+
   return (
     <div
       className={cn(
@@ -22,7 +25,7 @@ export function IsNewBadge() {
           "text-gray-700 text-xs w-14"
         )}
       >
-        New!
+        {t("new")}
       </Badge>
     </div>
   );

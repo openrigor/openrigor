@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type {
   RepositoryStatus,
   ResearchRepositoryWorkspaceItem,
@@ -30,26 +31,39 @@ export function shouldShowRepositoryConnect(
   );
 }
 
-function repositoryConnectLabel(status: RepositoryStatus | undefined): string {
+function repositoryConnectLabel(
+  status: RepositoryStatus | undefined,
+  translate?: (key: "reauthorizeGithub" | "reconnectGithub") => string
+): string {
   return status?.reason === "authorization_required"
-    ? "Re-authorize GitHub"
-    : "Reconnect GitHub";
+    ? (translate?.("reauthorizeGithub") ?? "Re-authorize GitHub")
+    : (translate?.("reconnectGithub") ?? "Reconnect GitHub");
 }
 
-export function statusLabel(status: RepositoryStatus | undefined): string {
-  if (!status) return "unavailable";
+export function statusLabel(
+  status: RepositoryStatus | undefined,
+  translate?: (key: string, values?: Record<string, string>) => string
+): string {
+  if (!status) return translate?.("unavailable") ?? "unavailable";
   if (status.state === "read_only" && status.layoutVersion === "1.0") {
-    return REPOSITORY_LAYOUT_READ_ONLY_COPY;
+    return (
+      translate?.("repositoryReadOnly") ?? REPOSITORY_LAYOUT_READ_ONLY_COPY
+    );
   }
   if (status.state === "ready" && status.layoutVersion === "2.0") {
-    return `ready · ${REPOSITORY_LAYOUT_V2_COPY}`;
+    return (
+      translate?.("repositoryReady", { copy: REPOSITORY_LAYOUT_V2_COPY }) ??
+      `ready · ${REPOSITORY_LAYOUT_V2_COPY}`
+    );
   }
-  const state = status.state.replace("_", " ");
+  const state =
+    translate?.(`repositoryState.${status.state}`) ??
+    status.state.replace("_", " ");
   if (
     status.reason &&
     status.reason.replaceAll("_", "") !== status.state.replaceAll("_", "")
   ) {
-    return `${state} · ${status.reason.replaceAll("_", " ")}`;
+    return `${state} · ${translate?.(`repositoryReason.${status.reason}`) ?? status.reason.replaceAll("_", " ")}`;
   }
   return state;
 }
@@ -59,6 +73,7 @@ export function ResearchRepositoryStatus({
 }: {
   item: ResearchRepositoryWorkspaceItem;
 }) {
+  const t = useTranslations("workspace");
   const [status, setStatus] = useState<RepositoryStatus>();
   const [repositoryName, setRepositoryName] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -87,8 +102,8 @@ export function ResearchRepositoryStatus({
           if (!cancelled) setStatus(statusBody.status);
           return;
         }
-        if (!statusResponse.ok) throw new Error("Could not check repository");
-        if (!statusBody.status) throw new Error("Could not check repository");
+        if (!statusResponse.ok) throw new Error(t("couldNotCheckRepository"));
+        if (!statusBody.status) throw new Error(t("couldNotCheckRepository"));
         const repositoriesBody = repositoriesResponse.ok
           ? ((await repositoriesResponse.json()) as RepositoryListResponse)
           : undefined;
@@ -135,12 +150,12 @@ export function ResearchRepositoryStatus({
             : "bg-amber-50 text-amber-700"
         }`}
       >
-        {loading ? "checking…" : statusLabel(status)}
+        {loading ? t("checking") : statusLabel(status, t)}
       </span>
       {shouldShowRepositoryConnect(status) && (
         <Button asChild variant="outline" size="sm" className="h-7">
           <a href="/api/workspace/github/authorize">
-            {repositoryConnectLabel(status)}
+            {repositoryConnectLabel(status, (key) => t(key))}
           </a>
         </Button>
       )}

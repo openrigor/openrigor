@@ -27,9 +27,7 @@ import { v4 as uuidv4 } from "uuid";
 import { CustomQuickAction } from "@opencanvas/shared/types";
 import { TighterText } from "@/components/ui/header";
 import { User } from "@supabase/supabase-js";
-
-const CUSTOM_INSTRUCTIONS_TOOLTIP_TEXT = `This field contains the custom instructions you set, which will then be used to instruct the LLM on how to re-generate the selected artifact.`;
-const FULL_PROMPT_TOOLTIP_TEXT = `This is the full prompt that will be set to the LLM when you invoke this quick action, including your custom instructions and other default context.`;
+import { useTranslations } from "next-intl";
 
 interface NewCustomQuickActionDialogProps {
   user: User | undefined;
@@ -46,30 +44,36 @@ interface ViewOrHidePromptIconProps {
   setShowFullPrompt: Dispatch<SetStateAction<boolean>>;
 }
 
-const ViewOrHidePromptIcon = (props: ViewOrHidePromptIconProps) => (
-  <TooltipIconButton
-    tooltip={props.showFullPrompt ? "Hide prompt" : "View prompt"}
-    variant="ghost"
-    className="transition-colors"
-    delayDuration={400}
-    onClick={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      props.setShowFullPrompt((p) => !p);
-    }}
-  >
-    {props.showFullPrompt ? (
-      <EyeOff className="w-4 h-4 text-gray-600" />
-    ) : (
-      <Eye className="w-4 h-4 text-gray-600" />
-    )}
-  </TooltipIconButton>
-);
+const ViewOrHidePromptIcon = (props: ViewOrHidePromptIconProps) => {
+  const t = useTranslations("artifacts");
+
+  return (
+    <TooltipIconButton
+      tooltip={props.showFullPrompt ? t("hidePrompt") : t("viewPrompt")}
+      variant="ghost"
+      className="transition-colors"
+      delayDuration={400}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        props.setShowFullPrompt((p) => !p);
+      }}
+    >
+      {props.showFullPrompt ? (
+        <EyeOff className="w-4 h-4 text-gray-600" />
+      ) : (
+        <Eye className="w-4 h-4 text-gray-600" />
+      )}
+    </TooltipIconButton>
+  );
+};
 
 export function NewCustomQuickActionDialog(
   props: NewCustomQuickActionDialogProps
 ) {
   const { toast } = useToast();
+  const t = useTranslations("artifacts");
+  const commonT = useTranslations("common");
   const { user } = props;
   const { createCustomQuickAction, editCustomQuickAction } = useStore();
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
@@ -96,7 +100,7 @@ export function NewCustomQuickActionDialog(
     e.preventDefault();
     if (!user) {
       toast({
-        title: "User not found",
+        title: commonT("userNotFound"),
         variant: "destructive",
         duration: 5000,
       });
@@ -136,7 +140,9 @@ export function NewCustomQuickActionDialog(
 
       if (success) {
         toast({
-          title: `Custom quick action ${props.isEditing ? "edited" : "created"} successfully`,
+          title: props.isEditing
+            ? t("customQuickActionEditedSuccessfully")
+            : t("customQuickActionCreatedSuccessfully"),
         });
         handleClearState();
         props.onOpenChange(false);
@@ -144,7 +150,9 @@ export function NewCustomQuickActionDialog(
         await props.getAndSetCustomQuickActions(user.id);
       } else {
         toast({
-          title: `Failed to ${props.isEditing ? "edit" : "create"} custom quick action`,
+          title: props.isEditing
+            ? t("failedToEditCustomQuickAction")
+            : t("failedToCreateCustomQuickAction"),
           variant: "destructive",
         });
       }
@@ -176,14 +184,11 @@ export function NewCustomQuickActionDialog(
         <DialogHeader>
           <DialogTitle className="text-3xl font-light text-gray-800">
             <TighterText>
-              {props.isEditing ? "Edit" : "Create"} Quick Action
+              {props.isEditing ? t("editQuickAction") : t("createQuickAction")}
             </TighterText>
           </DialogTitle>
           <DialogDescription className="mt-2 text-md font-light text-gray-600">
-            <TighterText>
-              Custom quick actions are a way to create your own actions to take
-              against the selected artifact.
-            </TighterText>
+            <TighterText>{t("customQuickActionsDescription")}</TighterText>
           </DialogDescription>
         </DialogHeader>
         <form
@@ -192,14 +197,14 @@ export function NewCustomQuickActionDialog(
         >
           <Label htmlFor="name">
             <TighterText>
-              Name <span className="text-red-500">*</span>
+              {t("name")} <span className="text-red-500">*</span>
             </TighterText>
           </Label>
           <Input
             disabled={isSubmitLoading}
             required
             id="name"
-            placeholder="Check for spelling errors"
+            placeholder={t("checkSpellingPlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -209,7 +214,7 @@ export function NewCustomQuickActionDialog(
               className="flex items-center justify-between w-full"
             >
               <TighterText>
-                Prompt <span className="text-red-500 mr-2">*</span>
+                {t("prompt")} <span className="text-red-500 mr-2">*</span>
               </TighterText>
               <ViewOrHidePromptIcon
                 showFullPrompt={showFullPrompt}
@@ -217,19 +222,19 @@ export function NewCustomQuickActionDialog(
               />
             </Label>
             <TighterText className="text-gray-500 text-sm whitespace-normal">
-              The full prompt includes predefined variables in curly braces
-              (e.g., <code className="inline-code">{`{artifactContent}`}</code>)
-              that will be replaced at runtime. Custom variables are not
-              supported yet.
+              {t("fullPromptVariablesHelp", {
+                variable: "{artifactContent}",
+              })}{" "}
+              {t("customVariablesUnsupported")}
             </TighterText>
             <span className="my-1" />
             <div className="flex items-center justify-center w-full h-[350px] gap-2 transition-all duration-300 ease-in-out">
               <div className="w-full h-full flex flex-col gap-1">
                 <TighterText className="text-gray-500 text-sm flex items-center">
-                  Custom instructions
+                  {t("customInstructions")}
                   <InlineContextTooltip>
                     <p className="text-sm text-gray-600">
-                      {CUSTOM_INSTRUCTIONS_TOOLTIP_TEXT}
+                      {t("customInstructionsTooltip")}
                     </p>
                   </InlineContextTooltip>
                 </TighterText>
@@ -237,7 +242,7 @@ export function NewCustomQuickActionDialog(
                   disabled={isSubmitLoading}
                   required
                   id="prompt"
-                  placeholder="Given the following text..."
+                  placeholder={t("givenFollowingText")}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   className="w-full h-full resize-none"
@@ -247,10 +252,10 @@ export function NewCustomQuickActionDialog(
               {showFullPrompt && (
                 <div className="w-full h-full flex flex-col gap-1">
                   <TighterText className="text-gray-500 text-sm flex items-center">
-                    Full prompt
+                    {t("fullPrompt")}
                     <InlineContextTooltip>
                       <p className="text-sm text-gray-600">
-                        {FULL_PROMPT_TOOLTIP_TEXT}
+                        {t("fullPromptTooltip")}
                       </p>
                     </InlineContextTooltip>
                   </TighterText>
@@ -282,7 +287,7 @@ export function NewCustomQuickActionDialog(
               htmlFor="includeReflections"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              <TighterText>Include prefix in prompt</TighterText>
+              <TighterText>{t("includePrefix")}</TighterText>
             </label>
           </div>
           <div className="flex items-center space-x-2">
@@ -296,7 +301,7 @@ export function NewCustomQuickActionDialog(
               htmlFor="includeReflections"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              <TighterText>Include reflections in prompt</TighterText>
+              <TighterText>{t("includeReflections")}</TighterText>
             </label>
           </div>
 
@@ -311,12 +316,12 @@ export function NewCustomQuickActionDialog(
               htmlFor="includeReflections"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              <TighterText>Include recent history in prompt</TighterText>
+              <TighterText>{t("includeRecentHistory")}</TighterText>
             </label>
           </div>
           <div className="flex items-center justify-center w-full mt-4 gap-3">
             <Button disabled={isSubmitLoading} className="w-full" type="submit">
-              <TighterText>Save</TighterText>
+              <TighterText>{t("save")}</TighterText>
             </Button>
             <Button
               disabled={isSubmitLoading}
@@ -328,7 +333,7 @@ export function NewCustomQuickActionDialog(
               className="w-[20%]"
               type="button"
             >
-              <TighterText>Cancel</TighterText>
+              <TighterText>{commonT("cancel")}</TighterText>
             </Button>
           </div>
         </form>

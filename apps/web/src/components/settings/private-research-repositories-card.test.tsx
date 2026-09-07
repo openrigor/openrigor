@@ -55,42 +55,44 @@ describe("PrivateResearchRepositoriesCard", () => {
   it("lists bound repositories and expands conformance-filtered methods", async () => {
     const initialized = repositoryItem("repository-one", 101);
     const uninitialized = repositoryItem("repository-two", 102, false);
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === "/api/workspace/items") {
-        return jsonResponse({ items: [initialized, uninitialized] });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+        if (url === "/api/workspace/items") {
+          return jsonResponse({ items: [initialized, uninitialized] });
+        }
+        if (url === "/api/workspace/github/repositories") {
+          return jsonResponse({
+            connected: true,
+            installationId: 99,
+            repositories: [
+              { id: 101, nameWithOwner: "owner/essay-study" },
+              { id: 102, nameWithOwner: "owner/uninitialized-study" },
+            ],
+          });
+        }
+        if (url.endsWith("/repository/methods")) {
+          return jsonResponse({
+            methods: [
+              { id: "method-a", title: "Essay Review" },
+              { id: "method-b", title: "Interview Study" },
+            ],
+            selectedMethodIds: ["method-a"],
+          });
+        }
+        if (url.endsWith("/repository")) {
+          return jsonResponse({
+            status: {
+              workspaceId: "repository-one",
+              repositoryId: 101,
+              state: "ready",
+              checkedAt: "2026-08-24T08:00:00.000Z",
+            },
+          });
+        }
+        return jsonResponse({ error: "Unexpected request" }, 500);
       }
-      if (url === "/api/workspace/github/repositories") {
-        return jsonResponse({
-          connected: true,
-          installationId: 99,
-          repositories: [
-            { id: 101, nameWithOwner: "owner/essay-study" },
-            { id: 102, nameWithOwner: "owner/uninitialized-study" },
-          ],
-        });
-      }
-      if (url.endsWith("/repository/methods")) {
-        return jsonResponse({
-          methods: [
-            { id: "method-a", title: "Essay Review" },
-            { id: "method-b", title: "Interview Study" },
-          ],
-          selectedMethodIds: ["method-a"],
-        });
-      }
-      if (url.endsWith("/repository")) {
-        return jsonResponse({
-          status: {
-            workspaceId: "repository-one",
-            repositoryId: 101,
-            state: "ready",
-            checkedAt: "2026-08-24T08:00:00.000Z",
-          },
-        });
-      }
-      return jsonResponse({ error: "Unexpected request" }, 500);
-    });
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     render(createElement(PrivateResearchRepositoriesCard));
@@ -464,11 +466,12 @@ describe("PrivateResearchRepositoriesCard", () => {
     );
 
     expect(screen.getByText("essay-study")).toBeTruthy();
-    expect(
-      fetchMock.mock.calls.some(
-        ([, init]) => (init as RequestInit | undefined)?.method === "DELETE"
-      )
-    ).toBe(false);
+    const fetchCalls = fetchMock.mock.calls as unknown as Array<
+      [RequestInfo | URL, RequestInit | undefined]
+    >;
+    expect(fetchCalls.some(([, init]) => init?.method === "DELETE")).toBe(
+      false
+    );
   });
 
   it("keeps the row and shows an alert when remove fails", async () => {

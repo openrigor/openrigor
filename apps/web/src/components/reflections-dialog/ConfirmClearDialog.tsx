@@ -1,4 +1,7 @@
+"use client";
+
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +17,7 @@ export interface ReflectionsProps {
 }
 
 export function ConfirmClearDialog(props: ReflectionsProps) {
+  const t = useTranslations("reflections");
   const { handleDeleteReflections } = props;
   const [open, setOpen] = useState(false);
 
@@ -21,16 +25,13 @@ export function ConfirmClearDialog(props: ReflectionsProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button onClick={() => setOpen(true)} variant="destructive">
-          <TighterText>Clear reflections</TighterText>
+          <TighterText>{t("clearReflections")}</TighterText>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xl p-8 bg-white rounded-lg shadow-xl">
         <DialogHeader>
           <DialogDescription className="mt-2 text-md text-center font-light text-red-500">
-            <TighterText>
-              Are you sure you want to clear all reflections? This action can
-              not be undone.
-            </TighterText>
+            <TighterText>{t("clearWarning")}</TighterText>
           </DialogDescription>
         </DialogHeader>
         <Button
@@ -40,11 +41,11 @@ export function ConfirmClearDialog(props: ReflectionsProps) {
           }}
           variant="destructive"
         >
-          <TighterText>Clear reflections</TighterText>
+          <TighterText>{t("clearReflections")}</TighterText>
         </Button>
         <div className="mt-6 flex justify-end">
           <Button onClick={() => setOpen(false)} variant="outline">
-            <TighterText>Cancel</TighterText>
+            <TighterText>{t("cancel")}</TighterText>
           </Button>
         </div>
       </DialogContent>

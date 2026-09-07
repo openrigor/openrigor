@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, ExternalLink, Send, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BRAND_PANEL_COLOR } from "@/components/auth/login/login-branding";
+import { useTranslations } from "next-intl";
 
 export function AssignmentWorkspaceBanner({
   assignment,
@@ -16,7 +17,7 @@ export function AssignmentWorkspaceBanner({
   onSubmit,
   onAbandon,
   homeHref = "/student",
-  homeLabel = "Assignments",
+  homeLabel,
   methodHref,
   methodLabel,
 }: {
@@ -29,6 +30,8 @@ export function AssignmentWorkspaceBanner({
   methodHref?: string;
   methodLabel?: string;
 }) {
+  const t = useTranslations("teaching");
+
   return (
     <div
       className="relative shrink-0 overflow-hidden border-b border-white/[0.08] text-white"
@@ -58,10 +61,10 @@ export function AssignmentWorkspaceBanner({
               data-testid="phase-badge"
             >
               {phaseState === "drafting"
-                ? "✏️ Drafting"
+                ? t("phaseDrafting")
                 : phaseState === "submitted"
-                  ? "✅ Submitted"
-                  : "💬 Discussion"}
+                  ? t("phaseSubmitted")
+                  : t("phaseDiscussion")}
             </Badge>
           )}
         </div>
@@ -95,7 +98,7 @@ export function AssignmentWorkspaceBanner({
               )}
             >
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{methodLabel || "Method"}</span>
+              <span className="truncate">{methodLabel || t("method")}</span>
             </a>
           )}
           <Link
@@ -106,7 +109,7 @@ export function AssignmentWorkspaceBanner({
             )}
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            {homeLabel}
+            {homeLabel || t("assignments")}
           </Link>
           {phaseState !== "submitted" && onAbandon && (
             <Button
@@ -117,7 +120,7 @@ export function AssignmentWorkspaceBanner({
               data-testid="abandon-assignment-button"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Abandon
+              {t("abandon")}
             </Button>
           )}
           {phaseState !== "submitted" && onSubmit && (
@@ -129,7 +132,7 @@ export function AssignmentWorkspaceBanner({
               data-testid="submit-assignment-button"
             >
               <Send className="h-3.5 w-3.5" />
-              Submit
+              {t("submit")}
             </Button>
           )}
         </div>

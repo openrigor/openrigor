@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useUserContext } from "@/contexts/UserContext";
 import { isResearcher, isTeacher } from "@/lib/teaching/teacher-utils";
+import { useTranslations } from "next-intl";
 
 type ApparatusDashboardItem = {
   id: string;
@@ -32,6 +33,7 @@ type ApparatusDashboardItem = {
 };
 
 export function ResearcherLanding() {
+  const t = useTranslations("teaching");
   const router = useRouter();
   const { user, loading } = useUserContext();
   const [apparatuses, setApparatuses] = useState<ApparatusDashboardItem[]>([]);
@@ -81,17 +83,19 @@ export function ResearcherLanding() {
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-muted/30">
-        <WorkspaceSiteHeader workspaceLabel="Research tools">
+        <WorkspaceSiteHeader workspaceLabel={t("researchTools")}>
           <Link
             href="/auth/signout"
             className={workspaceNavGhostClass}
             aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
-            Sign out
+            {t("signOut")}
           </Link>
         </WorkspaceSiteHeader>
-        <main className="p-6 text-sm text-muted-foreground">Loading…</main>
+        <main className="p-6 text-sm text-muted-foreground">
+          {t("loading")}
+        </main>
       </div>
     );
   }
@@ -101,74 +105,68 @@ export function ResearcherLanding() {
   }
 
   const measureRows = [
-    ["Closed-book recall", "internal knowledge"],
-    ["Unaided production", "independent execution"],
-    ["AI-assisted performance", "human + AI capability"],
-    ["Error detection", "evaluation"],
-    ["Explanation", "understanding"],
-    ["Transfer", "applying knowledge elsewhere"],
-    ["Argument defence", "justifying decisions"],
-    ["Delayed retention", "what remains later"],
+    [t("closedBookRecall"), t("internalKnowledge")],
+    [t("unaidedProduction"), t("independentExecution")],
+    [t("aiAssistedPerformance"), t("humanAiCapability")],
+    [t("errorDetection"), t("evaluation")],
+    [t("explanation"), t("understanding")],
+    [t("transfer"), t("applyingKnowledgeElsewhere")],
+    [t("argumentDefence"), t("justifyingDecisions")],
+    [t("delayedRetention"), t("whatRemainsLater")],
   ];
 
   const comingSoon = [
-    "Assessment benchmarks",
-    "Open experiments",
-    "Public data",
-    "Annual report",
+    t("assessmentBenchmarks"),
+    t("openExperiments"),
+    t("publicData"),
+    t("annualReport"),
   ];
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <WorkspaceSiteHeader workspaceLabel="Research tools">
+      <WorkspaceSiteHeader workspaceLabel={t("researchTools")}>
         <Link
           href="/auth/signout"
           className={workspaceNavGhostClass}
           aria-label="Sign out"
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          {t("signOut")}
         </Link>
       </WorkspaceSiteHeader>
 
       <main className="container mx-auto max-w-5xl px-4 py-10">
         <div className="mb-8 space-y-1 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Research tools dashboard
+            {t("researchToolsDashboard")}
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-            Coming soon. We don&apos;t take a side in the AI-in-education debate
-            — we measure what happens. The research pillar will gather
-            assessment benchmarks, open experiments, public data and an annual
-            report here.
+            {t("researchToolsComingSoon")}
           </p>
         </div>
 
         <div className="mb-8 rounded-2xl border border-dashed p-8">
-          <h2 className="mb-1 text-lg font-semibold">AI-use experimentalism</h2>
-          <p className="text-sm text-muted-foreground">
-            The interesting question is never just &quot;did AI raise the
-            score?&quot; but &quot;what capabilities did this method develop,
-            weaken, or leave unchanged?&quot;
-          </p>
+          <h2 className="mb-1 text-lg font-semibold">
+            {t("aiUseExperimentalism")}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t("aiUseQuestion")}</p>
         </div>
 
         <section className="mb-8" data-testid="apparatus-registry-section">
           <h2 className="mb-1 text-lg font-semibold">
-            Available research apparatuses
+            {t("availableResearchApparatuses")}
           </h2>
           <p className="mb-3 text-sm text-muted-foreground">
-            Research questions instrumented in the Workspace as reproducible,
-            configurable apparatuses.
+            {t("researchApparatusesDescription")}
           </p>
 
           {apparatusLoading ? (
             <p className="text-sm text-muted-foreground">
-              Loading apparatuses…
+              {t("loadingApparatuses")}
             </p>
           ) : apparatusError ? (
             <p className="text-sm text-muted-foreground">
-              Could not load apparatus registry
+              {t("couldNotLoadApparatusRegistry")}
             </p>
           ) : (
             <ul className="space-y-3">
@@ -200,8 +198,12 @@ export function ResearcherLanding() {
                             : "text-xs text-muted-foreground"
                         }
                       >
-                        {item.enabled ? "Enabled" : "Disabled"}
-                        {sourceLabel}
+                        {item.enabled ? t("enabled") : t("disabled")}
+                        {sourceLabel === " (org)"
+                          ? ` (${t("organisationShort")})`
+                          : sourceLabel === " (default)"
+                            ? ` (${t("defaultShort")})`
+                            : ` (${t("environmentShort")})`}
                       </span>
                     </div>
                     {item.description ? (
@@ -220,24 +222,24 @@ export function ResearcherLanding() {
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Knobs:{" "}
+                      {t("knobs")}:{" "}
                       {Object.entries(item.knobs)
                         .map(([k, v]) => `${k}=${String(v)}`)
                         .join(", ")}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Telemetry: {item.telemetry.join(", ")}
+                      {t("telemetry")}: {item.telemetry.join(", ")}
                     </p>
                     {item.catalog_urls ? (
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Catalog:{" "}
+                        {t("catalog")}:{" "}
                         <a
                           href={item.catalog_urls.spec}
                           className="underline hover:text-foreground"
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Apparatus spec ↗
+                          {t("apparatusSpec")}
                         </a>
                         {" · "}
                         <a
@@ -246,7 +248,7 @@ export function ResearcherLanding() {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Evidence ↗
+                          {t("evidence")}
                         </a>
                         {item.catalog_urls.questions[0] ? (
                           <>
@@ -257,7 +259,7 @@ export function ResearcherLanding() {
                               target="_blank"
                               rel="noreferrer"
                             >
-                              Research question ↗
+                              {t("researchQuestion")}
                             </a>
                           </>
                         ) : null}
@@ -271,9 +273,7 @@ export function ResearcherLanding() {
         </section>
 
         <div className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold">
-            What we measure — not just test scores
-          </h2>
+          <h2 className="mb-3 text-lg font-semibold">{t("whatWeMeasure")}</h2>
           <div className="overflow-hidden rounded-lg border">
             {measureRows.map(([b, s]) => (
               <div
@@ -288,7 +288,9 @@ export function ResearcherLanding() {
         </div>
 
         <div>
-          <h2 className="mb-3 text-lg font-semibold">Future research tools</h2>
+          <h2 className="mb-3 text-lg font-semibold">
+            {t("futureResearchTools")}
+          </h2>
           <ul className="space-y-2">
             {comingSoon.map((item) => (
               <li
@@ -297,7 +299,7 @@ export function ResearcherLanding() {
               >
                 <span>{item}</span>
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  planned
+                  {t("planned")}
                 </span>
               </li>
             ))}

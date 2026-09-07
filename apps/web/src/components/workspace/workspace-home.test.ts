@@ -16,6 +16,17 @@ vi.mock("@/contexts/UserContext", () => ({
   useUserContext: () => ({ user: undefined, loading: false }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
+}));
+
+// The workspace header's compact language switcher reads the server-provided
+// locale (next-intl); provide a default context for the test environment.
+vi.mock("next-intl", () => ({
+  useLocale: () => "en",
+  useTranslations: () => (key: string) => key,
+}));
+
 import { shouldShowGithubResearchOnboarding } from "./workspace-home";
 import { WorkspaceHome } from "./workspace-home";
 

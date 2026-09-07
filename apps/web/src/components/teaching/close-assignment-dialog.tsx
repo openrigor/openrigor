@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { closeCustomAssignment } from "@/lib/teaching/assignment-store";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 
 type CloseAssignmentDialogProps = {
   open: boolean;
@@ -30,6 +31,8 @@ export function CloseAssignmentDialog({
   assignmentTitle,
   onClosed,
 }: CloseAssignmentDialogProps) {
+  const t = useTranslations("teaching");
+  const commonT = useTranslations("common");
   const { toast } = useToast();
   const [usefulness, setUsefulness] = useState("4");
   const [wouldPay, setWouldPay] = useState("3");
@@ -47,8 +50,8 @@ export function CloseAssignmentDialog({
     const usefulnessN = Number(usefulness);
     if (!Number.isFinite(usefulnessN) || usefulnessN < 1 || usefulnessN > 5) {
       toast({
-        title: "Survey incomplete",
-        description: "Please rate usefulness from 1 to 5.",
+        title: t("surveyIncomplete"),
+        description: t("rateUsefulnessError"),
         variant: "destructive",
       });
       return;
@@ -70,13 +73,15 @@ export function CloseAssignmentDialog({
         const body = (await surveyRes.json().catch(() => ({}))) as {
           error?: string;
         };
-        throw new Error(body.error ?? "Survey save failed");
+        throw new Error(body.error ?? t("surveySaveFailed"));
       }
 
       await closeCustomAssignment(assignmentId);
       toast({
-        title: "Assignment closed",
-        description: `"${assignmentTitle}" is closed and no longer uses a free slot.`,
+        title: t("assignmentClosed"),
+        description: t("assignmentClosedDescription", {
+          title: assignmentTitle,
+        }),
       });
       onOpenChange(false);
       reset();
@@ -84,9 +89,9 @@ export function CloseAssignmentDialog({
     } catch (error) {
       console.error("Failed to close assignment:", error);
       toast({
-        title: "Close failed",
+        title: t("closeFailed"),
         description:
-          error instanceof Error ? error.message : "Could not close assignment",
+          error instanceof Error ? error.message : t("couldNotCloseAssignment"),
         variant: "destructive",
       });
     } finally {
@@ -107,17 +112,16 @@ export function CloseAssignmentDialog({
         data-testid="close-assignment-dialog"
       >
         <DialogHeader>
-          <DialogTitle>Close assignment</DialogTitle>
+          <DialogTitle>{t("closeAssignment")}</DialogTitle>
           <DialogDescription>
-            Closing &ldquo;{assignmentTitle}&rdquo; records a short research
-            survey response (usefulness is required).
+            {t("closingAssignmentDescription", { title: assignmentTitle })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="closeout-usefulness">
-              How useful was OpenRigor for this assignment? (1–5) *
+              {t("usefulnessQuestion")}
             </Label>
             <select
               id="closeout-usefulness"
@@ -136,7 +140,7 @@ export function CloseAssignmentDialog({
 
           <div className="space-y-2">
             <Label htmlFor="closeout-would-pay">
-              Would you use a more capable AI profile in future? (1–5)
+              {t("futureAiProfileQuestion")}
             </Label>
             <select
               id="closeout-would-pay"
@@ -155,13 +159,13 @@ export function CloseAssignmentDialog({
 
           <div className="space-y-2">
             <Label htmlFor="closeout-free-text">
-              Anything else? (optional)
+              {t("anythingElseOptional")}
             </Label>
             <Textarea
               id="closeout-free-text"
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
-              placeholder="What worked, what didn’t…"
+              placeholder={t("closeoutPlaceholder")}
               rows={3}
               data-testid="closeout-free-text"
             />
@@ -174,14 +178,14 @@ export function CloseAssignmentDialog({
             onClick={() => onOpenChange(false)}
             disabled={submitting}
           >
-            Cancel
+            {commonT("cancel")}
           </Button>
           <Button
             onClick={() => void handleSubmit()}
             disabled={submitting}
             data-testid="confirm-close-assignment"
           >
-            {submitting ? "Closing…" : "Submit & close"}
+            {submitting ? t("closing") : t("submitAndClose")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -8,6 +8,7 @@ import {
 import { ReadingLevelOptions as ReadingLevelOptionsType } from "@opencanvas/shared/types";
 import { TooltipIconButton } from "@/components/ui/assistant-ui/tooltip-icon-button";
 import { GraphInput } from "@opencanvas/shared/types";
+import { useTranslations } from "next-intl";
 
 export interface ReadingLevelOptionsProps {
   streamMessage: (params: GraphInput) => Promise<void>;
@@ -16,6 +17,7 @@ export interface ReadingLevelOptionsProps {
 
 export function ReadingLevelOptions(props: ReadingLevelOptionsProps) {
   const { streamMessage } = props;
+  const t = useTranslations("artifacts");
 
   const handleSubmit = async (readingLevel: ReadingLevelOptionsType) => {
     props.handleClose();
@@ -27,7 +29,7 @@ export function ReadingLevelOptions(props: ReadingLevelOptionsProps) {
   return (
     <div className="flex flex-col gap-3 items-center w-full">
       <TooltipIconButton
-        tooltip="PhD"
+        tooltip={t("phd")}
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -36,7 +38,7 @@ export function ReadingLevelOptions(props: ReadingLevelOptionsProps) {
         <GraduationCap />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="College"
+        tooltip={t("college")}
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -45,7 +47,7 @@ export function ReadingLevelOptions(props: ReadingLevelOptionsProps) {
         <School />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="Teenager"
+        tooltip={t("teenager")}
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -54,7 +56,7 @@ export function ReadingLevelOptions(props: ReadingLevelOptionsProps) {
         <PersonStanding />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="Child"
+        tooltip={t("child")}
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -63,7 +65,7 @@ export function ReadingLevelOptions(props: ReadingLevelOptionsProps) {
         <Baby />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="Pirate"
+        tooltip={t("pirate")}
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}

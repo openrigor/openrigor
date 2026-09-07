@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,12 @@ type CitationBlockProps = {
   onCopy: (label: string, value: string) => void;
 };
 
-function CitationBlock({ label, value, onCopy }: CitationBlockProps) {
+function CitationBlock({
+  label,
+  value,
+  onCopy,
+  copyLabel,
+}: CitationBlockProps & { copyLabel: string }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
@@ -30,7 +36,7 @@ function CitationBlock({ label, value, onCopy }: CitationBlockProps) {
           onClick={() => onCopy(label, value)}
         >
           <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-          Copy
+          {copyLabel}
         </Button>
       </div>
       <pre
@@ -44,6 +50,7 @@ function CitationBlock({ label, value, onCopy }: CitationBlockProps) {
 }
 
 export function MethodCitation({ method }: { method: MethodCitationMethod }) {
+  const t = useTranslations("workspace");
   const { toast } = useToast();
   const [copying, setCopying] = useState<string | null>(null);
   const bibtex = generateBibtex(method);
@@ -59,13 +66,13 @@ export function MethodCitation({ method }: { method: MethodCitationMethod }) {
       }
       await navigator.clipboard.writeText(value);
       toast({
-        title: "Citation copied",
-        description: `${label} citation copied to the clipboard.`,
+        title: t("citationCopied"),
+        description: t("citationCopiedDescription", { label }),
       });
     } catch {
       toast({
-        title: "Could not copy citation",
-        description: "Please copy the citation manually.",
+        title: t("couldNotCopyCitation"),
+        description: t("copyCitationManually"),
         variant: "destructive",
       });
     } finally {
@@ -76,20 +83,24 @@ export function MethodCitation({ method }: { method: MethodCitationMethod }) {
   return (
     <Card data-testid="method-citation">
       <CardHeader>
-        <CardTitle>Method citation</CardTitle>
+        <CardTitle>{t("methodCitation")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         <CitationBlock
           label="BibTeX"
           value={bibtex}
+          copyLabel={t("copy")}
           onCopy={(label, value) => void copyCitation(label, value)}
         />
         <CitationBlock
           label="APA"
           value={apa}
+          copyLabel={t("copy")}
           onCopy={(label, value) => void copyCitation(label, value)}
         />
-        {copying && <span className="sr-only">Copying {copying}</span>}
+        {copying && (
+          <span className="sr-only">{t("copying", { label: copying })}</span>
+        )}
       </CardContent>
     </Card>
   );

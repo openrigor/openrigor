@@ -88,6 +88,7 @@ vi.mock("./provider-registry.js", () => ({
   getProviderChain: getProviderChainMock,
   getPrimaryProviderName: getPrimaryProviderNameMock,
   getProviderConfig: getProviderConfigMock,
+  getOpencodeSessionHeader: () => ({ "x-opencode-session": "test-session" }),
   wrapModelWithFallback: wrapModelWithFallbackMock,
 }));
 

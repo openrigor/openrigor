@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { diffMarkdown, type DiffSegment } from "@/lib/replay-diff";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 const HISTORY_PAGE_SIZE = 50;
 const MAX_HISTORY_PAGES = 10;
@@ -116,19 +117,22 @@ function messageRole(message: ReplayHistoryMessage): "human" | "assistant" {
   return message.type === "human" ? "human" : "assistant";
 }
 
-function getEditBadges(frame: ReplayFrame): string[] {
+function getEditBadges(
+  frame: ReplayFrame,
+  t: (key: string) => string
+): string[] {
   const badges: string[] = [];
 
   if (frame.messagesSummarized) {
-    badges.push("Earlier messages summarized");
+    badges.push(t("earlierMessagesSummarized"));
   }
 
   if (frame.author === "student") {
-    badges.push("Student saved");
+    badges.push(t("studentSaved"));
   } else if (frame.author === "ai") {
-    badges.push("AI rewrote");
+    badges.push(t("aiRewrote"));
   } else if (frame.author === "ambiguous") {
-    badges.push("Edit applied (author ambiguous)");
+    badges.push(t("editAppliedAuthorAmbiguous"));
   }
 
   return badges;
@@ -187,6 +191,7 @@ export function CanvasReplayProvider({
   enabled: boolean;
   children: ReactNode;
 }) {
+  const t = useTranslations("teaching");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
@@ -227,7 +232,7 @@ export function CanvasReplayProvider({
       } catch (loadError) {
         if (!cancelled) {
           console.error("Failed to load replay history:", loadError);
-          setError("Failed to load replay history");
+          setError(t("failedToLoadReplayHistory"));
           setFrames([]);
         }
       } finally {
@@ -243,7 +248,7 @@ export function CanvasReplayProvider({
       cancelled = true;
       clearTrackChangesRanges();
     };
-  }, [enabled, threadId]);
+  }, [enabled, threadId, t]);
 
   const messageFirstFrameIndex = useMemo(
     () => buildMessageFirstFrameIndex(frames),
@@ -343,6 +348,7 @@ function ReplayEmptyState({ message }: { message: string }) {
 }
 
 export function CanvasReplayControls() {
+  const t = useTranslations("teaching");
   const {
     loading,
     error,
@@ -358,7 +364,7 @@ export function CanvasReplayControls() {
   } = useCanvasReplay();
 
   const previousFrame = frames[currentFrameIndex - 1];
-  const badges = currentFrame ? getEditBadges(currentFrame) : [];
+  const badges = currentFrame ? getEditBadges(currentFrame, t) : [];
   const hasCharDelta =
     currentFrame &&
     (currentFrame.charsAdded > 0 || currentFrame.charsRemoved > 0);
@@ -375,7 +381,7 @@ export function CanvasReplayControls() {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Loading replay history...
+        {t("loadingReplayHistory")}
       </div>
     );
   }
@@ -393,7 +399,7 @@ export function CanvasReplayControls() {
           size="sm"
           onClick={() => setIsPlaying(!isPlaying)}
           disabled={frames.length <= 1}
-          aria-label={isPlaying ? "Pause replay" : "Play replay"}
+          aria-label={isPlaying ? t("pauseReplay") : t("playReplay")}
         >
           {isPlaying ? (
             <Pause className="h-4 w-4" />
@@ -403,7 +409,7 @@ export function CanvasReplayControls() {
         </Button>
 
         <label className="text-sm text-muted-foreground" htmlFor="replay-speed">
-          Speed
+          {t("speed")}
         </label>
         <select
           id="replay-speed"
@@ -422,7 +428,10 @@ export function CanvasReplayControls() {
         </select>
 
         <div className="text-sm text-muted-foreground min-w-[10rem]">
-          Frame {currentFrameIndex + 1} of {frames.length}
+          {t("frameOf", {
+            current: currentFrameIndex + 1,
+            total: frames.length,
+          })}
           {currentFrame && (
             <>
               {" · "}
@@ -443,13 +452,11 @@ export function CanvasReplayControls() {
         value={currentFrameIndex}
         onChange={(event) => handleScrub(Number(event.target.value))}
         className="w-full"
-        aria-label="Replay timeline"
+        aria-label={t("replayTimeline")}
       />
 
       {truncated && (
-        <p className="text-xs text-amber-600">
-          History truncated — only the most recent checkpoints are shown.
-        </p>
+        <p className="text-xs text-amber-600">{t("historyTruncated")}</p>
       )}
 
       {(badges.length > 0 || hasCharDelta) && (
@@ -468,8 +475,10 @@ export function CanvasReplayControls() {
           )}
           {hasCharDelta && currentFrame && (
             <p className="text-xs text-muted-foreground">
-              ＋{currentFrame.charsAdded} chars / −{currentFrame.charsRemoved}{" "}
-              chars
+              {t("characterDelta", {
+                added: currentFrame.charsAdded,
+                removed: currentFrame.charsRemoved,
+              })}
             </p>
           )}
         </div>
@@ -487,6 +496,7 @@ function CanvasReplayViewToggle({
   mode: CanvasReplayViewMode;
   onModeChange: (mode: CanvasReplayViewMode) => void;
 }) {
+  const t = useTranslations("teaching");
   return (
     <div
       className="inline-flex rounded-md border border-input p-0.5 text-sm"
@@ -504,7 +514,7 @@ function CanvasReplayViewToggle({
         onClick={() => onModeChange("canvas")}
         aria-pressed={mode === "canvas"}
       >
-        Workspace
+        {t("workspace")}
       </button>
       <button
         type="button"
@@ -517,7 +527,7 @@ function CanvasReplayViewToggle({
         onClick={() => onModeChange("changes")}
         aria-pressed={mode === "changes"}
       >
-        Changes
+        {t("changes")}
       </button>
     </div>
   );
@@ -543,13 +553,14 @@ function CanvasReplayChangesContent({
   previousText: string;
   currentText: string;
 }) {
+  const t = useTranslations("teaching");
   const { segments, truncated } = useMemo(
     () => diffMarkdown(previousText, currentText),
     [previousText, currentText]
   );
 
   if (segments.length === 0) {
-    return <ReplayEmptyState message="No changes from the previous frame." />;
+    return <ReplayEmptyState message={t("noChangesFromPreviousFrame")} />;
   }
 
   return (
@@ -560,21 +571,19 @@ function CanvasReplayChangesContent({
             className="inline-block h-3 w-3 rounded-sm border border-red-200 bg-red-100"
             aria-hidden="true"
           />
-          Removed
+          {t("removed")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span
             className="inline-block h-3 w-3 rounded-sm border border-green-200 bg-green-100"
             aria-hidden="true"
           />
-          Added
+          {t("added")}
         </span>
       </div>
 
       {truncated && (
-        <p className="text-xs text-amber-600">
-          Diff truncated — showing the first 200 changed lines.
-        </p>
+        <p className="text-xs text-amber-600">{t("diffTruncated")}</p>
       )}
 
       <div className="rounded-md border overflow-x-auto">
@@ -598,6 +607,7 @@ function CanvasReplayChangesContent({
 }
 
 export function CanvasReplayChatContent() {
+  const t = useTranslations("teaching");
   const { loading, error, frames, visibleMessages, currentFrameIndex } =
     useCanvasReplay();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -615,11 +625,11 @@ export function CanvasReplayChatContent() {
   }
 
   if (error || frames.length === 0) {
-    return <ReplayEmptyState message="No replay data for this thread" />;
+    return <ReplayEmptyState message={t("noReplayDataForThread")} />;
   }
 
   if (visibleMessages.length === 0) {
-    return <ReplayEmptyState message="No messages yet." />;
+    return <ReplayEmptyState message={t("noMessagesYet")} />;
   }
 
   return (
@@ -654,6 +664,7 @@ export function CanvasReplayChatContent() {
 }
 
 export function CanvasReplayCanvasContent() {
+  const t = useTranslations("teaching");
   const { loading, error, frames, currentFrame, currentFrameIndex } =
     useCanvasReplay();
   const [viewMode, setViewMode] = useState<CanvasReplayViewMode>("canvas");
@@ -735,17 +746,17 @@ export function CanvasReplayCanvasContent() {
   }
 
   if (error || frames.length === 0) {
-    return <ReplayEmptyState message="No replay data for this thread" />;
+    return <ReplayEmptyState message={t("noReplayDataForThread")} />;
   }
 
   if (!currentFrame) {
-    return <ReplayEmptyState message="No canvas content yet." />;
+    return <ReplayEmptyState message={t("noCanvasContentYet")} />;
   }
 
   const canvasBody =
     currentFrame.artifactType === "code" && currentFrame.artifactCode ? (
       <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">Code artifact</p>
+        <p className="text-xs text-muted-foreground">{t("codeArtifact")}</p>
         <pre className="rounded-md bg-muted p-3 text-sm overflow-x-auto">
           <code>{currentFrame.artifactCode}</code>
         </pre>
@@ -758,7 +769,7 @@ export function CanvasReplayCanvasContent() {
         scrollContainerRef={scrollContainerRef}
       />
     ) : (
-      <ReplayEmptyState message="No canvas content yet." />
+      <ReplayEmptyState message={t("noCanvasContentYet")} />
     );
 
   return (
@@ -773,7 +784,7 @@ export function CanvasReplayCanvasContent() {
               currentText={currentText}
             />
           ) : (
-            <ReplayEmptyState message="No previous frame to compare." />
+            <ReplayEmptyState message={t("noPreviousFrameToCompare")} />
           )
         ) : (
           canvasBody
