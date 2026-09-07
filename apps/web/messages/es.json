@@ -715,7 +715,7 @@
     "group": "grupo",
     "inProgress": "En progreso",
     "inviteSent": "Invitación enviada",
-    "ledgerBaselineDescription": "Descripción de la línea base del libro mayor",
+    "ledgerBaselineDescription": ". El libro mayor comienza con toda la evidencia aceptada para esta versión exacta del método.",
     "ledgerGenerationFailed": "Falló la generación del libro mayor",
     "ledgerPickerUnavailable": "Selector de libro mayor no disponible",
     "ledgerSnapshot": "Instantánea del libro mayor",

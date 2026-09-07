@@ -715,7 +715,7 @@
     "group": "Groupe",
     "inProgress": "En cours",
     "inviteSent": "Invitation envoyée",
-    "ledgerBaselineDescription": "Description de la référence du grand livre",
+    "ledgerBaselineDescription": ". Le registre démarre avec l'ensemble des preuves acceptées pour cette version exacte de la méthode.",
     "ledgerGenerationFailed": "La génération du grand livre a échoué",
     "ledgerPickerUnavailable": "Sélecteur de grand livre indisponible",
     "ledgerSnapshot": "Aperçu du grand livre",
