@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.12.0
+
+Multi-language support (EU-first): the prototype and the live workspace now run
+end-to-end in the reader's language. A shared locale registry drives the UI
+switcher, the agent language directives, and the assignment/session plumbing,
+and the previously dev-only teaching implementation is migrated onto the live
+workspace method-run path.
+
+### Added
+
+- **Locale foundation** — shared language registry, next-intl v4, language
+  switcher, and BlockNote dictionaries (#100); UI strings wave 1 for chat,
+  canvas, artifacts toolbar, and auth (#101); wave 2 for teaching, workspace,
+  landing, legal, and product surfaces (#102); pre-auth language switcher with
+  browser-locale matching (#104)
+- **Assignment locale** — per-assignment locale field with session language
+  plumbing (#97), exposed on the live workspace method-run path (#114)
+- **Agent language directives** — de/fr/es/it directives and evals built on the
+  shared registry/sessionLocale plumbing (#98)
+- **Live locale verification** — live E2E locale specs and supported-languages
+  documentation (#99)
+
+### Fixed
+
+- **Editor menu bar** — Copy and the raw-markdown toggle moved into the editor
+  menu bar; broken undo/redo buttons removed (#107, #108, #109)
+- **i18n** — workspace header no longer clips the language dropdown (#106);
+  real ledger baseline prose restored after the strings wave leaked placeholder
+  values (#118)
+- **OpenCode providers** — `x-opencode-session` header sent on provider calls
+  (#116)
+
 ## 0.10.0
 
 Designated-directory research repositories: the OpenRigor integration now lives
