@@ -38,6 +38,7 @@ import {
   getPrimaryProviderName,
   getProviderConfig,
   getProviderChain,
+  getOpencodeSessionHeader,
   wrapModelWithFallback,
 } from "./provider-registry.js";
 import { createSafeFetch } from "@opencanvas/shared/byok/url";
@@ -254,6 +255,8 @@ export const getModelConfig = (
       shouldUseFallback: true,
       apiKey: primaryProvider.apiKey,
       baseUrl: primaryProvider.baseURL,
+      // OpenCode enforces a stable per-conversation session header (2026-09-07).
+      defaultHeaders: getOpencodeSessionHeader(),
     };
   }
 
