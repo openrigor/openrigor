@@ -3,16 +3,11 @@
 [![CI](https://github.com/openrigor/openrigor/actions/workflows/ci.yml/badge.svg)](https://github.com/openrigor/openrigor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**A place where methods become evidence.** Methods and provenance make work
-inspectable. Evidence contribution, Ledger, and human-authored finding have
-distinct roles.
-
-**Open-source AI writing and education research workspace.** OpenRigor combines
-an authoring workspace with reviewed, reproducible research apparatuses so
-educators, administrators, and researchers can run classroom writing workflows
-and inspect the evidence they produce.
-
-OpenRigor is an independent, open-source continuation of
+OpenRigor is a Markdown-native workspace where your documents, methods, and
+evidence live together — a place where methods become evidence. It is an
+open-source project with AI process assistance when you want it and a versioned
+trail in a repository you control. OpenRigor is an independent, open-source
+continuation of
 [LangChain Open Canvas](https://github.com/langchain-ai/open-canvas) (MIT). We're
 grateful for the original project — see [Acknowledgments](#acknowledgments).
 
@@ -126,8 +121,8 @@ before large changes. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Related surfaces
 
-OpenRigor is one of OpenRigor's open surfaces. The same document workspace
-also powers:
+OpenRigor is the open-source core of a family of open surfaces. The same
+document workspace also powers:
 
 - **OpenRigor Essays** — the built-in education apparatus and assignment workflow
 - **OpenRigor Research** — public GitHub-first research on AI in education and assessment
