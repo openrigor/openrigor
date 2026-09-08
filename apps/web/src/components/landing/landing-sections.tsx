@@ -219,7 +219,7 @@ const RESEARCH_QUESTIONS = [
   "researchQuestionWrong",
   "researchQuestionTakenAway",
   "researchQuestionRetain",
-  "researchQuestionHistory",
+  "researchQuestionLedgerReview",
 ] as const;
 
 export function ResearchSection() {
