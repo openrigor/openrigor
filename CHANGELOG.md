@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.13.0
+
+Public landing refresh: placeholder marketing copy is replaced with real
+product copy across all locales, the hero demo video is updated to the current
+research workflow and enlarged, and the README entry point aligns with the
+live homepage.
+
+### Changed
+
+- **Landing hero video** — replaced the stale writing-coach-era clip with a
+  recording of the current workspace and evidence-ledger research journey,
+  and enlarged the hero visual ~15% (grid rebalanced, wider card cap) (#124)
+- **README** — entry-point copy aligned with the live homepage (#122)
+
+### Fixed
+
+- **Placeholder copy** — landing marketing copy in all locales replaced with
+  real product language (en/de/fr/es/it) (#121)
+
 ## 0.12.0
 
 Multi-language support (EU-first): the prototype and the live workspace now run
