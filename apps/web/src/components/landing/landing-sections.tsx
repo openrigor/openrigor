@@ -56,13 +56,13 @@ export function HeroSection() {
           <div className="doc">
             <video
               className="aspect-video w-full object-cover"
-              src="/login-demo.mp4"
+              src="/demo/openrigor-demo.mp4"
               autoPlay
               muted
               loop
               playsInline
               preload="metadata"
-              aria-label="Short demo of the OpenRigor workspace"
+              aria-label="Demo of the OpenRigor workspace and evidence ledger"
             />
           </div>
         </div>
